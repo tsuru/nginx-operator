@@ -3,5 +3,3 @@ apiVersion: nginx.tsuru.io/v1alpha1
 kind: Nginx
 metadata:
   name: basic-nginx
-spec:
-  replicas: 1
