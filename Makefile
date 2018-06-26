@@ -8,3 +8,6 @@ deploy:
 
 local: deploy
 	operator-sdk up local
+
+generate:
+	operator-sdk generate k8s
