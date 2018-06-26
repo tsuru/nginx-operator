@@ -22,8 +22,10 @@ type Nginx struct {
 }
 
 type NginxSpec struct {
-	// Fill me
+	// Number of desired pods. This is a pointer to distinguish between explicit
+	// zero and not specified. Defaults to the default deployment replicas value.
+	// +optional
+	Replicas *int32
 }
-type NginxStatus struct {
-	// Fill me
-}
+
+type NginxStatus struct{}
