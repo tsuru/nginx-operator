@@ -1,0 +1,17 @@
+language: go
+sudo: required
+install: true
+jobs:
+  fast_finish: true
+  include:
+  - stage: test
+    script: make test
+    env: GOARCH=amd64
+    go: "1.10.x"
+  - stage: test
+    script: make test
+    env: GOARCH=amd64
+    go: "master"
+matrix:
+  allow_failures:
+    - go: master
