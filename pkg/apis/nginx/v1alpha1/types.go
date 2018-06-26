@@ -26,6 +26,9 @@ type NginxSpec struct {
 	// zero and not specified. Defaults to the default deployment replicas value.
 	// +optional
 	Replicas *int32
+	// Docker image name. Defaults to nginx:latest.
+	// +optional
+	Image string
 }
 
 type NginxStatus struct{}

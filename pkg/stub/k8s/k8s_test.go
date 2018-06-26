@@ -30,7 +30,6 @@ func Test_NewDeployment(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: appv1.DeploymentSpec{
-			Replicas: nil,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"nginx": "my-nginx",
@@ -43,17 +42,14 @@ func Test_NewDeployment(t *testing.T) {
 					Labels: map[string]string{
 						"nginx": "my-nginx",
 					},
-					OwnerReferences: nil,
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:    "busybox",
-							Image:   "busybox",
-							Command: []string{"sleep", "3600"},
+							Name:  "nginx",
+							Image: "nginx:latest",
 						},
 					},
-					RestartPolicy: "",
 				},
 			},
 		},
@@ -82,6 +78,17 @@ func Test_NewDeployment(t *testing.T) {
 			deployFn: func(d appv1.Deployment) appv1.Deployment {
 				v := int32(3)
 				d.Spec.Replicas = &v
+				return d
+			},
+		},
+		{
+			name: "custom-image",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.Image = "tsuru/nginx:latest"
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.Containers[0].Image = "tsuru/nginx:latest"
 				return d
 			},
 		},

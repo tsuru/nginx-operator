@@ -9,8 +9,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+const defaultNginxImage = "nginx:latest"
+
 // NewDeployment creates a deployment for a given Nginx resource.
 func NewDeployment(n *v1alpha1.Nginx) *appv1.Deployment {
+	image := n.Spec.Image
+	if image == "" {
+		image = defaultNginxImage
+	}
 	return &appv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
@@ -44,9 +50,8 @@ func NewDeployment(n *v1alpha1.Nginx) *appv1.Deployment {
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:    "busybox",
-							Image:   "busybox",
-							Command: []string{"sleep", "3600"},
+							Name:  "nginx",
+							Image: image,
 						},
 					},
 				},
