@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: nginx-operator
+  template:
+    metadata:
+      labels:
+        name: nginx-operator
+    spec:
+      containers:
+        - name: nginx-operator
+          image: tsuru/nginx-operator:latest
+          command:
+          - nginx-operator
+          imagePullPolicy: Always
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace

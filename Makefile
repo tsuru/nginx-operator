@@ -1,4 +1,7 @@
-.PHONY: test deploy local
+TAG=latest
+IMAGE=tsuru/nginx-operator
+
+.PHONY: test deploy local build push
 
 test:
 	go test ./...
@@ -11,3 +14,9 @@ local: deploy
 
 generate:
 	operator-sdk generate k8s
+
+build:
+	operator-sdk build $(IMAGE):$(TAG)
+
+push: build
+	docker push $(IMAGE):$(TAG)
