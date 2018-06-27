@@ -26,9 +26,25 @@ type NginxSpec struct {
 	// zero and not specified. Defaults to the default deployment replicas value.
 	// +optional
 	Replicas *int32
-	// Docker image name. Defaults to nginx:latest.
+	// Docker image name. Defaults to "nginx:latest".
 	// +optional
 	Image string
+	// Reference to the nginx config object.
+	Config ConfigRef
 }
 
 type NginxStatus struct{}
+
+// ConfigRef is a reference to a config object.
+type ConfigRef struct {
+	// Name of the config object.
+	Name string
+	// Kind of the config object. Defaults to ConfigKindConfigMap.
+	Kind ConfigKind
+}
+
+type ConfigKind string
+
+const (
+	ConfigKindConfigMap = ConfigKind("ConfigMap")
+)
