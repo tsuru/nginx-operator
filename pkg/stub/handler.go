@@ -11,28 +11,32 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 
-func NewHandler() sdk.Handler {
-	return &Handler{}
+func NewHandler(logger *logrus.Logger) sdk.Handler {
+	return &Handler{
+		logger: logger,
+	}
 }
 
 type Handler struct {
-	// Fill me
+	logger *logrus.Logger
 }
 
 // Handle handles events for the operator
 func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 	switch o := event.Object.(type) {
 	case *v1alpha1.Nginx:
-		logger := logrus.WithFields(map[string]interface{}{
+		logger := h.logger.WithFields(map[string]interface{}{
 			"name":      o.GetName(),
 			"namespace": o.GetNamespace(),
 			"kind":      o.GetObjectKind(),
 		})
 
+		logger.Debugf("Received event for object: %+v", o)
+
 		if event.Deleted {
 			// Do nothing because garbage collector will remove created resources using the OwnerReference.
 			// All secondary resources must have the CR set as their OwnerReference for this to be the case
-			logger.Debug("object deleted")
+			logger.Info("object deleted")
 			return nil
 		}
 
