@@ -6,7 +6,7 @@ addons:
       - docker-ce
 install:
   - go get -u github.com/golang/dep/cmd/dep
-  - go get -u github.com/operator-framework/operator-sdk
+  - go get -u -d github.com/operator-framework/operator-sdk
   - cd $GOPATH/src/github.com/operator-framework/operator-sdk && make dep && make install
 jobs:
   fast_finish: true
