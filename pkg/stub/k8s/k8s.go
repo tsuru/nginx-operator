@@ -1,6 +1,8 @@
 package k8s
 
 import (
+	"fmt"
+
 	"github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
 
 	appv1 "k8s.io/api/apps/v1"
@@ -17,7 +19,7 @@ func NewDeployment(n *v1alpha1.Nginx) *appv1.Deployment {
 	if image == "" {
 		image = defaultNginxImage
 	}
-	return &appv1.Deployment{
+	deployment := appv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
 			APIVersion: "apps/v1",
@@ -57,5 +59,56 @@ func NewDeployment(n *v1alpha1.Nginx) *appv1.Deployment {
 				},
 			},
 		},
+	}
+	setupConfig(n.Spec.Config, &deployment)
+	return &deployment
+}
+
+func setupConfig(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {
+	if conf == nil {
+		return
+	}
+	dep.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
+		{
+			Name:      "nginx-config",
+			MountPath: "/etc/nginx",
+		},
+	}
+	switch conf.Kind {
+	case v1alpha1.ConfigKindConfigMap:
+		dep.Spec.Template.Spec.Volumes = []corev1.Volume{
+			{
+				Name: "nginx-config",
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: conf.Name,
+						},
+					},
+				},
+			},
+		}
+	case v1alpha1.ConfigKindInline:
+		if dep.Spec.Template.Annotations == nil {
+			dep.Spec.Template.Annotations = make(map[string]string)
+		}
+		dep.Spec.Template.Annotations[conf.Name] = conf.Value
+		dep.Spec.Template.Spec.Volumes = []corev1.Volume{
+			{
+				Name: "nginx-config",
+				VolumeSource: corev1.VolumeSource{
+					DownwardAPI: &corev1.DownwardAPIVolumeSource{
+						Items: []corev1.DownwardAPIVolumeFile{
+							{
+								Path: "nginx.conf",
+								FieldRef: &corev1.ObjectFieldSelector{
+									FieldPath: fmt.Sprintf("metadata.annotations['%s']", conf.Name),
+								},
+							},
+						},
+					},
+				},
+			},
+		}
 	}
 }

@@ -25,12 +25,12 @@ type NginxSpec struct {
 	// Number of desired pods. This is a pointer to distinguish between explicit
 	// zero and not specified. Defaults to the default deployment replicas value.
 	// +optional
-	Replicas *int32
+	Replicas *int32 `json:"replicas"`
 	// Docker image name. Defaults to "nginx:latest".
 	// +optional
-	Image string
+	Image string `json:"image"`
 	// Reference to the nginx config object.
-	Config ConfigRef
+	Config *ConfigRef `json:"configRef"`
 }
 
 type NginxStatus struct{}
@@ -38,13 +38,16 @@ type NginxStatus struct{}
 // ConfigRef is a reference to a config object.
 type ConfigRef struct {
 	// Name of the config object.
-	Name string
+	Name string `json:"name"`
 	// Kind of the config object. Defaults to ConfigKindConfigMap.
-	Kind ConfigKind
+	Kind ConfigKind `json:"kind"`
+	// Optional value used by some ConfigKinds.
+	Value string `json:"value"`
 }
 
 type ConfigKind string
 
 const (
 	ConfigKindConfigMap = ConfigKind("ConfigMap")
+	ConfigKindInline    = ConfigKind("Inline")
 )

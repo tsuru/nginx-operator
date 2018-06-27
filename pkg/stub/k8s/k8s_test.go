@@ -11,8 +11,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-func Test_NewDeployment(t *testing.T) {
-	baseNginx := v1alpha1.Nginx{
+func baseNginx() v1alpha1.Nginx {
+	return v1alpha1.Nginx{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-nginx",
 			Namespace: "default",
@@ -20,7 +20,10 @@ func Test_NewDeployment(t *testing.T) {
 		Spec:   v1alpha1.NginxSpec{},
 		Status: v1alpha1.NginxStatus{},
 	}
-	baseDeploy := appv1.Deployment{
+}
+
+func baseDeployment() appv1.Deployment {
+	return appv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
 			APIVersion: "apps/v1",
@@ -54,6 +57,9 @@ func Test_NewDeployment(t *testing.T) {
 			},
 		},
 	}
+}
+
+func Test_NewDeployment(t *testing.T) {
 	tests := []struct {
 		name     string
 		nginxFn  func(n v1alpha1.Nginx) v1alpha1.Nginx
@@ -92,11 +98,82 @@ func Test_NewDeployment(t *testing.T) {
 				return d
 			},
 		},
+		{
+			name: "with-config-configmap",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.Config = &v1alpha1.ConfigRef{
+					Kind: v1alpha1.ConfigKindConfigMap,
+					Name: "config-map-xpto",
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
+					{
+						Name:      "nginx-config",
+						MountPath: "/etc/nginx",
+					},
+				}
+				d.Spec.Template.Spec.Volumes = []corev1.Volume{
+					{
+						Name: "nginx-config",
+						VolumeSource: corev1.VolumeSource{
+							ConfigMap: &corev1.ConfigMapVolumeSource{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: "config-map-xpto",
+								},
+							},
+						},
+					},
+				}
+				return d
+			},
+		},
+		{
+			name: "with-config-inline",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.Config = &v1alpha1.ConfigRef{
+					Kind:  v1alpha1.ConfigKindInline,
+					Name:  "config-inline",
+					Value: "server {}",
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
+					{
+						Name:      "nginx-config",
+						MountPath: "/etc/nginx",
+					},
+				}
+				d.Spec.Template.Annotations = map[string]string{
+					"config-inline": "server {}",
+				}
+				d.Spec.Template.Spec.Volumes = []corev1.Volume{
+					{
+						Name: "nginx-config",
+						VolumeSource: corev1.VolumeSource{
+							DownwardAPI: &corev1.DownwardAPIVolumeSource{
+								Items: []corev1.DownwardAPIVolumeFile{
+									{
+										Path: "nginx.conf",
+										FieldRef: &corev1.ObjectFieldSelector{
+											FieldPath: "metadata.annotations['config-inline']",
+										},
+									},
+								},
+							},
+						},
+					},
+				}
+				return d
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			nginx := tt.nginxFn(baseNginx)
-			want := tt.deployFn(baseDeploy)
+			nginx := tt.nginxFn(baseNginx())
+			want := tt.deployFn(baseDeployment())
 			want.OwnerReferences = []metav1.OwnerReference{
 				*metav1.NewControllerRef(&nginx, schema.GroupVersionKind{
 					Group:   v1alpha1.SchemeGroupVersion.Group,

@@ -48,6 +48,10 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 			return err
 		}
 
+		if err == nil {
+			return nil
+		}
+
 		if err := sdk.Get(deployment); err != nil {
 			logger.Errorf("Failed to retrieve deployment: %v", err)
 			return err
@@ -56,12 +60,11 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 		// TODO: reconcile deployment fields with nginx fields
 		// call sdk.Update if there were any changes
 
-		if errors.IsAlreadyExists(err) {
-			if err := sdk.Update(deployment); err != nil {
-				logger.Errorf("Failed to update deployment: %v", err)
-				return err
-			}
+		if err := sdk.Update(deployment); err != nil {
+			logger.Errorf("Failed to update deployment: %v", err)
+			return err
 		}
+
 	}
 	return nil
 }
