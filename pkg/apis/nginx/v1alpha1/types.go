@@ -48,6 +48,9 @@ type ConfigRef struct {
 type ConfigKind string
 
 const (
+	// ConfigKindConfigMap is a Kind of configuration that points to a configmap
 	ConfigKindConfigMap = ConfigKind("ConfigMap")
-	ConfigKindInline    = ConfigKind("Inline")
+	// ConfigKindInline is a kinda of configuration that is setup as a annotation on the Pod
+	// and is inject as a file on the container using the Downward API.
+	ConfigKindInline = ConfigKind("Inline")
 )
