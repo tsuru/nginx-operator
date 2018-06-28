@@ -24,6 +24,8 @@ type NginxSpec struct {
 	Image string `json:"image"`
 	// Reference to the nginx config object.
 	Config *ConfigRef `json:"configRef"`
+	// References to a secret containing tls certificate and key pairs.
+	TLSSecret *TLSSecret `json:"tlsSecret"`
 }
 
 type NginxStatus struct {
@@ -66,6 +68,26 @@ const (
 	// and is inject as a file on the container using the Downward API.
 	ConfigKindInline = ConfigKind("Inline")
 )
+
+// TLSSecret is a reference to tls certificate and key pairs stored in a secret.
+type TLSSecret struct {
+	// Name of the Secret holding the certificate and key.
+	SecretName string
+	// Secret field that contains the key.
+	// Defaults to tls.key
+	KeyField string
+	// Secret field that contains the certificate.
+	// Defaults to tls.crt
+	CertificateField string
+	// Path where the key should be stored inside the nginx container.
+	// Relative to /etc/nginx/certs/.
+	// Defaults to <KeyName>
+	KeyPath string
+	// Path where the certificate should be stored inside the nginx container.
+	// Relative to /etc/nginx/certs/.
+	// Defaults to <CertificateName>
+	CertificatePath string
+}
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
