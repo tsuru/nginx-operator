@@ -33,7 +33,7 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 		logger := h.logger.WithFields(map[string]interface{}{
 			"name":      o.GetName(),
 			"namespace": o.GetNamespace(),
-			"kind":      o.GetObjectKind(),
+			"kind":      o.GetObjectKind().GroupVersionKind().String(),
 		})
 
 		logger.Debugf("Handling event for object: %+v", o)
