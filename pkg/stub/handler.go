@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sort"
 
 	"github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
 	"github.com/tsuru/nginx-operator/pkg/stub/k8s"
@@ -115,6 +116,12 @@ func refreshStatus(ctx context.Context, event sdk.Event, nginx *v1alpha1.Nginx, 
 	for _, p := range podList.Items {
 		pods = append(pods, v1alpha1.NginxPod{Name: p.Name, PodIP: p.Status.PodIP})
 	}
+	sort.Slice(pods, func(i, j int) bool {
+		return pods[i].Name < pods[j].Name
+	})
+	sort.Slice(nginx.Status.Pods, func(i, j int) bool {
+		return nginx.Status.Pods[i].Name < nginx.Status.Pods[j].Name
+	})
 	if !reflect.DeepEqual(pods, nginx.Status.Pods) {
 		nginx.Status.Pods = pods
 		err := sdk.Update(nginx)
