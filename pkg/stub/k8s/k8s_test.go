@@ -9,6 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func baseNginx() v1alpha1.Nginx {
@@ -200,4 +201,54 @@ func assertDeployment(t *testing.T, want, got *appv1.Deployment) {
 	assert.Equal(t, want.ObjectMeta, got.ObjectMeta)
 	assert.Equal(t, want.Spec, got.Spec)
 	assert.Equal(t, want, got)
+}
+
+func TestNewService(t *testing.T) {
+	tests := []struct {
+		name  string
+		nginx v1alpha1.Nginx
+		want  *corev1.Service
+	}{
+		{
+			name:  "base",
+			nginx: baseNginx(),
+			want: &corev1.Service{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Service",
+					APIVersion: "v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-nginx-service",
+					Namespace: "default",
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{
+							Name:       "http",
+							Protocol:   corev1.ProtocolTCP,
+							TargetPort: intstr.FromString("http"),
+							Port:       int32(80),
+						},
+					},
+					Selector: map[string]string{
+						"nginx_cr": "my-nginx",
+						"app":      "nginx",
+					},
+					Type: corev1.ServiceTypeClusterIP,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.want.OwnerReferences = []metav1.OwnerReference{
+				*metav1.NewControllerRef(&tt.nginx, schema.GroupVersionKind{
+					Group:   v1alpha1.SchemeGroupVersion.Group,
+					Version: v1alpha1.SchemeGroupVersion.Version,
+					Kind:    "Nginx",
+				}),
+			}
+			assert.Equal(t, tt.want, NewService(&tt.nginx))
+		})
+	}
 }

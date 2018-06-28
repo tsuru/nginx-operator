@@ -59,6 +59,18 @@ func reconcile(ctx context.Context, event sdk.Event, nginx *v1alpha1.Nginx, logg
 		return nil
 	}
 
+	if err := reconcileDeployment(ctx, nginx, logger); err != nil {
+		return err
+	}
+
+	if err := reconcileService(ctx, nginx, logger); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func reconcileDeployment(ctx context.Context, nginx *v1alpha1.Nginx, logger *logrus.Entry) error {
 	deployment := k8s.NewDeployment(nginx)
 
 	err := sdk.Create(deployment)
@@ -90,6 +102,21 @@ func reconcile(ctx context.Context, event sdk.Event, nginx *v1alpha1.Nginx, logg
 	}
 
 	return nil
+}
+
+func reconcileService(ctx context.Context, nginx *v1alpha1.Nginx, logger *logrus.Entry) error {
+	service := k8s.NewService(nginx)
+
+	err := sdk.Create(service)
+	if errors.IsAlreadyExists(err) {
+		return nil
+	}
+
+	if err != nil {
+		logger.Errorf("Failed to create service: %v", err)
+	}
+
+	return err
 }
 
 func refreshStatus(ctx context.Context, event sdk.Event, nginx *v1alpha1.Nginx, logger *logrus.Entry) error {

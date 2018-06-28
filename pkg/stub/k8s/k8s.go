@@ -3,6 +3,8 @@ package k8s
 import (
 	"fmt"
 
+	"k8s.io/apimachinery/pkg/util/intstr"
+
 	"github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
 
 	appv1 "k8s.io/api/apps/v1"
@@ -65,6 +67,39 @@ func NewDeployment(n *v1alpha1.Nginx) *appv1.Deployment {
 	}
 	setupConfig(n.Spec.Config, &deployment)
 	return &deployment
+}
+
+// NewService assembles the ClusterIP service for the Nginx
+func NewService(n *v1alpha1.Nginx) *corev1.Service {
+	return &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Service",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      n.Name + "-service",
+			Namespace: n.Namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(n, schema.GroupVersionKind{
+					Group:   v1alpha1.SchemeGroupVersion.Group,
+					Version: v1alpha1.SchemeGroupVersion.Version,
+					Kind:    "Nginx",
+				}),
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "http",
+					Protocol:   corev1.ProtocolTCP,
+					TargetPort: intstr.FromString("http"),
+					Port:       int32(80),
+				},
+			},
+			Selector: LabelsForNginx(n.Name),
+			Type:     corev1.ServiceTypeClusterIP,
+		},
+	}
 }
 
 // LabelsForNginx returns the labels for a Nginx CR with the given name
