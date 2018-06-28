@@ -86,6 +86,7 @@ func NewService(n *v1alpha1.Nginx) *corev1.Service {
 					Kind:    "Nginx",
 				}),
 			},
+			Labels: LabelsForNginx(n.Name),
 		},
 		Spec: corev1.ServiceSpec{
 			Ports: []corev1.ServicePort{

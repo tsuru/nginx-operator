@@ -220,6 +220,10 @@ func TestNewService(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-nginx-service",
 					Namespace: "default",
+					Labels: map[string]string{
+						"nginx_cr": "my-nginx",
+						"app":      "nginx",
+					},
 				},
 				Spec: corev1.ServiceSpec{
 					Ports: []corev1.ServicePort{

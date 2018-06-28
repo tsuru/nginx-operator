@@ -40,10 +40,12 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 		logger.Debugf("Handling event for object: %+v", o)
 
 		if err := reconcile(ctx, event, o, logger); err != nil {
+			logger.Errorf("fail to reconcile: %v", err)
 			return err
 		}
 
 		if err := refreshStatus(ctx, event, o, logger); err != nil {
+			logger.Errorf("fail to refresh status: %v", err)
 			return err
 		}
 
@@ -63,7 +65,7 @@ func reconcile(ctx context.Context, event sdk.Event, nginx *v1alpha1.Nginx, logg
 		return err
 	}
 
-	if err := reconcileService(ctx, nginx, logger); err != nil {
+	if err := reconcileService(ctx, nginx); err != nil {
 		return err
 	}
 
@@ -75,8 +77,7 @@ func reconcileDeployment(ctx context.Context, nginx *v1alpha1.Nginx, logger *log
 
 	err := sdk.Create(deployment)
 	if err != nil && !errors.IsAlreadyExists(err) {
-		logger.Errorf("Failed to create deployment: %v", err)
-		return err
+		return fmt.Errorf("failed to create deployment: %v", err)
 	}
 
 	if err == nil {
@@ -84,8 +85,7 @@ func reconcileDeployment(ctx context.Context, nginx *v1alpha1.Nginx, logger *log
 	}
 
 	if err := sdk.Get(deployment); err != nil {
-		logger.Errorf("Failed to retrieve deployment: %v", err)
-		return err
+		return fmt.Errorf("failed to retrieve deployment: %v", err)
 	}
 
 	// TODO: reconcile deployment fields with nginx fields
@@ -97,23 +97,18 @@ func reconcileDeployment(ctx context.Context, nginx *v1alpha1.Nginx, logger *log
 	}
 
 	if err := sdk.Update(deployment); err != nil {
-		logger.Errorf("Failed to update deployment: %v", err)
-		return err
+		return fmt.Errorf("failed to update deployment: %v", err)
 	}
 
 	return nil
 }
 
-func reconcileService(ctx context.Context, nginx *v1alpha1.Nginx, logger *logrus.Entry) error {
+func reconcileService(ctx context.Context, nginx *v1alpha1.Nginx) error {
 	service := k8s.NewService(nginx)
 
 	err := sdk.Create(service)
 	if errors.IsAlreadyExists(err) {
 		return nil
-	}
-
-	if err != nil {
-		logger.Errorf("Failed to create service: %v", err)
 	}
 
 	return err
@@ -125,6 +120,38 @@ func refreshStatus(ctx context.Context, event sdk.Event, nginx *v1alpha1.Nginx, 
 		return nil
 	}
 
+	pods, err := listPods(nginx)
+	if err != nil {
+		return fmt.Errorf("failed to list pods for nginx: %v", err)
+	}
+
+	services, err := listServices(nginx)
+	if err != nil {
+		return fmt.Errorf("failed to list services for nginx: %v", err)
+	}
+
+	sort.Slice(nginx.Status.Pods, func(i, j int) bool {
+		return nginx.Status.Pods[i].Name < nginx.Status.Pods[j].Name
+	})
+
+	sort.Slice(nginx.Status.Services, func(i, j int) bool {
+		return nginx.Status.Services[i].Name < nginx.Status.Services[j].Name
+	})
+
+	if !reflect.DeepEqual(pods, nginx.Status.Pods) || !reflect.DeepEqual(services, nginx.Status.Services) {
+		nginx.Status.Pods = pods
+		nginx.Status.Services = services
+		err := sdk.Update(nginx)
+		if err != nil {
+			return fmt.Errorf("failed to update nginx status: %v", err)
+		}
+	}
+
+	return nil
+}
+
+// listPods return all the pods for the given nginx sorted by name
+func listPods(nginx *v1alpha1.Nginx) ([]v1alpha1.NginxPod, error) {
 	podList := &corev1.PodList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Pod",
@@ -136,7 +163,7 @@ func refreshStatus(ctx context.Context, event sdk.Event, nginx *v1alpha1.Nginx, 
 	listOps := &metav1.ListOptions{LabelSelector: labelSelector}
 	err := sdk.List(nginx.Namespace, podList, sdk.WithListOptions(listOps))
 	if err != nil {
-		return fmt.Errorf("failed to list pods: %v", err)
+		return nil, err
 	}
 
 	var pods []v1alpha1.NginxPod
@@ -146,16 +173,34 @@ func refreshStatus(ctx context.Context, event sdk.Event, nginx *v1alpha1.Nginx, 
 	sort.Slice(pods, func(i, j int) bool {
 		return pods[i].Name < pods[j].Name
 	})
-	sort.Slice(nginx.Status.Pods, func(i, j int) bool {
-		return nginx.Status.Pods[i].Name < nginx.Status.Pods[j].Name
-	})
-	if !reflect.DeepEqual(pods, nginx.Status.Pods) {
-		nginx.Status.Pods = pods
-		err := sdk.Update(nginx)
-		if err != nil {
-			return fmt.Errorf("failed to update nginx status: %v", err)
-		}
+
+	return pods, nil
+}
+
+// listServices return all the services for the given nginx sorted by name
+func listServices(nginx *v1alpha1.Nginx) ([]v1alpha1.NginxService, error) {
+	serviceList := &corev1.ServiceList{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Service",
+			APIVersion: "v1",
+		},
 	}
 
-	return nil
+	labelSelector := labels.SelectorFromSet(k8s.LabelsForNginx(nginx.Name)).String()
+	listOps := &metav1.ListOptions{LabelSelector: labelSelector}
+	err := sdk.List(nginx.Namespace, serviceList, sdk.WithListOptions(listOps))
+	if err != nil {
+		return nil, err
+	}
+
+	var services []v1alpha1.NginxService
+	for _, s := range serviceList.Items {
+		services = append(services, v1alpha1.NginxService{Name: s.Name, Type: string(s.Spec.Type), ServiceIP: s.Spec.ClusterIP})
+	}
+
+	sort.Slice(services, func(i, j int) bool {
+		return services[i].Name < services[j].Name
+	})
+
+	return services, nil
 }

@@ -27,12 +27,24 @@ type NginxSpec struct {
 }
 
 type NginxStatus struct {
-	Pods []NginxPod `json:"pods"`
+	Pods     []NginxPod     `json:"pods"`
+	Services []NginxService `json:"services"`
 }
 
 type NginxPod struct {
-	Name  string `json:"name"`
+	// Name is the name of the POD running nginx
+	Name string `json:"name"`
+	// PodIP is the IP if the POD
 	PodIP string `json:"podIP"`
+}
+
+type NginxService struct {
+	// Name is the name of the service in front of the nginx
+	Name string `json:"name"`
+	// Type is the type of the service
+	Type string `json:"type"`
+	// ServiceIP is the IP of the service
+	ServiceIP string `json:"serviceIP"`
 }
 
 // ConfigRef is a reference to a config object.
