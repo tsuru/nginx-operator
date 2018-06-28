@@ -329,6 +329,8 @@
     "pkg/api/errors",
     "pkg/api/meta",
     "pkg/api/resource",
+    "pkg/apimachinery",
+    "pkg/apimachinery/registered",
     "pkg/apis/meta/internalversion",
     "pkg/apis/meta/v1",
     "pkg/apis/meta/v1/unstructured",
@@ -372,6 +374,7 @@
   packages = [
     "discovery",
     "discovery/cached",
+    "discovery/fake",
     "dynamic",
     "kubernetes",
     "kubernetes/scheme",
@@ -406,6 +409,7 @@
     "pkg/version",
     "rest",
     "rest/watch",
+    "testing",
     "tools/auth",
     "tools/cache",
     "tools/clientcmd",
@@ -475,6 +479,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f8b11371f25be1c476578919c5b59a8bc4b78294d2d549ab153c654f049ecfd0"
+  inputs-digest = "aa980a4ff48f236b2c215ddd100ae5bf486b42865bb77405d52491542d72db5f"
   solver-name = "gps-cdcl"
   solver-version = 1
