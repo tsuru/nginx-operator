@@ -38,16 +38,12 @@ func NewDeployment(n *v1alpha1.Nginx) *appv1.Deployment {
 		Spec: appv1.DeploymentSpec{
 			Replicas: n.Spec.Replicas,
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"nginx": n.Name,
-				},
+				MatchLabels: LabelsForNginx(n.Name),
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: n.Namespace,
-					Labels: map[string]string{
-						"nginx": n.Name,
-					},
+					Labels:    LabelsForNginx(n.Name),
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
@@ -69,6 +65,14 @@ func NewDeployment(n *v1alpha1.Nginx) *appv1.Deployment {
 	}
 	setupConfig(n.Spec.Config, &deployment)
 	return &deployment
+}
+
+// LabelsForNginx returns the labels for a Nginx CR with the given name
+func LabelsForNginx(name string) map[string]string {
+	return map[string]string{
+		"nginx_cr": name,
+		"app":      "nginx",
+	}
 }
 
 func setupConfig(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {

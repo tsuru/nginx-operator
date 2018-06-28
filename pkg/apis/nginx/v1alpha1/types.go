@@ -26,7 +26,14 @@ type NginxSpec struct {
 	Config *ConfigRef `json:"configRef"`
 }
 
-type NginxStatus struct{}
+type NginxStatus struct {
+	Pods []NginxPod `json:"pods"`
+}
+
+type NginxPod struct {
+	Name  string `json:"name"`
+	PodIP string `json:"podIP"`
+}
 
 // ConfigRef is a reference to a config object.
 type ConfigRef struct {

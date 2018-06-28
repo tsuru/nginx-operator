@@ -35,7 +35,8 @@ func baseDeployment() appv1.Deployment {
 		Spec: appv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"nginx": "my-nginx",
+					"nginx_cr": "my-nginx",
+					"app":      "nginx",
 				},
 			},
 			Template: corev1.PodTemplateSpec{
@@ -43,7 +44,8 @@ func baseDeployment() appv1.Deployment {
 					Name:      "",
 					Namespace: "default",
 					Labels: map[string]string{
-						"nginx": "my-nginx",
+						"nginx_cr": "my-nginx",
+						"app":      "nginx",
 					},
 				},
 				Spec: corev1.PodSpec{
