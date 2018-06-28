@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 vendor/k8s.io/code-generator/generate-groups.sh \
-deepcopy \
+all \
 github.com/tsuru/nginx-operator/pkg/generated \
 github.com/tsuru/nginx-operator/pkg/apis \
 nginx:v1alpha1 \
