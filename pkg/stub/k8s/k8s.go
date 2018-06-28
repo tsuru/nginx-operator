@@ -54,6 +54,13 @@ func NewDeployment(n *v1alpha1.Nginx) *appv1.Deployment {
 						{
 							Name:  "nginx",
 							Image: image,
+							Ports: []corev1.ContainerPort{
+								{
+									Name:          "http",
+									ContainerPort: int32(80),
+									Protocol:      corev1.ProtocolTCP,
+								},
+							},
 						},
 					},
 				},
