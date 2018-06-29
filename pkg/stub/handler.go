@@ -102,12 +102,12 @@ func reconcileDeployment(ctx context.Context, nginx *v1alpha1.Nginx, logger *log
 		return fmt.Errorf("failed to retrieve deployment: %v", err)
 	}
 
-	currSpec, err := k8s.ExtractNginxSpec(*currDeploy)
+	currSpec, err := k8s.ExtractNginxSpec(currDeploy.ObjectMeta)
 	if err != nil {
 		return fmt.Errorf("failed to extract nginx from deployment: %v", err)
 	}
 
-	if nginx.Spec == currSpec {
+	if reflect.DeepEqual(nginx.Spec, currSpec) {
 		logger.Debug("nothing changed")
 		return nil
 	}

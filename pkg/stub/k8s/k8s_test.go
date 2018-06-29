@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
 	appv1 "k8s.io/api/apps/v1"
@@ -263,6 +265,57 @@ func Test_NewDeployment(t *testing.T) {
 							},
 						},
 					},
+				}
+				return d
+			},
+		},
+		{
+			name: "with-affinity",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.PodTemplate.Affinity = &corev1.Affinity{
+					NodeAffinity: &corev1.NodeAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+							NodeSelectorTerms: []corev1.NodeSelectorTerm{
+								{MatchExpressions: []corev1.NodeSelectorRequirement{
+									{Key: "tsuru.io/pool", Values: []string{"my-pool"}},
+								}},
+							},
+						},
+					},
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.Affinity = &corev1.Affinity{
+					NodeAffinity: &corev1.NodeAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+							NodeSelectorTerms: []corev1.NodeSelectorTerm{
+								{MatchExpressions: []corev1.NodeSelectorRequirement{
+									{Key: "tsuru.io/pool", Values: []string{"my-pool"}},
+								}},
+							},
+						},
+					},
+				}
+				return d
+			},
+		},
+
+		{
+			name: "with-resources",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.PodTemplate.Resources = corev1.ResourceRequirements{
+					Limits: corev1.ResourceList(map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceMemory: *resource.NewQuantity(int64(100), resource.DecimalSI),
+					}),
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.Containers[0].Resources = corev1.ResourceRequirements{
+					Limits: corev1.ResourceList(map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceMemory: *resource.NewQuantity(int64(100), resource.DecimalSI),
+					}),
 				}
 				return d
 			},

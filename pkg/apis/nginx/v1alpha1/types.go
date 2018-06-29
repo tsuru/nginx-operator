@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -25,12 +26,25 @@ type NginxSpec struct {
 	// Reference to the nginx config object.
 	Config *ConfigRef `json:"configRef"`
 	// References to a secret containing tls certificate and key pairs.
-	TLSSecret *TLSSecret `json:"tlsSecret"`
+	// +optional
+	TLSSecret *TLSSecret `json:"tlsSecret,omitempty`
+	// Template used to configure the nginx pod.
+	// +optional
+	PodTemplate NginxPodTemplateSpec
+}
+
+type NginxPodTemplateSpec struct {
+	// Resources requirements to be set on the nginx container.
+	// +optional
+	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+	// Affinity to be set on the nginx pod.
+	// +optional
+	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 }
 
 type NginxStatus struct {
-	Pods     []NginxPod     `json:"pods"`
-	Services []NginxService `json:"services"`
+	Pods     []NginxPod     `json:"pods,omitempty"`
+	Services []NginxService `json:"services,omitempty"`
 }
 
 type NginxPod struct {
