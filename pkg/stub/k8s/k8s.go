@@ -94,12 +94,8 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 	setupTLS(n.Spec.TLSSecret, &deployment)
 
 	// This is done on the last step because n.Spec may have mutated during these methods
-	origSpec, err := json.Marshal(n.Spec)
-	if err != nil {
+	if err := SetNginxSpec(&deployment.ObjectMeta, n.Spec); err != nil {
 		return nil, err
-	}
-	deployment.Annotations = map[string]string{
-		generatedFromAnnotation: string(origSpec),
 	}
 
 	return &deployment, nil
@@ -167,6 +163,19 @@ func ExtractNginxSpec(o metav1.ObjectMeta) (v1alpha1.NginxSpec, error) {
 		return v1alpha1.NginxSpec{}, fmt.Errorf("failed to unmarshal nginx from annotation: %v", err)
 	}
 	return spec, nil
+}
+
+// SetNginxSpec sets the nginx spec into the object annotation to be later extracted
+func SetNginxSpec(o *metav1.ObjectMeta, spec v1alpha1.NginxSpec) error {
+	if o.Annotations == nil {
+		o.Annotations = make(map[string]string)
+	}
+	origSpec, err := json.Marshal(spec)
+	if err != nil {
+		return err
+	}
+	o.Annotations[generatedFromAnnotation] = string(origSpec)
+	return nil
 }
 
 func setupConfig(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {

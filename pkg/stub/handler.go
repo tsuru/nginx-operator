@@ -113,6 +113,9 @@ func reconcileDeployment(ctx context.Context, nginx *v1alpha1.Nginx, logger *log
 	}
 
 	currDeploy.Spec = newDeploy.Spec
+	if err := k8s.SetNginxSpec(&currDeploy.ObjectMeta, nginx.Spec); err != nil {
+		return fmt.Errorf("failed to set nginx spec into object meta: %v", err)
+	}
 
 	if err := sdk.Update(currDeploy); err != nil {
 		return fmt.Errorf("failed to update deployment: %v", err)
