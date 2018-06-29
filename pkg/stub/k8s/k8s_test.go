@@ -65,6 +65,15 @@ func baseDeployment() appv1.Deployment {
 									Protocol:      corev1.ProtocolTCP,
 								},
 							},
+							ReadinessProbe: &corev1.Probe{
+								Handler: corev1.Handler{
+									HTTPGet: &corev1.HTTPGetAction{
+										Path:   "/",
+										Port:   intstr.FromString(defaultHTTPPortName),
+										Scheme: corev1.URISchemeHTTP,
+									},
+								},
+							},
 						},
 					},
 				},
@@ -211,6 +220,15 @@ func Test_NewDeployment(t *testing.T) {
 				d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
 					{Name: "nginx-certs", MountPath: "/etc/nginx/certs"},
 				}
+				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+					Handler: corev1.Handler{
+						HTTPGet: &corev1.HTTPGetAction{
+							Path:   "/",
+							Port:   intstr.FromString(defaultHTTPSPortName),
+							Scheme: corev1.URISchemeHTTPS,
+						},
+					},
+				}
 				d.Spec.Template.Spec.Volumes = []corev1.Volume{
 					{
 						Name: "nginx-certs",
@@ -251,6 +269,15 @@ func Test_NewDeployment(t *testing.T) {
 				}
 				d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
 					{Name: "nginx-certs", MountPath: "/etc/nginx/certs"},
+				}
+				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+					Handler: corev1.Handler{
+						HTTPGet: &corev1.HTTPGetAction{
+							Path:   "/",
+							Port:   intstr.FromString(defaultHTTPSPortName),
+							Scheme: corev1.URISchemeHTTPS,
+						},
+					},
 				}
 				d.Spec.Template.Spec.Volumes = []corev1.Volume{
 					{

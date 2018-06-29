@@ -74,6 +74,15 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 								},
 							},
 							Resources: n.Spec.PodTemplate.Resources,
+							ReadinessProbe: &corev1.Probe{
+								Handler: corev1.Handler{
+									HTTPGet: &corev1.HTTPGetAction{
+										Path:   "/",
+										Port:   intstr.FromString(defaultHTTPPortName),
+										Scheme: corev1.URISchemeHTTP,
+									},
+								},
+							},
 						},
 					},
 					Affinity: n.Spec.PodTemplate.Affinity,
@@ -208,11 +217,21 @@ func setupTLS(secret *v1alpha1.TLSSecret, dep *appv1.Deployment) {
 	if secret == nil {
 		return
 	}
+
 	dep.Spec.Template.Spec.Containers[0].Ports = append(dep.Spec.Template.Spec.Containers[0].Ports, corev1.ContainerPort{
 		Name:          defaultHTTPSPortName,
 		ContainerPort: int32(443),
 		Protocol:      corev1.ProtocolTCP,
 	})
+	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+		Handler: corev1.Handler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path:   "/",
+				Port:   intstr.FromString(defaultHTTPSPortName),
+				Scheme: corev1.URISchemeHTTPS,
+			},
+		},
+	}
 	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
 		Name:      "nginx-certs",
 		MountPath: certMountPath,
