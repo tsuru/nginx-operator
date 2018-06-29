@@ -13,7 +13,20 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-const defaultNginxImage = "nginx:latest"
+const (
+	// Default docker image used for nginx
+	defaultNginxImage = "nginx:latest"
+
+	// Default port names used by the nginx container and the ClusterIP service
+	defaultHTTPPortName  = "http"
+	defaultHTTPSPortName = "https"
+
+	// Mount path where nginx.conf will be placed
+	configMountPath = "/etc/nginx"
+
+	// Mount path where certificate and key pair will be placed
+	certMountPath = configMountPath + "/certs"
+)
 
 // NewDeployment creates a deployment for a given Nginx resource.
 func NewDeployment(n *v1alpha1.Nginx) *appv1.Deployment {
@@ -54,7 +67,7 @@ func NewDeployment(n *v1alpha1.Nginx) *appv1.Deployment {
 							Image: image,
 							Ports: []corev1.ContainerPort{
 								{
-									Name:          "http",
+									Name:          defaultHTTPPortName,
 									ContainerPort: int32(80),
 									Protocol:      corev1.ProtocolTCP,
 								},
@@ -92,9 +105,9 @@ func NewService(n *v1alpha1.Nginx) *corev1.Service {
 		Spec: corev1.ServiceSpec{
 			Ports: []corev1.ServicePort{
 				{
-					Name:       "http",
+					Name:       defaultHTTPPortName,
 					Protocol:   corev1.ProtocolTCP,
-					TargetPort: intstr.FromString("http"),
+					TargetPort: intstr.FromString(defaultHTTPPortName),
 					Port:       int32(80),
 				},
 			},
@@ -104,9 +117,9 @@ func NewService(n *v1alpha1.Nginx) *corev1.Service {
 	}
 	if n.Spec.TLSSecret != nil {
 		service.Spec.Ports = append(service.Spec.Ports, corev1.ServicePort{
-			Name:       "https",
+			Name:       defaultHTTPSPortName,
 			Protocol:   corev1.ProtocolTCP,
-			TargetPort: intstr.FromString("https"),
+			TargetPort: intstr.FromString(defaultHTTPSPortName),
 			Port:       int32(443),
 		})
 	}
@@ -127,7 +140,7 @@ func setupConfig(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {
 	}
 	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
 		Name:      "nginx-config",
-		MountPath: "/etc/nginx",
+		MountPath: configMountPath,
 	})
 	switch conf.Kind {
 	case v1alpha1.ConfigKindConfigMap:
@@ -170,26 +183,20 @@ func setupTLS(secret *v1alpha1.TLSSecret, dep *appv1.Deployment) {
 		return
 	}
 	dep.Spec.Template.Spec.Containers[0].Ports = append(dep.Spec.Template.Spec.Containers[0].Ports, corev1.ContainerPort{
-		Name:          "https",
+		Name:          defaultHTTPSPortName,
 		ContainerPort: int32(443),
 		Protocol:      corev1.ProtocolTCP,
 	})
 	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
 		Name:      "nginx-certs",
-		MountPath: "/etc/nginx/certs",
+		MountPath: certMountPath,
 	})
-	if secret.KeyField == "" {
-		secret.KeyField = "tls.key"
-	}
-	if secret.CertificateField == "" {
-		secret.CertificateField = "tls.crt"
-	}
-	if secret.KeyPath == "" {
-		secret.KeyPath = secret.KeyField
-	}
-	if secret.CertificatePath == "" {
-		secret.CertificatePath = secret.CertificateField
-	}
+
+	secret.KeyField = valueOrDefault(secret.KeyField, "tls.key")
+	secret.CertificateField = valueOrDefault(secret.CertificateField, "tls.crt")
+	secret.KeyPath = valueOrDefault(secret.KeyPath, secret.KeyField)
+	secret.CertificatePath = valueOrDefault(secret.CertificatePath, secret.CertificateField)
+
 	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, corev1.Volume{
 		Name: "nginx-certs",
 		VolumeSource: corev1.VolumeSource{
@@ -202,4 +209,11 @@ func setupTLS(secret *v1alpha1.TLSSecret, dep *appv1.Deployment) {
 			},
 		},
 	})
+}
+
+func valueOrDefault(value, def string) string {
+	if value != "" {
+		return value
+	}
+	return def
 }

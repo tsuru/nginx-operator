@@ -224,6 +224,47 @@ func Test_NewDeployment(t *testing.T) {
 				return d
 			},
 		},
+		{
+			name: "with-tls-default-values",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.TLSSecret = &v1alpha1.TLSSecret{
+					SecretName: "my-secret",
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
+					{
+						Name:          "http",
+						ContainerPort: int32(80),
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          "https",
+						ContainerPort: int32(443),
+						Protocol:      corev1.ProtocolTCP,
+					},
+				}
+				d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
+					{Name: "nginx-certs", MountPath: "/etc/nginx/certs"},
+				}
+				d.Spec.Template.Spec.Volumes = []corev1.Volume{
+					{
+						Name: "nginx-certs",
+						VolumeSource: corev1.VolumeSource{
+							Secret: &corev1.SecretVolumeSource{
+								SecretName: "my-secret",
+								Items: []corev1.KeyToPath{
+									{Key: "tls.key", Path: "tls.key"},
+									{Key: "tls.crt", Path: "tls.crt"},
+								},
+							},
+						},
+					},
+				}
+				return d
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
