@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -30,8 +31,9 @@ func baseDeployment() appv1.Deployment {
 			APIVersion: "apps/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-nginx-deployment",
-			Namespace: "default",
+			Name:        "my-nginx-deployment",
+			Namespace:   "default",
+			Annotations: make(map[string]string),
 		},
 		Spec: appv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
@@ -277,7 +279,12 @@ func Test_NewDeployment(t *testing.T) {
 					Kind:    "Nginx",
 				}),
 			}
-			assertDeployment(t, &want, NewDeployment(&nginx))
+			dep, err := NewDeployment(&nginx)
+			assert.Nil(t, err)
+			spec, err := json.Marshal(nginx.Spec)
+			assert.Nil(t, err)
+			want.Annotations[generatedFromAnnotation] = string(spec)
+			assertDeployment(t, &want, dep)
 		})
 	}
 }
@@ -339,6 +346,48 @@ func TestNewService(t *testing.T) {
 				}),
 			}
 			assert.Equal(t, tt.want, NewService(&tt.nginx))
+		})
+	}
+}
+
+func TestExtractNginxSpec(t *testing.T) {
+	mustMarshal := func(t *testing.T, n v1alpha1.NginxSpec) string {
+		data, err := json.Marshal(n)
+		assert.Nil(t, err)
+		return string(data)
+	}
+	tests := []struct {
+		name        string
+		annotations map[string]string
+		want        v1alpha1.NginxSpec
+		wantedErr   string
+	}{
+		{
+			name:      "missing-annotation",
+			want:      v1alpha1.NginxSpec{},
+			wantedErr: `missing "nginx.tsuru.io/generated-from" annotation in deployment`,
+		},
+		{
+			name: "default",
+			annotations: map[string]string{
+				generatedFromAnnotation: mustMarshal(t, v1alpha1.NginxSpec{
+					Image: "custom-image",
+				}),
+			},
+			want:      v1alpha1.NginxSpec{Image: "custom-image"},
+			wantedErr: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			o := metav1.ObjectMeta{
+				Annotations: tt.annotations,
+			}
+			got, err := ExtractNginxSpec(o)
+			if tt.wantedErr != "" {
+				assert.EqualError(t, err, tt.wantedErr)
+			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

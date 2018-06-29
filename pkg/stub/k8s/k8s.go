@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -26,14 +27,14 @@ const (
 
 	// Mount path where certificate and key pair will be placed
 	certMountPath = configMountPath + "/certs"
+
+	// Annotation key used to stored the nginx that created the deployment
+	generatedFromAnnotation = "nginx.tsuru.io/generated-from"
 )
 
 // NewDeployment creates a deployment for a given Nginx resource.
-func NewDeployment(n *v1alpha1.Nginx) *appv1.Deployment {
-	image := n.Spec.Image
-	if image == "" {
-		image = defaultNginxImage
-	}
+func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
+	n.Spec.Image = valueOrDefault(n.Spec.Image, defaultNginxImage)
 	deployment := appv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
@@ -64,7 +65,7 @@ func NewDeployment(n *v1alpha1.Nginx) *appv1.Deployment {
 					Containers: []corev1.Container{
 						{
 							Name:  "nginx",
-							Image: image,
+							Image: n.Spec.Image,
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          defaultHTTPPortName,
@@ -80,7 +81,17 @@ func NewDeployment(n *v1alpha1.Nginx) *appv1.Deployment {
 	}
 	setupConfig(n.Spec.Config, &deployment)
 	setupTLS(n.Spec.TLSSecret, &deployment)
-	return &deployment
+
+	// This is done on the last step because n.Spec may have mutated during these methods
+	origSpec, err := json.Marshal(n.Spec)
+	if err != nil {
+		return nil, err
+	}
+	deployment.Annotations = map[string]string{
+		generatedFromAnnotation: string(origSpec),
+	}
+
+	return &deployment, nil
 }
 
 // NewService assembles the ClusterIP service for the Nginx
@@ -132,6 +143,19 @@ func LabelsForNginx(name string) map[string]string {
 		"nginx_cr": name,
 		"app":      "nginx",
 	}
+}
+
+// ExtractNginxSpec extracts the nginx used to create the object
+func ExtractNginxSpec(o metav1.ObjectMeta) (v1alpha1.NginxSpec, error) {
+	ann, ok := o.Annotations[generatedFromAnnotation]
+	if !ok {
+		return v1alpha1.NginxSpec{}, fmt.Errorf("missing %q annotation in deployment", generatedFromAnnotation)
+	}
+	var spec v1alpha1.NginxSpec
+	if err := json.Unmarshal([]byte(ann), &spec); err != nil {
+		return v1alpha1.NginxSpec{}, fmt.Errorf("failed to unmarshal nginx from annotation: %v", err)
+	}
+	return spec, nil
 }
 
 func setupConfig(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {

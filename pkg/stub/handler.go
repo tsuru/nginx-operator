@@ -11,6 +11,7 @@ import (
 
 	"github.com/operator-framework/operator-sdk/pkg/sdk"
 	"github.com/sirupsen/logrus"
+	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -73,9 +74,12 @@ func reconcile(ctx context.Context, event sdk.Event, nginx *v1alpha1.Nginx, logg
 }
 
 func reconcileDeployment(ctx context.Context, nginx *v1alpha1.Nginx, logger *logrus.Entry) error {
-	deployment := k8s.NewDeployment(nginx)
+	newDeploy, err := k8s.NewDeployment(nginx)
+	if err != nil {
+		return fmt.Errorf("failed to assemble deployment from nginx: %v", err)
+	}
 
-	err := sdk.Create(deployment)
+	err = sdk.Create(newDeploy)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create deployment: %v", err)
 	}
@@ -84,19 +88,33 @@ func reconcileDeployment(ctx context.Context, nginx *v1alpha1.Nginx, logger *log
 		return nil
 	}
 
-	if err := sdk.Get(deployment); err != nil {
+	currDeploy := &appv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Deployment",
+			APIVersion: "apps/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      newDeploy.Name,
+			Namespace: newDeploy.Namespace,
+		},
+	}
+	if err := sdk.Get(currDeploy); err != nil {
 		return fmt.Errorf("failed to retrieve deployment: %v", err)
 	}
 
-	// TODO: reconcile deployment fields with nginx fields
-	// call sdk.Update if there were any changes
-	var changed bool
-	if !changed {
+	currSpec, err := k8s.ExtractNginxSpec(*currDeploy)
+	if err != nil {
+		return fmt.Errorf("failed to extract nginx from deployment: %v", err)
+	}
+
+	if nginx.Spec == currSpec {
 		logger.Debug("nothing changed")
 		return nil
 	}
 
-	if err := sdk.Update(deployment); err != nil {
+	currDeploy.Spec = newDeploy.Spec
+
+	if err := sdk.Update(currDeploy); err != nil {
 		return fmt.Errorf("failed to update deployment: %v", err)
 	}
 
@@ -168,7 +186,13 @@ func listPods(nginx *v1alpha1.Nginx) ([]v1alpha1.NginxPod, error) {
 
 	var pods []v1alpha1.NginxPod
 	for _, p := range podList.Items {
-		pods = append(pods, v1alpha1.NginxPod{Name: p.Name, PodIP: p.Status.PodIP})
+		if p.Status.PodIP == "" {
+			p.Status.PodIP = "<pending>"
+		}
+		pods = append(pods, v1alpha1.NginxPod{
+			Name:  p.Name,
+			PodIP: p.Status.PodIP,
+		})
 	}
 	sort.Slice(pods, func(i, j int) bool {
 		return pods[i].Name < pods[j].Name
@@ -195,7 +219,14 @@ func listServices(nginx *v1alpha1.Nginx) ([]v1alpha1.NginxService, error) {
 
 	var services []v1alpha1.NginxService
 	for _, s := range serviceList.Items {
-		services = append(services, v1alpha1.NginxService{Name: s.Name, Type: string(s.Spec.Type), ServiceIP: s.Spec.ClusterIP})
+		if s.Spec.ClusterIP == "" {
+			s.Spec.ClusterIP = "<pending>"
+		}
+		services = append(services, v1alpha1.NginxService{
+			Name:      s.Name,
+			Type:      string(s.Spec.Type),
+			ServiceIP: s.Spec.ClusterIP,
+		})
 	}
 
 	sort.Slice(services, func(i, j int) bool {
