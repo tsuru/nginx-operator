@@ -3,32 +3,36 @@ sudo: required
 addons:
   apt:
     packages:
-      - docker-ce
+    - docker-ce
 install:
-  - go get -u github.com/golang/dep/cmd/dep
-  - mkdir -p $GOPATH/src/github.com/operator-framework && cd $GOPATH/src/github.com/operator-framework
-  - git clone https://github.com/operator-framework/operator-sdk.git
-  - cd operator-sdk && make dep && make install
-  - cd $TRAVIS_BUILD_DIR
+- go get -u github.com/golang/dep/cmd/dep
+- mkdir -p $GOPATH/src/github.com/operator-framework && cd $GOPATH/src/github.com/operator-framework
+- git clone https://github.com/operator-framework/operator-sdk.git
+- cd operator-sdk && make dep && make install
+- cd $TRAVIS_BUILD_DIR
 jobs:
   fast_finish: true
   include:
   - stage: test
     script: make test
     env: GOARCH=amd64
-    go: "1.10.x"
+    go: 1.10.x
   - stage: test
     script: make test
     env: GOARCH=amd64
-    go: "master"
+    go: master
   - stage: build
     script: make build
     env: GOARCH=amd64
-    go: "1.10.x"
+    go: 1.10.x
   - stage: build
     script: make build
     env: GOARCH=amd64
-    go: "master"
+    go: master
 matrix:
   allow_failures:
-    - go: master
+  - go: master
+notifications:
+  slack:
+    rooms:
+      secure: QffxEkIxqwEVgb1bkCWunkErtsPIm2rkwzFiH2cbbBRYQsfYfK1Qn4MwjgftH2zfJxOrAgQ7onMoTc6rxih+XE5V3I/Ct+S6qywqRX60JeoVc/RCP+ywtBnCDwNFtKLc7J8uKh5ZuhdDnx/r7SkCkIZJtoE3QF721PM5JpFNHrNHvs8q6DEgoqHxHHvtWPVuBOiPkLBv0/m7p9SYwXdWbVrjmrhynnvOsmhMfv1sXQUFOSKsus9QESWdct8xnJTOtmsCRzLR7jSViP9e7+QHnyzB/4DcMrhIKKyNptFGR+G30WGY45Wx4w7AvXkDqiNp9RWOFHrt8BGkPv+DbhVEbx1mwArEEVqJEu0Na6WuQGbZUm0uhcjBr+KWJ56AqhmwsX98PHrD6tTfilIQRPGddgltGcYZqNJAl1l/RSZcTGvYdZmGmEPy+xQO3Gg4NmMiRoLe1rC8jNVLodG1yjv3lnnC8sVHROEGHtT4XTYrTc2knGGbZ7s6JKgNztls71+SvISS1PBKOrMMBLC77D8hgeCOY8xePL1UbNmHCroK5i6pDeKohyIhIs+pm93S3kQoBIKuV+oF7y3b+gCQouwAf0B2cnMm0TEci3qlZ8/NOezbaVtxBdeWvlfYk5KxmftYiArwz3AMpgj9wpUu7H6WusSfrl6+WyJN+vSY/OHnOus=
