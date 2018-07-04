@@ -1,7 +1,7 @@
 TAG=latest
 IMAGE=tsuru/nginx-operator
 
-.PHONY: test deploy local build push
+.PHONY: test deploy local build push generate
 
 test:
 	go test ./...
