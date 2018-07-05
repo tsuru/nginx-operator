@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash -xe
 
 # Download kubectl, which is a requirement for using minikube.
 curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/v1.9.0/bin/linux/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/
@@ -8,7 +8,7 @@ curl -Lo minikube https://storage.googleapis.com/minikube/releases/v0.28.0/minik
 mkdir -p $HOME/.kube
 touch $HOME/.kube/config
 
-sudo -E minikube start --vm-driver=none --kubernetes-version=$KUBERNETES_VERSION
+minikube start --vm-driver=none --kubernetes-version=$KUBERNETES_VERSION
 # Fix the kubectl context, as it's often stale.
 minikube update-context
 # Wait for Kubernetes to be up and ready.
