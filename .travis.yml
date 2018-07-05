@@ -22,19 +22,19 @@ jobs:
     env: GOARCH=amd64
     go: master
   - stage: integration
-    script: ./scripts/localkube-integration.sh
+    script: sudo ./scripts/localkube-integration.sh
     env: 
       - KUBERNETES_VERSION=v1.8.0
   - stage: integration
-    script: ./scripts/localkube-integration.sh
+    script: sudo ./scripts/localkube-integration.sh
     env: 
       - KUBERNETES_VERSION=v1.9.0
   - stage: integration
-    script: ./scripts/localkube-integration.sh
+    script: sudo ./scripts/localkube-integration.sh
     env: 
       - KUBERNETES_VERSION=v1.10.0
   - stage: integration
-    script: ./scripts/localkube-integration.sh
+    script: sudo ./scripts/localkube-integration.sh
     env: 
       - KUBERNETES_VERSION=v1.11.0
   - stage: push to docker
