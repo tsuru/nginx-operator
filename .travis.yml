@@ -42,10 +42,6 @@ jobs:
     script: ./scripts/localkube-integration.sh
     env: 
       - KUBERNETES_VERSION=v1.10.0
-  - stage: integration
-    script: ./scripts/localkube-integration.sh
-    env: 
-      - KUBERNETES_VERSION=v1.11.0
   - stage: push to docker
     script:
     - echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
@@ -61,7 +57,7 @@ notifications:
       secure: QffxEkIxqwEVgb1bkCWunkErtsPIm2rkwzFiH2cbbBRYQsfYfK1Qn4MwjgftH2zfJxOrAgQ7onMoTc6rxih+XE5V3I/Ct+S6qywqRX60JeoVc/RCP+ywtBnCDwNFtKLc7J8uKh5ZuhdDnx/r7SkCkIZJtoE3QF721PM5JpFNHrNHvs8q6DEgoqHxHHvtWPVuBOiPkLBv0/m7p9SYwXdWbVrjmrhynnvOsmhMfv1sXQUFOSKsus9QESWdct8xnJTOtmsCRzLR7jSViP9e7+QHnyzB/4DcMrhIKKyNptFGR+G30WGY45Wx4w7AvXkDqiNp9RWOFHrt8BGkPv+DbhVEbx1mwArEEVqJEu0Na6WuQGbZUm0uhcjBr+KWJ56AqhmwsX98PHrD6tTfilIQRPGddgltGcYZqNJAl1l/RSZcTGvYdZmGmEPy+xQO3Gg4NmMiRoLe1rC8jNVLodG1yjv3lnnC8sVHROEGHtT4XTYrTc2knGGbZ7s6JKgNztls71+SvISS1PBKOrMMBLC77D8hgeCOY8xePL1UbNmHCroK5i6pDeKohyIhIs+pm93S3kQoBIKuV+oF7y3b+gCQouwAf0B2cnMm0TEci3qlZ8/NOezbaVtxBdeWvlfYk5KxmftYiArwz3AMpgj9wpUu7H6WusSfrl6+WyJN+vSY/OHnOus=
 env:
   global:
-    - KUBERNETES_VERSION=v1.11.0
+    - KUBERNETES_VERSION=v1.10.0
     - MINIKUBE_WANTUPDATENOTIFICATION=false
     - MINIKUBE_WANTREPORTERRORPROMPT=false
     - MINIKUBE_HOME=$HOME
