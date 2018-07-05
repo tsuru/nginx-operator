@@ -33,10 +33,6 @@ jobs:
   - stage: integration
     script: ./scripts/localkube-integration.sh
     env: 
-      - KUBERNETES_VERSION=v1.8.0
-  - stage: integration
-    script: ./scripts/localkube-integration.sh
-    env: 
       - KUBERNETES_VERSION=v1.9.0
   - stage: integration
     script: ./scripts/localkube-integration.sh
