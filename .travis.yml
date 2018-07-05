@@ -37,6 +37,12 @@ jobs:
     script: ./scripts/localkube-integration.sh
     env: 
       - KUBERNETES_VERSION=v1.11.0
+  - stage: push to docker
+    script:
+    - echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+    - if [ -n "$TRAVIS_TAG" ]; then make TAG=$TRAVIS_TAG push; else make push; fi
+    go: "1.10.x"
+    if: (NOT type IN (pull_request)) AND (branch = master) OR (tag IS present)
 matrix:
   allow_failures:
   - go: master
