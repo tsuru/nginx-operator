@@ -1,6 +1,7 @@
 #!/bin/bash -xe
 
 make build
+kubectl create namespace nginx-operator-integration
 kubectl apply -f deploy/ --namespace nginx-operator-integration
 sleep 10s
 
