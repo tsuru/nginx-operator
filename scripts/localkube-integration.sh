@@ -8,7 +8,7 @@ curl -Lo minikube https://storage.googleapis.com/minikube/releases/v0.28.0/minik
 mkdir -p $HOME/.kube
 touch $HOME/.kube/config
 
-sudo minikube start --vm-driver=none --kubernetes-version=$KUBERNETES_VERSION
+sudo -E minikube start --vm-driver=none --kubernetes-version=$KUBERNETES_VERSION
 # Fix the kubectl context, as it's often stale.
 minikube update-context
 # Wait for Kubernetes to be up and ready.
