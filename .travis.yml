@@ -10,6 +10,12 @@ install:
   - git clone https://github.com/operator-framework/operator-sdk.git
   - cd operator-sdk && make dep && make install
   - cd $TRAVIS_BUILD_DIR
+
+after_failure:
+  - kubectl get deployment --all-namespaces
+  - kubectl get pods --all-namespaces
+  - kubectl describe pods --all-namespaces
+  - kubectl describe nginx --all-namespaces
 jobs:
   fast_finish: true
   include:
@@ -23,10 +29,20 @@ jobs:
     go: master
   - stage: integration
     script: ./scripts/localkube-integration.sh
+    after_failure:
+      - kubectl get deployment --all-namespaces
+      - kubectl get pods --all-namespaces
+      - kubectl describe pods --all-namespaces
+      - kubectl describe nginx --all-namespaces
     env: 
       - KUBERNETES_VERSION=v1.9.0
   - stage: integration
     script: ./scripts/localkube-integration.sh
+    after_failure:
+      - kubectl get deployment --all-namespaces
+      - kubectl get pods --all-namespaces
+      - kubectl describe pods --all-namespaces
+      - kubectl describe nginx --all-namespaces
     env: 
       - KUBERNETES_VERSION=v1.10.0
   - stage: push to docker
