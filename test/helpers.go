@@ -11,11 +11,12 @@ import (
 )
 
 func createNamespace(ns string) (func() error, error) {
+	nilFunc := func() error { return nil }
 	if out, err := kubectl("create", "namespace", ns); err != nil {
 		if strings.Contains(string(out)+err.Error(), "AlreadyExists") {
-			return nil, nil
+			return nilFunc, nil
 		}
-		return nil, fmt.Errorf("failed to create namespace %q: %v - out: %v", ns, err, string(out))
+		return nilFunc, fmt.Errorf("failed to create namespace %q: %v - out: %v", ns, err, string(out))
 	}
 	return func() error {
 		return deleteNamespace(ns)
