@@ -12,7 +12,7 @@ import (
 
 func createNamespace(ns string) (func() error, error) {
 	if out, err := kubectl("create", "namespace", ns); err != nil {
-		if strings.Contains(string(out), "AlreadyExists") {
+		if strings.Contains(string(out)+err.Error(), "AlreadyExists") {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to create namespace %q: %v - out: %v", ns, err, string(out))
