@@ -10,14 +10,16 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func createNamespace(ns string) error {
+func createNamespace(ns string) (func() error, error) {
 	if out, err := kubectl("create", "namespace", ns); err != nil {
 		if strings.Contains(string(out), "AlreadyExists") {
-			return nil
+			return nil, nil
 		}
-		return fmt.Errorf("failed to create namespace %q: %v - out: %v", ns, err, string(out))
+		return nil, fmt.Errorf("failed to create namespace %q: %v - out: %v", ns, err, string(out))
 	}
-	return nil
+	return func() error {
+		return deleteNamespace(ns)
+	}, nil
 }
 
 func deleteNamespace(ns string) error {
@@ -41,8 +43,8 @@ func delete(file string, ns string) error {
 	return nil
 }
 
-func get(obj runtime.Object, name string) error {
-	out, err := kubectl("get", obj.GetObjectKind().GroupVersionKind().Kind, "-o", "json", name)
+func get(obj runtime.Object, name, ns string) error {
+	out, err := kubectl("get", obj.GetObjectKind().GroupVersionKind().Kind, "-o", "json", name, "--namespace", ns)
 	if err != nil {
 		return err
 	}
@@ -51,6 +53,9 @@ func get(obj runtime.Object, name string) error {
 
 func kubectl(arg ...string) ([]byte, error) {
 	cmd := exec.CommandContext(context.TODO(), "kubectl", arg...)
-	fmt.Printf("Running %v\n", cmd)
-	return cmd.CombinedOutput()
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("Err running cmd %v: %v. Output: %s", cmd, err, string(out))
+	}
+	return out, nil
 }
