@@ -11,11 +11,6 @@ install:
   - cd operator-sdk && make dep && make install
   - cd $TRAVIS_BUILD_DIR
 
-after_failure:
-  - kubectl get deployment --all-namespaces
-  - kubectl get pods --all-namespaces
-  - kubectl describe pods --all-namespaces
-  - kubectl describe nginx --all-namespaces
 jobs:
   fast_finish: true
   include:
