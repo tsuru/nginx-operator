@@ -40,6 +40,7 @@ func Test_Operator(t *testing.T) {
 
 		nginx, err := getReadyNginx("simple", 2, 1)
 		assert.Nil(t, err)
+		assert.NotNil(t, nginx)
 		assert.Equal(t, 2, len(nginx.Status.Pods))
 		assert.Equal(t, 1, len(nginx.Status.Services))
 	})
@@ -49,11 +50,11 @@ func getReadyNginx(name string, expectedPods int, expectedSvcs int) (*v1alpha1.N
 	nginx := &v1alpha1.Nginx{TypeMeta: metav1.TypeMeta{Kind: "Nginx"}}
 	timeout := time.After(10 * time.Second)
 	for {
-		if len(nginx.Status.Pods) == expectedPods && len(nginx.Status.Services) == expectedSvcs {
-			return nginx, nil
-		}
 		if err := get(nginx, name); err != nil {
 			return nil, err
+		}
+		if len(nginx.Status.Pods) == expectedPods && len(nginx.Status.Services) == expectedSvcs {
+			return nginx, nil
 		}
 		select {
 		case <-timeout:
