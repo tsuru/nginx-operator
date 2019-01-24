@@ -1,3 +1,0 @@
-apiVersion: nginx.tsuru.io/v1alpha1
-kind: Nginx
-projectName: nginx-operator
