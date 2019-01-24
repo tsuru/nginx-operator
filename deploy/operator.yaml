@@ -12,9 +12,13 @@ spec:
       labels:
         name: nginx-operator
     spec:
+      serviceAccountName: nginx-operator
       containers:
         - name: nginx-operator
           image: tsuru/nginx-operator:latest
+          ports:
+          - containerPort: 60000
+            name: metrics
           command:
           - nginx-operator
           imagePullPolicy: Always
@@ -23,3 +27,9 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OPERATOR_NAME
+              value: "nginx-operator"
