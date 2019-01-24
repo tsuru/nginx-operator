@@ -33,7 +33,7 @@ func baseDeployment() appv1.Deployment {
 			APIVersion: "apps/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        "my-nginx-deployment",
+			Name:        "my-nginx",
 			Namespace:   "default",
 			Annotations: make(map[string]string),
 		},
