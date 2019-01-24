@@ -41,7 +41,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 			APIVersion: "apps/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      n.Name + "-deployment",
+			Name:      n.Name,
 			Namespace: n.Namespace,
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(n, schema.GroupVersionKind{
@@ -199,6 +199,7 @@ func setupConfig(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {
 			},
 		})
 	case v1alpha1.ConfigKindInline:
+		// FIXME: inline content is being written out of order
 		if dep.Spec.Template.Annotations == nil {
 			dep.Spec.Template.Annotations = make(map[string]string)
 		}

@@ -6,11 +6,10 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
-	"github.com/tsuru/nginx-operator/pkg/stub/k8s"
-
 	"github.com/operator-framework/operator-sdk/pkg/sdk"
 	"github.com/sirupsen/logrus"
+	"github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
+	"github.com/tsuru/nginx-operator/pkg/stub/k8s"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
