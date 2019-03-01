@@ -26,6 +26,14 @@ func baseNginx() v1alpha1.Nginx {
 	}
 }
 
+func nginxWithService() v1alpha1.Nginx {
+	n := baseNginx()
+	n.Spec.Service = &v1alpha1.NginxService{
+		Type: "LoadBalancer",
+	}
+	return n
+}
+
 func baseDeployment() appv1.Deployment {
 	return appv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -412,6 +420,39 @@ func TestNewService(t *testing.T) {
 						"app":      "nginx",
 					},
 					Type: corev1.ServiceTypeClusterIP,
+				},
+			},
+		},
+		{
+			name:  "with-service",
+			nginx: nginxWithService(),
+			want: &corev1.Service{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Service",
+					APIVersion: "v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-nginx-service",
+					Namespace: "default",
+					Labels: map[string]string{
+						"nginx_cr": "my-nginx",
+						"app":      "nginx",
+					},
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{
+							Name:       "http",
+							Protocol:   corev1.ProtocolTCP,
+							TargetPort: intstr.FromString("http"),
+							Port:       int32(80),
+						},
+					},
+					Selector: map[string]string{
+						"nginx_cr": "my-nginx",
+						"app":      "nginx",
+					},
+					Type: corev1.ServiceTypeLoadBalancer,
 				},
 			},
 		},
