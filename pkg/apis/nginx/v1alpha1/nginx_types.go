@@ -21,7 +21,7 @@ type NginxSpec struct {
 	TLSSecret *TLSSecret `json:"tlsSecret,omitempty"`
 	// Template used to configure the nginx pod.
 	// +optional
-	PodTemplate NginxPodTemplateSpec
+	PodTemplate NginxPodTemplateSpec `json:"podTemplate,omitempty"`
 	// Service to expose the nginx pod
 	// +optional
 	Service *NginxService `json:"service,omitempty"`
