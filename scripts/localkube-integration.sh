@@ -6,9 +6,11 @@ curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/v1.12
 curl -Lo minikube https://storage.googleapis.com/minikube/releases/v0.35.0/minikube-linux-amd64 && chmod +x minikube && sudo mv minikube /usr/local/bin/
 sudo minikube start --vm-driver=none --kubernetes-version=$KUBERNETES_VERSION
 # Fix the kubectl context, as it's often stale.
-minikube update-context
+sudo minikube update-context
+sudo chown -R $(id -un):$(id -gn) /home/travis/.minikube
+
 # Wait for Kubernetes to be up and ready.
-JSONPATH='{range .items[*]}{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status};{end}{end}'; until kubectl get nodes -o jsonpath="$JSONPATH" 2>&1 | grep -q "Ready=True"; do sleep 1; done
+JSONPATH='{range .items[*]}{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status};{end}{end}'; until kubectl get nodes -o jsonpath="$JSONPATH" 2>&1 | grep -q "Ready=True"; do echo 'node not ready yet'; kubectl describe nodes; sleep 10; done
 
 make build
 kubectl create namespace nginx-operator-integration

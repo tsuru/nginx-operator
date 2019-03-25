@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -36,8 +37,8 @@ func Test_Operator(t *testing.T) {
 		}
 
 		nginx, err := getReadyNginx("simple", 2, 1)
-		assert.Nil(t, err)
-		assert.NotNil(t, nginx)
+		require.NoError(t, err)
+		require.NotNil(t, nginx)
 		assert.Equal(t, 2, len(nginx.Status.Pods))
 		assert.Equal(t, 1, len(nginx.Status.Services))
 	})
@@ -56,7 +57,7 @@ func getReadyNginx(name string, expectedPods int, expectedSvcs int) (*v1alpha1.N
 		}
 		select {
 		case <-timeout:
-			return nil, fmt.Errorf("Timeout waiting for nginx status. Last status: %v. Last error: %v", nginx.Status, err)
+			return nil, fmt.Errorf("Timeout waiting for nginx status. Last nginx object: %#v. Last error: %v", nginx, err)
 		case <-time.After(time.Millisecond * 100):
 		}
 	}
