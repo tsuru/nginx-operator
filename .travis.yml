@@ -26,7 +26,7 @@ jobs:
         - kubectl describe pods --all-namespaces
         - kubectl describe nginx --all-namespaces
       env:
-        - KUBERNETES_VERSION=v1.10.0
+        - KUBERNETES_VERSION=v1.10.13
     - stage: integration
       script: "./scripts/localkube-integration.sh"
       after_failure:
@@ -35,7 +35,7 @@ jobs:
         - kubectl describe pods --all-namespaces
         - kubectl describe nginx --all-namespaces
       env:
-        - KUBERNETES_VERSION=v1.12.0
+        - KUBERNETES_VERSION=v1.12.7
     - stage: push to docker
       script:
         - echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin

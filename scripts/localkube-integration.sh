@@ -4,7 +4,7 @@
 curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/v1.12.0/bin/linux/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/
 # Download minikube.
 curl -Lo minikube https://storage.googleapis.com/minikube/releases/v0.35.0/minikube-linux-amd64 && chmod +x minikube && sudo mv minikube /usr/local/bin/
-sudo minikube start --vm-driver=none --kubernetes-version=$KUBERNETES_VERSION
+sudo minikube start --feature-gates=CustomResourceSubresources=true --vm-driver=none --kubernetes-version=$KUBERNETES_VERSION
 # Fix the kubectl context, as it's often stale.
 sudo minikube update-context
 sudo chown -R $(id -un):$(id -gn) /home/travis/.minikube
