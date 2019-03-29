@@ -46,7 +46,7 @@ func Test_Operator(t *testing.T) {
 
 func getReadyNginx(name string, expectedPods int, expectedSvcs int) (*v1alpha1.Nginx, error) {
 	nginx := &v1alpha1.Nginx{TypeMeta: metav1.TypeMeta{Kind: "Nginx"}}
-	timeout := time.After(10 * time.Second)
+	timeout := time.After(60 * time.Second)
 	for {
 		err := get(nginx, name, testingNamespace)
 		if err != nil {
