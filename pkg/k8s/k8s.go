@@ -23,6 +23,9 @@ const (
 	// Mount path where nginx.conf will be placed
 	configMountPath = "/etc/nginx"
 
+	// Default configuration filename of nginx
+	configFileName = "nginx.conf"
+
 	// Mount path where certificate and key pair will be placed
 	certMountPath = configMountPath + "/certs"
 
@@ -189,7 +192,8 @@ func setupConfig(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {
 	}
 	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
 		Name:      "nginx-config",
-		MountPath: configMountPath,
+		MountPath: fmt.Sprintf("%s/%s", configMountPath, configFileName),
+		SubPath:   configFileName,
 	})
 	switch conf.Kind {
 	case v1alpha1.ConfigKindConfigMap:
