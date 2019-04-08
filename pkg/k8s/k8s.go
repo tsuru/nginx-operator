@@ -78,7 +78,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 							ReadinessProbe: &corev1.Probe{
 								Handler: corev1.Handler{
 									HTTPGet: &corev1.HTTPGetAction{
-										Path:   "/",
+										Path:   valueOrDefault(n.Spec.HealthcheckPath, "/"),
 										Port:   intstr.FromString(defaultHTTPPortName),
 										Scheme: corev1.URISchemeHTTP,
 									},
@@ -245,7 +245,7 @@ func setupTLS(secret *v1alpha1.TLSSecret, dep *appv1.Deployment) {
 	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 		Handler: corev1.Handler{
 			HTTPGet: &corev1.HTTPGetAction{
-				Path:   "/",
+				Path:   dep.Spec.Template.Spec.Containers[0].ReadinessProbe.Handler.HTTPGet.Path,
 				Port:   intstr.FromString(defaultHTTPSPortName),
 				Scheme: corev1.URISchemeHTTPS,
 			},
