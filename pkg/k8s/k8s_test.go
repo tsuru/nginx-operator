@@ -68,8 +68,8 @@ func baseDeployment() appv1.Deployment {
 							Image: "nginx:latest",
 							Ports: []corev1.ContainerPort{
 								{
-									Name:          "http",
-									ContainerPort: int32(80),
+									Name:          defaultHTTPPortName,
+									ContainerPort: defaultHTTPPort,
 									Protocol:      corev1.ProtocolTCP,
 								},
 							},
@@ -142,7 +142,8 @@ func Test_NewDeployment(t *testing.T) {
 				d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
 					{
 						Name:      "nginx-config",
-						MountPath: "/etc/nginx",
+						MountPath: "/etc/nginx/nginx.conf",
+						SubPath:   "nginx.conf",
 					},
 				}
 				d.Spec.Template.Spec.Volumes = []corev1.Volume{
@@ -174,7 +175,8 @@ func Test_NewDeployment(t *testing.T) {
 				d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
 					{
 						Name:      "nginx-config",
-						MountPath: "/etc/nginx",
+						MountPath: "/etc/nginx/nginx.conf",
+						SubPath:   "nginx.conf",
 					},
 				}
 				d.Spec.Template.Annotations = map[string]string{
@@ -215,13 +217,13 @@ func Test_NewDeployment(t *testing.T) {
 			deployFn: func(d appv1.Deployment) appv1.Deployment {
 				d.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
 					{
-						Name:          "http",
-						ContainerPort: int32(80),
+						Name:          defaultHTTPPortName,
+						ContainerPort: defaultHTTPPort,
 						Protocol:      corev1.ProtocolTCP,
 					},
 					{
-						Name:          "https",
-						ContainerPort: int32(443),
+						Name:          defaultHTTPSPortName,
+						ContainerPort: defaultHTTPSPort,
 						Protocol:      corev1.ProtocolTCP,
 					},
 				}
@@ -265,13 +267,13 @@ func Test_NewDeployment(t *testing.T) {
 			deployFn: func(d appv1.Deployment) appv1.Deployment {
 				d.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
 					{
-						Name:          "http",
-						ContainerPort: int32(80),
+						Name:          defaultHTTPPortName,
+						ContainerPort: defaultHTTPPort,
 						Protocol:      corev1.ProtocolTCP,
 					},
 					{
-						Name:          "https",
-						ContainerPort: int32(443),
+						Name:          defaultHTTPSPortName,
+						ContainerPort: defaultHTTPSPort,
 						Protocol:      corev1.ProtocolTCP,
 					},
 				}
@@ -368,9 +370,9 @@ func Test_NewDeployment(t *testing.T) {
 				}),
 			}
 			dep, err := NewDeployment(&nginx)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 			spec, err := json.Marshal(nginx.Spec)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 			want.Annotations[generatedFromAnnotation] = string(spec)
 			assertDeployment(t, &want, dep)
 		})
