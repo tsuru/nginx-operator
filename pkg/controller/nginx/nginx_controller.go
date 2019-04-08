@@ -158,14 +158,30 @@ func (r *ReconcileNginx) reconcileDeployment(nginx *nginxv1alpha1.Nginx) error {
 }
 
 func (r *ReconcileNginx) reconcileService(nginx *nginxv1alpha1.Nginx) error {
-	service := k8s.NewService(nginx)
+	newService := k8s.NewService(nginx)
 
-	err := r.client.Create(context.TODO(), service)
-	if errors.IsAlreadyExists(err) {
+	err := r.client.Create(context.TODO(), newService)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return fmt.Errorf("failed to create Service resource: %v", err)
+	}
+
+	if err == nil {
 		return nil
 	}
 
-	return err
+	currentService := &corev1.Service{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Namespace: newService.Namespace, Name: newService.Name}, currentService)
+
+	if err != nil {
+		return fmt.Errorf("failed to retrieve Service resource: %v", err)
+	}
+
+	if reflect.DeepEqual(currentService.Spec.Ports, newService.Spec.Ports) {
+		return nil
+	}
+
+	currentService.Spec.Ports = newService.Spec.Ports
+	return r.client.Update(context.TODO(), currentService)
 }
 
 func (r *ReconcileNginx) refreshStatus(nginx *nginxv1alpha1.Nginx) error {
