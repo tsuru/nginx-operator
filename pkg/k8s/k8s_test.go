@@ -34,6 +34,18 @@ func nginxWithService() v1alpha1.Nginx {
 	return n
 }
 
+func nginxWithTLSSecret() v1alpha1.Nginx {
+	n := baseNginx()
+	n.Spec.TLSSecret = &v1alpha1.TLSSecret{
+		SecretName:       "my-secret",
+		KeyField:         "key-field",
+		KeyPath:          "key-path",
+		CertificateField: "cert-field",
+		CertificatePath:  "cert-path",
+	}
+	return n
+}
+
 func baseDeployment() appv1.Deployment {
 	return appv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -455,6 +467,45 @@ func TestNewService(t *testing.T) {
 						"app":      "nginx",
 					},
 					Type: corev1.ServiceTypeLoadBalancer,
+				},
+			},
+		},
+		{
+			name:  "with-tls",
+			nginx: nginxWithTLSSecret(),
+			want: &corev1.Service{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Service",
+					APIVersion: "v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-nginx-service",
+					Namespace: "default",
+					Labels: map[string]string{
+						"nginx_cr": "my-nginx",
+						"app":      "nginx",
+					},
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{
+							Name:       "http",
+							Protocol:   corev1.ProtocolTCP,
+							TargetPort: intstr.FromString("http"),
+							Port:       int32(80),
+						},
+						{
+							Name:       "https",
+							Protocol:   corev1.ProtocolTCP,
+							TargetPort: intstr.FromString("https"),
+							Port:       int32(443),
+						},
+					},
+					Type: corev1.ServiceTypeClusterIP,
+					Selector: map[string]string{
+						"nginx_cr": "my-nginx",
+						"app":      "nginx",
+					},
 				},
 			},
 		},
