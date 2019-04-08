@@ -17,7 +17,10 @@ const (
 	defaultNginxImage = "nginx:latest"
 
 	// Default port names used by the nginx container and the ClusterIP service
-	defaultHTTPPortName  = "http"
+	defaultHTTPPort     = int32(8080)
+	defaultHTTPPortName = "http"
+
+	defaultHTTPSPort     = int32(8443)
 	defaultHTTPSPortName = "https"
 
 	// Mount path where nginx.conf will be placed
@@ -70,7 +73,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          defaultHTTPPortName,
-									ContainerPort: int32(80),
+									ContainerPort: defaultHTTPPort,
 									Protocol:      corev1.ProtocolTCP,
 								},
 							},
@@ -239,7 +242,7 @@ func setupTLS(secret *v1alpha1.TLSSecret, dep *appv1.Deployment) {
 
 	dep.Spec.Template.Spec.Containers[0].Ports = append(dep.Spec.Template.Spec.Containers[0].Ports, corev1.ContainerPort{
 		Name:          defaultHTTPSPortName,
-		ContainerPort: int32(443),
+		ContainerPort: defaultHTTPSPort,
 		Protocol:      corev1.ProtocolTCP,
 	})
 	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
