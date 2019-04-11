@@ -509,6 +509,55 @@ func TestNewService(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "with-service-extra",
+			nginx: func() v1alpha1.Nginx {
+				n := nginxWithService()
+				n.Spec.Service.LoadBalancerIP = "10.0.0.1"
+				n.Spec.Service.Labels = map[string]string{
+					"x":   "y",
+					"app": "ignored",
+				}
+				n.Spec.Service.Annotations = map[string]string{
+					"a": "b",
+				}
+				return n
+			}(),
+			want: &corev1.Service{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Service",
+					APIVersion: "v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-nginx-service",
+					Namespace: "default",
+					Labels: map[string]string{
+						"nginx_cr": "my-nginx",
+						"app":      "nginx",
+						"x":        "y",
+					},
+					Annotations: map[string]string{
+						"a": "b",
+					},
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{
+							Name:       "http",
+							Protocol:   corev1.ProtocolTCP,
+							TargetPort: intstr.FromString("http"),
+							Port:       int32(80),
+						},
+					},
+					Selector: map[string]string{
+						"nginx_cr": "my-nginx",
+						"app":      "nginx",
+					},
+					Type:           corev1.ServiceTypeLoadBalancer,
+					LoadBalancerIP: "10.0.0.1",
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
