@@ -73,7 +73,7 @@ type ServiceStatus struct {
 
 type NginxService struct {
 	// Type is the type of the service
-	Type string `json:"type"`
+	Type corev1.ServiceType `json:"type"`
 	// LoadBalancerIP is an optional load balancer IP for the service
 	LoadBalancerIP string `json:"loadBalancerIP"`
 	// Labels are extra labels for the service
