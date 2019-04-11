@@ -217,7 +217,7 @@ func (r *ReconcileNginx) refreshStatus(nginx *nginxv1alpha1.Nginx) error {
 }
 
 // listPods return all the pods for the given nginx sorted by name
-func listPods(c client.Client, nginx *nginxv1alpha1.Nginx) ([]nginxv1alpha1.NginxPod, error) {
+func listPods(c client.Client, nginx *nginxv1alpha1.Nginx) ([]nginxv1alpha1.PodStatus, error) {
 	podList := &corev1.PodList{}
 
 	labelSelector := labels.SelectorFromSet(k8s.LabelsForNginx(nginx.Name))
@@ -227,12 +227,12 @@ func listPods(c client.Client, nginx *nginxv1alpha1.Nginx) ([]nginxv1alpha1.Ngin
 		return nil, err
 	}
 
-	var pods []nginxv1alpha1.NginxPod
+	var pods []nginxv1alpha1.PodStatus
 	for _, p := range podList.Items {
 		if p.Status.PodIP == "" {
 			p.Status.PodIP = "<pending>"
 		}
-		pods = append(pods, nginxv1alpha1.NginxPod{
+		pods = append(pods, nginxv1alpha1.PodStatus{
 			Name:  p.Name,
 			PodIP: p.Status.PodIP,
 		})
@@ -245,7 +245,7 @@ func listPods(c client.Client, nginx *nginxv1alpha1.Nginx) ([]nginxv1alpha1.Ngin
 }
 
 // listServices return all the services for the given nginx sorted by name
-func listServices(c client.Client, nginx *nginxv1alpha1.Nginx) ([]nginxv1alpha1.NginxService, error) {
+func listServices(c client.Client, nginx *nginxv1alpha1.Nginx) ([]nginxv1alpha1.ServiceStatus, error) {
 	serviceList := &corev1.ServiceList{}
 
 	labelSelector := labels.SelectorFromSet(k8s.LabelsForNginx(nginx.Name))
@@ -255,15 +255,10 @@ func listServices(c client.Client, nginx *nginxv1alpha1.Nginx) ([]nginxv1alpha1.
 		return nil, err
 	}
 
-	var services []nginxv1alpha1.NginxService
+	var services []nginxv1alpha1.ServiceStatus
 	for _, s := range serviceList.Items {
-		if s.Spec.ClusterIP == "" {
-			s.Spec.ClusterIP = "<pending>"
-		}
-		services = append(services, nginxv1alpha1.NginxService{
-			Name:      s.Name,
-			Type:      string(s.Spec.Type),
-			ServiceIP: s.Spec.ClusterIP,
+		services = append(services, nginxv1alpha1.ServiceStatus{
+			Name: s.Name,
 		})
 	}
 
