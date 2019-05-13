@@ -349,7 +349,6 @@ func Test_NewDeployment(t *testing.T) {
 				return d
 			},
 		},
-
 		{
 			name: "with-resources",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
@@ -366,6 +365,60 @@ func Test_NewDeployment(t *testing.T) {
 						corev1.ResourceMemory: *resource.NewQuantity(int64(100), resource.DecimalSI),
 					}),
 				}
+				return d
+			},
+		},
+		{
+			name: "with-extra-files",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.ExtraFiles = &v1alpha1.FilesRef{
+					Name: "my-extra-files-in-configmap",
+					Files: []v1alpha1.FileItem{
+						{
+							Key:  "www_index.html",
+							Path: "www/index.html",
+						},
+						{
+							Key:  "another-nginx.cnf",
+							Path: "another-nginx.cnf",
+						},
+						{
+							Key:  "waf_sqli-rules.cnf",
+							Path: "waf/sqli-rules.cnf",
+						},
+					},
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.Containers[0].VolumeMounts = append(d.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
+					Name:      "nginx-extra-files",
+					MountPath: "/etc/nginx/extra_files",
+				})
+				d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, corev1.Volume{
+					Name: "nginx-extra-files",
+					VolumeSource: corev1.VolumeSource{
+						ConfigMap: &corev1.ConfigMapVolumeSource{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "my-extra-files-in-configmap",
+							},
+							Items: []corev1.KeyToPath{
+								{
+									Key:  "www_index.html",
+									Path: "www/index.html",
+								},
+								{
+									Key:  "another-nginx.cnf",
+									Path: "another-nginx.cnf",
+								},
+								{
+									Key:  "waf_sqli-rules.cnf",
+									Path: "waf/sqli-rules.cnf",
+								},
+							},
+						},
+					},
+				})
 				return d
 			},
 		},
