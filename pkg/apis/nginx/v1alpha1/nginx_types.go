@@ -26,6 +26,11 @@ type NginxSpec struct {
 	// +optional
 	Service *NginxService `json:"service,omitempty"`
 
+	// ExtraFiles references to additional files into a object in the cluster.
+	// These additional files will be mounted on `/etc/nginx/extra_files`.
+	// +optional
+	ExtraFiles *FilesRef `json:"extraFiles,omitempty"`
+
 	// HealthcheckPath defines the endpoint used to check whether instance is
 	// working or not.
 	// +optional
@@ -120,6 +125,34 @@ type TLSSecret struct {
 	// Relative to /etc/nginx/certs/.
 	// Defaults to <CertificateName>
 	CertificatePath string
+}
+
+// FileItem is a mapping from a key (in a ConfigMap object) to a final location
+// on the container's filesystem.
+type FileItem struct {
+	// Key refereces to a key field of a ConfigMap.
+	Key string
+
+	// Path is the final location where the file should be stored inside the
+	// nginx container.
+	Path string `json:"path"`
+}
+
+// FilesRef is a reference to arbitrary files stored into a ConfigMap in the
+// cluster.
+type FilesRef struct {
+	// Name points to a ConfigMap resource (in the same namespace) which holds
+	// the files.
+	Name string `json:"name"`
+
+	// Files represents a file as a key-value on ConfigMap object. When it's not
+	// set, each entry on ConfigMap will be mounted as usually (key is the
+	// filename and the value as its content).
+
+	// Files maps the files from a ConfigMap to their locations into a container
+	// filesystem.
+	// +optional
+	Files []FileItem `json:"files,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

@@ -32,6 +32,9 @@ const (
 	// Mount path where certificate and key pair will be placed
 	certMountPath = configMountPath + "/certs"
 
+	// Mount path where the additional files will be mounted on
+	extraFilesMountPath = configMountPath + "/extra_files"
+
 	// Annotation key used to stored the nginx that created the deployment
 	generatedFromAnnotation = "nginx.tsuru.io/generated-from"
 )
@@ -96,6 +99,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 	}
 	setupConfig(n.Spec.Config, &deployment)
 	setupTLS(n.Spec.TLSSecret, &deployment)
+	setupExtraFiles(n.Spec.ExtraFiles, &deployment)
 
 	// This is done on the last step because n.Spec may have mutated during these methods
 	if err := SetNginxSpec(&deployment.ObjectMeta, n.Spec); err != nil {
@@ -292,6 +296,36 @@ func setupTLS(secret *v1alpha1.TLSSecret, dep *appv1.Deployment) {
 					{Key: secret.KeyField, Path: secret.KeyPath},
 					{Key: secret.CertificateField, Path: secret.CertificatePath},
 				},
+			},
+		},
+	})
+}
+
+// setupExtraFiles configures the volume source and mount into Deployment resource.
+func setupExtraFiles(fRef *v1alpha1.FilesRef, dep *appv1.Deployment) {
+	if fRef == nil {
+		return
+	}
+	volumeMountName := "nginx-extra-files"
+	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
+		Name:      volumeMountName,
+		MountPath: extraFilesMountPath,
+	})
+	items := make([]corev1.KeyToPath, len(fRef.Files))
+	for i, item := range fRef.Files {
+		items[i] = corev1.KeyToPath{
+			Key:  item.Key,
+			Path: item.Path,
+		}
+	}
+	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, corev1.Volume{
+		Name: volumeMountName,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: fRef.Name,
+				},
+				Items: items,
 			},
 		},
 	})
