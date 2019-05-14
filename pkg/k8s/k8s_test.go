@@ -372,8 +372,7 @@ func Test_NewDeployment(t *testing.T) {
 			name: "with-extra-files",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
 				n.Spec.ExtraFiles = &v1alpha1.FilesRef{
-					Name:  "my-extra-files-in-configmap",
-					Files: nil,
+					Name: "my-extra-files-in-configmap",
 				}
 				return n
 			},
@@ -422,16 +421,16 @@ func Test_NewDeployment(t *testing.T) {
 							},
 							Items: []corev1.KeyToPath{
 								{
-									Key:  "www_index.html",
-									Path: "www/index.html",
-								},
-								{
 									Key:  "another-nginx.cnf",
 									Path: "another-nginx.cnf",
 								},
 								{
 									Key:  "waf_sqli-rules.cnf",
 									Path: "waf/sqli-rules.cnf",
+								},
+								{
+									Key:  "www_index.html",
+									Path: "www/index.html",
 								},
 							},
 						},
