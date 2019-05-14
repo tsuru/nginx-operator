@@ -372,6 +372,33 @@ func Test_NewDeployment(t *testing.T) {
 			name: "with-extra-files",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
 				n.Spec.ExtraFiles = &v1alpha1.FilesRef{
+					Name:  "my-extra-files-in-configmap",
+					Files: nil,
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.Containers[0].VolumeMounts = append(d.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
+					Name:      "nginx-extra-files",
+					MountPath: "/etc/nginx/extra_files",
+				})
+				d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, corev1.Volume{
+					Name: "nginx-extra-files",
+					VolumeSource: corev1.VolumeSource{
+						ConfigMap: &corev1.ConfigMapVolumeSource{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "my-extra-files-in-configmap",
+							},
+						},
+					},
+				})
+				return d
+			},
+		},
+		{
+			name: "with-extra-files-and-files-mounted-on-custom-subdirs",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.ExtraFiles = &v1alpha1.FilesRef{
 					Name: "my-extra-files-in-configmap",
 					Files: map[string]string{
 						"www_index.html":     "www/index.html",
