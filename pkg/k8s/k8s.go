@@ -3,6 +3,7 @@ package k8s
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 
 	"github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
 	appv1 "k8s.io/api/apps/v1"
@@ -316,6 +317,12 @@ func setupExtraFiles(fRef *v1alpha1.FilesRef, dep *appv1.Deployment) {
 		items = append(items, corev1.KeyToPath{
 			Key:  key,
 			Path: path,
+		})
+	}
+	// putting the items in a deterministic order to allow tests
+	if items != nil {
+		sort.Slice(items, func(i, j int) bool {
+			return items[i].Key < items[j].Key
 		})
 	}
 	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, corev1.Volume{
