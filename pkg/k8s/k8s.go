@@ -311,12 +311,12 @@ func setupExtraFiles(fRef *v1alpha1.FilesRef, dep *appv1.Deployment) {
 		Name:      volumeMountName,
 		MountPath: extraFilesMountPath,
 	})
-	items := make([]corev1.KeyToPath, len(fRef.Files))
-	for i, item := range fRef.Files {
-		items[i] = corev1.KeyToPath{
-			Key:  item.Key,
-			Path: item.Path,
-		}
+	var items []corev1.KeyToPath
+	for key, path := range fRef.Files {
+		items = append(items, corev1.KeyToPath{
+			Key:  key,
+			Path: path,
+		})
 	}
 	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, corev1.Volume{
 		Name: volumeMountName,
