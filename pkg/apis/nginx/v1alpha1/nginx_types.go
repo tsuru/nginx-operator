@@ -25,12 +25,10 @@ type NginxSpec struct {
 	// Service to expose the nginx pod
 	// +optional
 	Service *NginxService `json:"service,omitempty"`
-
 	// ExtraFiles references to additional files into a object in the cluster.
 	// These additional files will be mounted on `/etc/nginx/extra_files`.
 	// +optional
 	ExtraFiles *FilesRef `json:"extraFiles,omitempty"`
-
 	// HealthcheckPath defines the endpoint used to check whether instance is
 	// working or not.
 	// +optional
@@ -133,7 +131,6 @@ type FilesRef struct {
 	// Name points to a ConfigMap resource (in the same namespace) which holds
 	// the files.
 	Name string `json:"name"`
-
 	// Files maps each key entry from the ConfigMap to its relative location on
 	// the nginx filesystem.
 	// +optional
