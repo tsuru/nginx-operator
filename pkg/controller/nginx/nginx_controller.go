@@ -158,22 +158,25 @@ func (r *ReconcileNginx) reconcileDeployment(nginx *nginxv1alpha1.Nginx) error {
 }
 
 func (r *ReconcileNginx) reconcileService(nginx *nginxv1alpha1.Nginx) error {
-	newService := k8s.NewService(nginx)
-
-	err := r.client.Create(context.TODO(), newService)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create Service resource: %v", err)
+	svcName := types.NamespacedName{
+		Name:      fmt.Sprintf("%s-service", nginx.Name),
+		Namespace: nginx.Namespace,
 	}
-
-	if err == nil {
-		return nil
-	}
-
 	currentService := &corev1.Service{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Namespace: newService.Namespace, Name: newService.Name}, currentService)
+	err := r.client.Get(context.TODO(), svcName, currentService)
+
+	if err != nil && errors.IsNotFound(err) {
+		return r.client.Create(context.TODO(), k8s.NewService(nginx))
+	}
 
 	if err != nil {
 		return fmt.Errorf("failed to retrieve Service resource: %v", err)
+	}
+
+	newService := k8s.NewService(nginx)
+	// avoid nodeport reallocation preserving the current ones
+	for index, port := range currentService.Spec.Ports {
+		newService.Spec.Ports[index].NodePort = port.NodePort
 	}
 
 	if reflect.DeepEqual(currentService.Spec.Ports, newService.Spec.Ports) {
