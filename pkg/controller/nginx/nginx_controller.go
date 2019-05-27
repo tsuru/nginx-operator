@@ -175,8 +175,12 @@ func (r *ReconcileNginx) reconcileService(nginx *nginxv1alpha1.Nginx) error {
 
 	newService := k8s.NewService(nginx)
 	// avoid nodeport reallocation preserving the current ones
-	for index, port := range currentService.Spec.Ports {
-		newService.Spec.Ports[index].NodePort = port.NodePort
+	for _, currentPort := range currentService.Spec.Ports {
+		for index, newPort := range newService.Spec.Ports {
+			if currentPort.Port == newPort.Port {
+				newService.Spec.Ports[index].NodePort = currentPort.NodePort
+			}
+		}
 	}
 
 	if reflect.DeepEqual(currentService.Spec.Ports, newService.Spec.Ports) {
