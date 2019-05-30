@@ -108,21 +108,25 @@ const (
 // TLSSecret is a reference to tls certificate and key pairs stored in a secret.
 type TLSSecret struct {
 	// Name of the Secret holding the certificate and key.
-	SecretName string
+	SecretName string `json:"secretName"`
 	// Secret field that contains the key.
 	// Defaults to tls.key
-	KeyField string
+	// +optional
+	KeyField string `json:"keyField,omitempty"`
 	// Secret field that contains the certificate.
 	// Defaults to tls.crt
-	CertificateField string
+	// +optional
+	CertificateField string `json:"certificateField,omitempty"`
 	// Path where the key should be stored inside the nginx container.
 	// Relative to /etc/nginx/certs/.
 	// Defaults to <KeyName>
-	KeyPath string
+	// +optional
+	KeyPath string `json:"keyPath,omitempty"`
 	// Path where the certificate should be stored inside the nginx container.
 	// Relative to /etc/nginx/certs/.
 	// Defaults to <CertificateName>
-	CertificatePath string
+	// +optional
+	CertificatePath string `json:"certificatePath,omitempty"`
 }
 
 // FilesRef is a reference to arbitrary files stored into a ConfigMap in the
