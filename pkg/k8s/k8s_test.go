@@ -34,14 +34,18 @@ func nginxWithService() v1alpha1.Nginx {
 	return n
 }
 
-func nginxWithTLSSecret() v1alpha1.Nginx {
+func nginxWithCertificate() v1alpha1.Nginx {
 	n := baseNginx()
-	n.Spec.TLSSecret = &v1alpha1.TLSSecret{
+	n.Spec.Certificates = &v1alpha1.TLSSecret{
 		SecretName:       "my-secret",
-		KeyField:         "key-field",
-		KeyPath:          "key-path",
-		CertificateField: "cert-field",
-		CertificatePath:  "cert-path",
+		Items: []v1alpha1.TLSSecretItem{
+			{
+				KeyField:         "key-field",
+				KeyPath:          "key-path",
+				CertificateField: "cert-field",
+				CertificatePath:  "cert-path",
+			},
+		},
 	}
 	return n
 }
@@ -217,12 +221,16 @@ func Test_NewDeployment(t *testing.T) {
 		{
 			name: "with-tls",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
-				n.Spec.TLSSecret = &v1alpha1.TLSSecret{
+				n.Spec.Certificates = &v1alpha1.TLSSecret{
 					SecretName:       "my-secret",
-					KeyField:         "key-field",
-					KeyPath:          "key-path",
-					CertificateField: "cert-field",
-					CertificatePath:  "cert-path",
+					Items: []v1alpha1.TLSSecretItem{
+						{
+							CertificateField: "cert-field",
+							CertificatePath:  "cert-path",
+							KeyField:         "key-field",
+							KeyPath:          "key-path",
+						},
+					},
 				}
 				return n
 			},
@@ -258,8 +266,8 @@ func Test_NewDeployment(t *testing.T) {
 							Secret: &corev1.SecretVolumeSource{
 								SecretName: "my-secret",
 								Items: []corev1.KeyToPath{
-									{Key: "key-field", Path: "key-path"},
 									{Key: "cert-field", Path: "cert-path"},
+									{Key: "key-field", Path: "key-path"},
 								},
 							},
 						},
@@ -271,8 +279,14 @@ func Test_NewDeployment(t *testing.T) {
 		{
 			name: "with-tls-default-values",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
-				n.Spec.TLSSecret = &v1alpha1.TLSSecret{
+				n.Spec.Certificates = &v1alpha1.TLSSecret{
 					SecretName: "my-secret",
+					Items: []v1alpha1.TLSSecretItem{
+						{
+							CertificateField: "cert.crt",
+							KeyField: "cert.key",
+						},
+					},
 				}
 				return n
 			},
@@ -308,8 +322,70 @@ func Test_NewDeployment(t *testing.T) {
 							Secret: &corev1.SecretVolumeSource{
 								SecretName: "my-secret",
 								Items: []corev1.KeyToPath{
-									{Key: "tls.key", Path: "tls.key"},
-									{Key: "tls.crt", Path: "tls.crt"},
+									{Key: "cert.crt", Path: "cert.crt"},
+									{Key: "cert.key", Path: "cert.key"},
+								},
+							},
+						},
+					},
+				}
+				return d
+			},
+		},
+		{
+			name: "with-two-certificates",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.Certificates = &v1alpha1.TLSSecret{
+					SecretName:       "my-secret",
+					Items: []v1alpha1.TLSSecretItem{
+						{
+							CertificateField:  "rsa.crt.pem",
+							KeyField:         "rsa.key.pem",
+						},
+						{
+							CertificateField: "ecdsa.crt.pem",
+							KeyField: "ecdsa.key.pem",
+						},
+					},
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
+					{
+						Name:          defaultHTTPPortName,
+						ContainerPort: defaultHTTPPort,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          defaultHTTPSPortName,
+						ContainerPort: defaultHTTPSPort,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				}
+				d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
+					{Name: "nginx-certs", MountPath: "/etc/nginx/certs"},
+				}
+				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+					Handler: corev1.Handler{
+						HTTPGet: &corev1.HTTPGetAction{
+							Path:   "/",
+							Port:   intstr.FromString(defaultHTTPSPortName),
+							Scheme: corev1.URISchemeHTTPS,
+						},
+					},
+				}
+				d.Spec.Template.Spec.Volumes = []corev1.Volume{
+					{
+						Name: "nginx-certs",
+						VolumeSource: corev1.VolumeSource{
+							Secret: &corev1.SecretVolumeSource{
+								SecretName: "my-secret",
+								Items: []corev1.KeyToPath{
+									{Key: "rsa.crt.pem", Path: "rsa.crt.pem"},
+									{Key: "rsa.key.pem", Path: "rsa.key.pem"},
+									{Key: "ecdsa.crt.pem", Path: "ecdsa.crt.pem"},
+									{Key: "ecdsa.key.pem", Path: "ecdsa.key.pem"},
 								},
 							},
 						},
@@ -542,7 +618,7 @@ func TestNewService(t *testing.T) {
 		},
 		{
 			name:  "with-tls",
-			nginx: nginxWithTLSSecret(),
+			nginx: nginxWithCertificate(),
 			want: &corev1.Service{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Service",

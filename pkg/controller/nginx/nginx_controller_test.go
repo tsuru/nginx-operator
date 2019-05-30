@@ -67,7 +67,7 @@ func TestReconcileNginx_reconcileService(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: v1alpha1.NginxSpec{
-					TLSSecret: &v1alpha1.TLSSecret{},
+					Certificates: &v1alpha1.TLSSecret{},
 				},
 				Status: v1alpha1.NginxStatus{},
 			},
