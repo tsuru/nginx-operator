@@ -50,7 +50,24 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	return nil
+	// HACK(nettoclaudio): Since the Nginx needs store all its pods' info into
+	// the status field, we need watching every pod changes and enqueue a new
+	// reconcile request to its Nginx owner, if any.
+	return c.Watch(&source.Kind{Type: &corev1.Pod{}},
+		&handler.EnqueueRequestsFromMapFunc{
+			ToRequests: handler.ToRequestsFunc(func(o handler.MapObject) []reconcile.Request {
+				if nginxCR, ok := o.Meta.GetLabels()["nginx_cr"]; ok {
+					return []reconcile.Request{
+						{NamespacedName: types.NamespacedName{
+							Name:      nginxCR,
+							Namespace: o.Meta.GetNamespace(),
+						}},
+					}
+				}
+				return []reconcile.Request{}
+			}),
+		},
+	)
 }
 
 var _ reconcile.Reconciler = &ReconcileNginx{}
