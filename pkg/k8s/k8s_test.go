@@ -37,7 +37,7 @@ func nginxWithService() v1alpha1.Nginx {
 func nginxWithCertificate() v1alpha1.Nginx {
 	n := baseNginx()
 	n.Spec.Certificates = &v1alpha1.TLSSecret{
-		SecretName:       "my-secret",
+		SecretName: "my-secret",
 		Items: []v1alpha1.TLSSecretItem{
 			{
 				KeyField:         "key-field",
@@ -86,6 +86,11 @@ func baseDeployment() appv1.Deployment {
 								{
 									Name:          defaultHTTPPortName,
 									ContainerPort: defaultHTTPPort,
+									Protocol:      corev1.ProtocolTCP,
+								},
+								{
+									Name:          defaultHTTPSPortName,
+									ContainerPort: defaultHTTPSPort,
 									Protocol:      corev1.ProtocolTCP,
 								},
 							},
@@ -222,7 +227,7 @@ func Test_NewDeployment(t *testing.T) {
 			name: "with-tls",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
 				n.Spec.Certificates = &v1alpha1.TLSSecret{
-					SecretName:       "my-secret",
+					SecretName: "my-secret",
 					Items: []v1alpha1.TLSSecretItem{
 						{
 							CertificateField: "cert-field",
@@ -284,7 +289,7 @@ func Test_NewDeployment(t *testing.T) {
 					Items: []v1alpha1.TLSSecretItem{
 						{
 							CertificateField: "cert.crt",
-							KeyField: "cert.key",
+							KeyField:         "cert.key",
 						},
 					},
 				}
@@ -336,15 +341,15 @@ func Test_NewDeployment(t *testing.T) {
 			name: "with-two-certificates",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
 				n.Spec.Certificates = &v1alpha1.TLSSecret{
-					SecretName:       "my-secret",
+					SecretName: "my-secret",
 					Items: []v1alpha1.TLSSecretItem{
 						{
-							CertificateField:  "rsa.crt.pem",
+							CertificateField: "rsa.crt.pem",
 							KeyField:         "rsa.key.pem",
 						},
 						{
 							CertificateField: "ecdsa.crt.pem",
-							KeyField: "ecdsa.key.pem",
+							KeyField:         "ecdsa.key.pem",
 						},
 					},
 				}
@@ -574,6 +579,12 @@ func TestNewService(t *testing.T) {
 							TargetPort: intstr.FromString("http"),
 							Port:       int32(80),
 						},
+						{
+							Name:       "https",
+							Protocol:   corev1.ProtocolTCP,
+							TargetPort: intstr.FromString("https"),
+							Port:       int32(443),
+						},
 					},
 					Selector: map[string]string{
 						"nginx_cr": "my-nginx",
@@ -606,6 +617,12 @@ func TestNewService(t *testing.T) {
 							Protocol:   corev1.ProtocolTCP,
 							TargetPort: intstr.FromString("http"),
 							Port:       int32(80),
+						},
+						{
+							Name:       "https",
+							Protocol:   corev1.ProtocolTCP,
+							TargetPort: intstr.FromString("https"),
+							Port:       int32(443),
 						},
 					},
 					Selector: map[string]string{
@@ -693,6 +710,12 @@ func TestNewService(t *testing.T) {
 							Protocol:   corev1.ProtocolTCP,
 							TargetPort: intstr.FromString("http"),
 							Port:       int32(80),
+						},
+						{
+							Name:       "https",
+							Protocol:   corev1.ProtocolTCP,
+							TargetPort: intstr.FromString("https"),
+							Port:       int32(443),
 						},
 					},
 					Selector: map[string]string{
