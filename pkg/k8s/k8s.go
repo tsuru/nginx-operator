@@ -80,6 +80,11 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 									ContainerPort: defaultHTTPPort,
 									Protocol:      corev1.ProtocolTCP,
 								},
+								{
+									Name:          defaultHTTPSPortName,
+									ContainerPort: defaultHTTPSPort,
+									Protocol:      corev1.ProtocolTCP,
+								},
 							},
 							Resources: n.Spec.PodTemplate.Resources,
 							ReadinessProbe: &corev1.Probe{
@@ -155,19 +160,17 @@ func NewService(n *v1alpha1.Nginx) *corev1.Service {
 					TargetPort: intstr.FromString(defaultHTTPPortName),
 					Port:       int32(80),
 				},
+				{
+					Name:       defaultHTTPSPortName,
+					Protocol:   corev1.ProtocolTCP,
+					TargetPort: intstr.FromString(defaultHTTPSPortName),
+					Port:       int32(443),
+				},
 			},
 			Selector:       LabelsForNginx(n.Name),
 			LoadBalancerIP: lbIP,
 			Type:           nginxService(n),
 		},
-	}
-	if n.Spec.Certificates != nil {
-		service.Spec.Ports = append(service.Spec.Ports, corev1.ServicePort{
-			Name:       defaultHTTPSPortName,
-			Protocol:   corev1.ProtocolTCP,
-			TargetPort: intstr.FromString(defaultHTTPSPortName),
-			Port:       int32(443),
-		})
 	}
 	return &service
 }
@@ -264,11 +267,6 @@ func setupTLS(secret *v1alpha1.TLSSecret, dep *appv1.Deployment) {
 		return
 	}
 
-	dep.Spec.Template.Spec.Containers[0].Ports = append(dep.Spec.Template.Spec.Containers[0].Ports, corev1.ContainerPort{
-		Name:          defaultHTTPSPortName,
-		ContainerPort: defaultHTTPSPort,
-		Protocol:      corev1.ProtocolTCP,
-	})
 	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 		Handler: corev1.Handler{
 			HTTPGet: &corev1.HTTPGetAction{
@@ -286,10 +284,10 @@ func setupTLS(secret *v1alpha1.TLSSecret, dep *appv1.Deployment) {
 	var items []corev1.KeyToPath
 	for _, item := range secret.Items {
 		items = append(items, corev1.KeyToPath{
-			Key: item.CertificateField,
+			Key:  item.CertificateField,
 			Path: valueOrDefault(item.CertificatePath, item.CertificateField),
 		}, corev1.KeyToPath{
-			Key: item.KeyField,
+			Key:  item.KeyField,
 			Path: valueOrDefault(item.KeyPath, item.KeyField),
 		})
 	}
@@ -299,7 +297,7 @@ func setupTLS(secret *v1alpha1.TLSSecret, dep *appv1.Deployment) {
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
 				SecretName: secret.SecretName,
-				Items: items,
+				Items:      items,
 			},
 		},
 	})

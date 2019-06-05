@@ -44,12 +44,19 @@ func TestReconcileNginx_reconcileService(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, got)
 				expectedPorts := []corev1.ServicePort{
-					corev1.ServicePort{
+					{
 						Name:       "http",
 						TargetPort: intstr.FromString("http"),
 						Protocol:   corev1.ProtocolTCP,
 						NodePort:   int32(0),
 						Port:       int32(80),
+					},
+					{
+						Name:       "https",
+						TargetPort: intstr.FromString("https"),
+						Protocol:   corev1.ProtocolTCP,
+						NodePort:   int32(0),
+						Port:       int32(443),
 					},
 				}
 				assert.Equal(t, expectedPorts, got.Spec.Ports)
@@ -83,6 +90,13 @@ func TestReconcileNginx_reconcileService(t *testing.T) {
 				Spec: corev1.ServiceSpec{
 					Ports: []corev1.ServicePort{
 						{
+							Name:       "https",
+							TargetPort: intstr.FromString("https"),
+							Protocol:   corev1.ProtocolTCP,
+							Port:       int32(443),
+							NodePort:   int32(30667),
+						},
+						{
 							Name:       "http",
 							Protocol:   corev1.ProtocolTCP,
 							TargetPort: intstr.FromString("http"),
@@ -107,7 +121,7 @@ func TestReconcileNginx_reconcileService(t *testing.T) {
 						Name:       "https",
 						TargetPort: intstr.FromString("https"),
 						Protocol:   corev1.ProtocolTCP,
-						NodePort:   int32(0),
+						NodePort:   int32(30667),
 						Port:       int32(443),
 					},
 				}
