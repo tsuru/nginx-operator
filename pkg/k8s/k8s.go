@@ -223,10 +223,10 @@ func setupNginxConf(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {
 
 	configMapName := "nginx-config"
 
-	SetupMounts(conf, dep, configMapName)
+	setupMounts(conf, dep, configMapName)
 }
 
-func SetupMounts(conf *v1alpha1.ConfigRef, dep *appv1.Deployment, configMapName string) {
+func setupMounts(conf *v1alpha1.ConfigRef, dep *appv1.Deployment, configMapName string) {
 	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
 		Name:      configMapName,
 		MountPath: fmt.Sprintf("%s/%s", configMountPath, configFileName),
