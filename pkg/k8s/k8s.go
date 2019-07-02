@@ -103,7 +103,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 			},
 		},
 	}
-	setupConfig(n.Spec.Config, &deployment)
+	setupNginxConf(n.Spec.Config, &deployment)
 	setupTLS(n.Spec.Certificates, &deployment)
 	setupExtraFiles(n.Spec.ExtraFiles, &deployment)
 
@@ -216,10 +216,15 @@ func SetNginxSpec(o *metav1.ObjectMeta, spec v1alpha1.NginxSpec) error {
 	return nil
 }
 
-func setupConfig(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {
+func setupNginxConf(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {
 	if conf == nil {
 		return
 	}
+
+	SetupMounts(conf, dep)
+}
+
+func SetupMounts(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {
 	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
 		Name:      "nginx-config",
 		MountPath: fmt.Sprintf("%s/%s", configMountPath, configFileName),
