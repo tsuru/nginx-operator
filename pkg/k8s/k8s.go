@@ -221,19 +221,21 @@ func setupNginxConf(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {
 		return
 	}
 
-	SetupMounts(conf, dep)
+	configMapName := "nginx-config"
+
+	SetupMounts(conf, dep, configMapName)
 }
 
-func SetupMounts(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {
+func SetupMounts(conf *v1alpha1.ConfigRef, dep *appv1.Deployment, configMapName string) {
 	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
-		Name:      "nginx-config",
+		Name:      configMapName,
 		MountPath: fmt.Sprintf("%s/%s", configMountPath, configFileName),
 		SubPath:   configFileName,
 	})
 	switch conf.Kind {
 	case v1alpha1.ConfigKindConfigMap:
 		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, corev1.Volume{
-			Name: "nginx-config",
+			Name: configMapName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
