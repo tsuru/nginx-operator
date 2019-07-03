@@ -223,7 +223,7 @@ func setupNginxConf(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {
 	volumeName := "nginx-config"
 	configPath := fmt.Sprintf("%s/%s", configMountPath, configFileName)
 
-	setupMounts(conf, dep, volumeName, configPath)
+	setupMounts(conf, dep, volumeName, configPath, 0644)
 }
 
 func setupHealthcheck(healthcheck *v1alpha1.ConfigRef, dep *appv1.Deployment) {
@@ -234,7 +234,7 @@ func setupHealthcheck(healthcheck *v1alpha1.ConfigRef, dep *appv1.Deployment) {
 	volumeName := "healthcheck-script"
 	scriptPath := fmt.Sprintf("%s/%s", healthcheckScriptMountPath, healthcheckScriptFileName)
 
-	setupMounts(healthcheck, dep, volumeName, scriptPath)
+	setupMounts(healthcheck, dep, volumeName, scriptPath, 0744)
 
 	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 		Handler: corev1.Handler{
@@ -245,7 +245,7 @@ func setupHealthcheck(healthcheck *v1alpha1.ConfigRef, dep *appv1.Deployment) {
 	}
 }
 
-func setupMounts(conf *v1alpha1.ConfigRef, dep *appv1.Deployment, configMapName string, volumeMountPath string) {
+func setupMounts(conf *v1alpha1.ConfigRef, dep *appv1.Deployment, configMapName string, volumeMountPath string, mode int32) {
 	_, fileName := filepath.Split(volumeMountPath)
 
 	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
@@ -260,6 +260,7 @@ func setupMounts(conf *v1alpha1.ConfigRef, dep *appv1.Deployment, configMapName 
 			Name: configMapName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
+					DefaultMode: &mode,
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: conf.Name,
 					},
@@ -278,6 +279,7 @@ func setupMounts(conf *v1alpha1.ConfigRef, dep *appv1.Deployment, configMapName 
 				DownwardAPI: &corev1.DownwardAPIVolumeSource{
 					Items: []corev1.DownwardAPIVolumeFile{
 						{
+							Mode: &mode,
 							Path: fileName,
 							FieldRef: &corev1.ObjectFieldSelector{
 								FieldPath: fmt.Sprintf("metadata.annotations['%s']", conf.Name),

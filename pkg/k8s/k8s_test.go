@@ -158,11 +158,13 @@ func Test_NewDeployment(t *testing.T) {
 						SubPath:   "nginx.conf",
 					},
 				}
+				mode := int32(0644)
 				d.Spec.Template.Spec.Volumes = []corev1.Volume{
 					{
 						Name: "nginx-config",
 						VolumeSource: corev1.VolumeSource{
 							ConfigMap: &corev1.ConfigMapVolumeSource{
+								DefaultMode: &mode,
 								LocalObjectReference: corev1.LocalObjectReference{
 									Name: "config-map-xpto",
 								},
@@ -194,6 +196,7 @@ func Test_NewDeployment(t *testing.T) {
 				d.Spec.Template.Annotations = map[string]string{
 					"config-inline": "server {}",
 				}
+				mode := int32(0644)
 				d.Spec.Template.Spec.Volumes = []corev1.Volume{
 					{
 						Name: "nginx-config",
@@ -202,6 +205,7 @@ func Test_NewDeployment(t *testing.T) {
 								Items: []corev1.DownwardAPIVolumeFile{
 									{
 										Path: "nginx.conf",
+										Mode: &mode,
 										FieldRef: &corev1.ObjectFieldSelector{
 											FieldPath: "metadata.annotations['config-inline']",
 										},
@@ -231,11 +235,13 @@ func Test_NewDeployment(t *testing.T) {
 						SubPath:   "healthcheck.sh",
 					},
 				}
+				mode := int32(0744)
 				d.Spec.Template.Spec.Volumes = []corev1.Volume{
 					{
 						Name: "healthcheck-script",
 						VolumeSource: corev1.VolumeSource{
 							ConfigMap: &corev1.ConfigMapVolumeSource{
+								DefaultMode: &mode,
 								LocalObjectReference: corev1.LocalObjectReference{
 									Name: "config-map-xpto",
 								},
@@ -274,6 +280,7 @@ func Test_NewDeployment(t *testing.T) {
 				d.Spec.Template.Annotations = map[string]string{
 					"healthcheck-inline": "curl localhost:8080",
 				}
+				mode := int32(0744)
 				d.Spec.Template.Spec.Volumes = []corev1.Volume{
 					{
 						Name: "healthcheck-script",
@@ -282,6 +289,7 @@ func Test_NewDeployment(t *testing.T) {
 								Items: []corev1.DownwardAPIVolumeFile{
 									{
 										Path: "healthcheck.sh",
+										Mode: &mode,
 										FieldRef: &corev1.ObjectFieldSelector{
 											FieldPath: "metadata.annotations['healthcheck-inline']",
 										},
