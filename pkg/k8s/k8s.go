@@ -3,6 +3,7 @@ package k8s
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"sort"
 
 	"github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
@@ -222,16 +223,20 @@ func setupNginxConf(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {
 	}
 
 	configMapName := "nginx-config"
+	volumeMountPath := fmt.Sprintf("%s/%s", configMountPath, configFileName)
 
-	setupMounts(conf, dep, configMapName)
+	setupMounts(conf, dep, configMapName, volumeMountPath)
 }
 
-func setupMounts(conf *v1alpha1.ConfigRef, dep *appv1.Deployment, configMapName string) {
+func setupMounts(conf *v1alpha1.ConfigRef, dep *appv1.Deployment, configMapName string, volumeMountPath string) {
+	_, fileName := filepath.Split(volumeMountPath)
+
 	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
 		Name:      configMapName,
-		MountPath: fmt.Sprintf("%s/%s", configMountPath, configFileName),
-		SubPath:   configFileName,
+		MountPath: volumeMountPath,
+		SubPath:   fileName,
 	})
+
 	switch conf.Kind {
 	case v1alpha1.ConfigKindConfigMap:
 		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, corev1.Volume{
