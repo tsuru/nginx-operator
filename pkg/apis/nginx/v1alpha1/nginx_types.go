@@ -34,6 +34,10 @@ type NginxSpec struct {
 	// working or not.
 	// +optional
 	HealthcheckPath string `json:"healthcheckPath,omitempty"`
+	// Reference to a script to check pods readiness
+	// working or not.
+	// +optional
+	Healthcheck *ConfigRef `json:healthcheck,omitempty`
 }
 
 type NginxPodTemplateSpec struct {
