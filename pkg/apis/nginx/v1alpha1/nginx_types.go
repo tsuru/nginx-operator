@@ -32,7 +32,7 @@ type NginxSpec struct {
 	ExtraFiles *FilesRef `json:"extraFiles,omitempty"`
 	// Reference to a script to check pods readiness.
 	// +optional
-	Healthcheck *ConfigRef `json:healthcheck,omitempty`
+	Healthcheck *ConfigRef `json:"healthcheck,omitempty"`
 }
 
 type NginxPodTemplateSpec struct {
