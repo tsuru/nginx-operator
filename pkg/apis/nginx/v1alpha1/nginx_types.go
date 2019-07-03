@@ -30,7 +30,7 @@ type NginxSpec struct {
 	// These additional files will be mounted on `/etc/nginx/extra_files`.
 	// +optional
 	ExtraFiles *FilesRef `json:"extraFiles,omitempty"`
-	// Reference to a script to check pods readiness.
+	// Healthcheck references to a script to check pods readiness.
 	// +optional
 	Healthcheck *ConfigRef `json:"healthcheck,omitempty"`
 }
