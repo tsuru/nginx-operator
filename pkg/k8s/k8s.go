@@ -256,12 +256,12 @@ func setupMounts(conf *v1alpha1.ConfigRef, dep *appv1.Deployment, configMapName 
 		}
 		dep.Spec.Template.Annotations[conf.Name] = conf.Value
 		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, corev1.Volume{
-			Name: "nginx-config",
+			Name: configMapName,
 			VolumeSource: corev1.VolumeSource{
 				DownwardAPI: &corev1.DownwardAPIVolumeSource{
 					Items: []corev1.DownwardAPIVolumeFile{
 						{
-							Path: "nginx.conf",
+							Path: fileName,
 							FieldRef: &corev1.ObjectFieldSelector{
 								FieldPath: fmt.Sprintf("metadata.annotations['%s']", conf.Name),
 							},
