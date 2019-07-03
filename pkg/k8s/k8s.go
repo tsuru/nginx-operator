@@ -31,6 +31,12 @@ const (
 	// Default configuration filename of nginx
 	configFileName = "nginx.conf"
 
+	// Mount path where healthcheck.sh will be placed
+	healthcheckScriptMountPath = "/usr/local/bin"
+
+	// Default healthcheck script filename
+	healthcheckScriptFileName = "healthcheck.sh"
+
 	// Mount path where certificate and key pair will be placed
 	certMountPath = configMountPath + "/certs"
 
