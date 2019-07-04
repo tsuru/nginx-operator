@@ -1,0 +1,12 @@
+apiVersion: nginx.tsuru.io/v1alpha1
+kind: Nginx
+metadata:
+  name: nginx-inline-hc
+spec:
+  image: tsuru/nginx-tsuru:1.16.0
+  healthcheck:
+    name: nginx-inline-hc
+    kind: Inline
+    value: |
+      #!/bin/bash
+      curl -sq localhost:80

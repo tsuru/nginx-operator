@@ -30,10 +30,9 @@ type NginxSpec struct {
 	// These additional files will be mounted on `/etc/nginx/extra_files`.
 	// +optional
 	ExtraFiles *FilesRef `json:"extraFiles,omitempty"`
-	// HealthcheckPath defines the endpoint used to check whether instance is
-	// working or not.
+	// Healthcheck references to a script to check pods readiness.
 	// +optional
-	HealthcheckPath string `json:"healthcheckPath,omitempty"`
+	Healthcheck *ConfigRef `json:"healthcheck,omitempty"`
 }
 
 type NginxPodTemplateSpec struct {

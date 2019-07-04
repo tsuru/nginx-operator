@@ -3,6 +3,7 @@ package k8s
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"sort"
 
 	"github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
@@ -29,6 +30,12 @@ const (
 
 	// Default configuration filename of nginx
 	configFileName = "nginx.conf"
+
+	// Mount path where healthcheck.sh will be placed
+	healthcheckScriptMountPath = "/usr/local/bin"
+
+	// Default healthcheck script filename
+	healthcheckScriptFileName = "healthcheck.sh"
 
 	// Mount path where certificate and key pair will be placed
 	certMountPath = configMountPath + "/certs"
@@ -87,15 +94,6 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 								},
 							},
 							Resources: n.Spec.PodTemplate.Resources,
-							ReadinessProbe: &corev1.Probe{
-								Handler: corev1.Handler{
-									HTTPGet: &corev1.HTTPGetAction{
-										Path:   valueOrDefault(n.Spec.HealthcheckPath, "/"),
-										Port:   intstr.FromString(defaultHTTPPortName),
-										Scheme: corev1.URISchemeHTTP,
-									},
-								},
-							},
 						},
 					},
 					Affinity: n.Spec.PodTemplate.Affinity,
@@ -103,7 +101,8 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 			},
 		},
 	}
-	setupConfig(n.Spec.Config, &deployment)
+	setupNginxConf(n.Spec.Config, &deployment)
+	setupHealthcheck(n.Spec.Healthcheck, &deployment)
 	setupTLS(n.Spec.Certificates, &deployment)
 	setupExtraFiles(n.Spec.ExtraFiles, &deployment)
 
@@ -216,21 +215,52 @@ func SetNginxSpec(o *metav1.ObjectMeta, spec v1alpha1.NginxSpec) error {
 	return nil
 }
 
-func setupConfig(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {
+func setupNginxConf(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {
 	if conf == nil {
 		return
 	}
+
+	volumeName := "nginx-config"
+	configPath := fmt.Sprintf("%s/%s", configMountPath, configFileName)
+
+	setupMounts(conf, dep, volumeName, configPath, 0644)
+}
+
+func setupHealthcheck(healthcheck *v1alpha1.ConfigRef, dep *appv1.Deployment) {
+	if healthcheck == nil {
+		return
+	}
+
+	volumeName := "healthcheck-script"
+	scriptPath := fmt.Sprintf("%s/%s", healthcheckScriptMountPath, healthcheckScriptFileName)
+
+	setupMounts(healthcheck, dep, volumeName, scriptPath, 0744)
+
+	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+		Handler: corev1.Handler{
+			Exec: &corev1.ExecAction{
+				Command: []string{scriptPath},
+			},
+		},
+	}
+}
+
+func setupMounts(conf *v1alpha1.ConfigRef, dep *appv1.Deployment, configMapName string, volumeMountPath string, mode int32) {
+	_, fileName := filepath.Split(volumeMountPath)
+
 	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
-		Name:      "nginx-config",
-		MountPath: fmt.Sprintf("%s/%s", configMountPath, configFileName),
-		SubPath:   configFileName,
+		Name:      configMapName,
+		MountPath: volumeMountPath,
+		SubPath:   fileName,
 	})
+
 	switch conf.Kind {
 	case v1alpha1.ConfigKindConfigMap:
 		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, corev1.Volume{
-			Name: "nginx-config",
+			Name: configMapName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
+					DefaultMode: &mode,
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: conf.Name,
 					},
@@ -244,12 +274,13 @@ func setupConfig(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {
 		}
 		dep.Spec.Template.Annotations[conf.Name] = conf.Value
 		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, corev1.Volume{
-			Name: "nginx-config",
+			Name: configMapName,
 			VolumeSource: corev1.VolumeSource{
 				DownwardAPI: &corev1.DownwardAPIVolumeSource{
 					Items: []corev1.DownwardAPIVolumeFile{
 						{
-							Path: "nginx.conf",
+							Mode: &mode,
+							Path: fileName,
 							FieldRef: &corev1.ObjectFieldSelector{
 								FieldPath: fmt.Sprintf("metadata.annotations['%s']", conf.Name),
 							},
@@ -267,15 +298,6 @@ func setupTLS(secret *v1alpha1.TLSSecret, dep *appv1.Deployment) {
 		return
 	}
 
-	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
-		Handler: corev1.Handler{
-			HTTPGet: &corev1.HTTPGetAction{
-				Path:   dep.Spec.Template.Spec.Containers[0].ReadinessProbe.Handler.HTTPGet.Path,
-				Port:   intstr.FromString(defaultHTTPSPortName),
-				Scheme: corev1.URISchemeHTTPS,
-			},
-		},
-	}
 	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
 		Name:      "nginx-certs",
 		MountPath: certMountPath,
