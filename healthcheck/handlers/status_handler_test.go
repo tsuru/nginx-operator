@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"net/http"
@@ -16,17 +16,17 @@ func TestStatusHandler(t *testing.T) {
 	testCases := []handlerTestCase{
 		{
 			name:     "returns-400-when-ports-param-is-not-present",
-			query:    "/status",
+			query:    "",
 			expected: http.StatusBadRequest,
 		},
 		{
 			name:     "returns-200-when-ports-param-is-present",
-			query:    "/status?ports=8080",
+			query:    "?ports=8080",
 			expected: http.StatusOK,
 		},
 	}
 
-	testHandler(t, statusHandler, testCases)
+	testHandler(t, StatusHandler, testCases)
 
 }
 
