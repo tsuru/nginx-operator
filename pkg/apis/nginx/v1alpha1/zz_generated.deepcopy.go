@@ -190,11 +190,6 @@ func (in *NginxSpec) DeepCopyInto(out *NginxSpec) {
 		*out = new(FilesRef)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.Healthcheck != nil {
-		in, out := &in.Healthcheck, &out.Healthcheck
-		*out = new(ConfigRef)
-		**out = **in
-	}
 	return
 }
 
