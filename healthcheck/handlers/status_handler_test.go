@@ -6,32 +6,56 @@ import (
 	"testing"
 )
 
+type checkError struct{}
+type checkFailureMock struct{}
+type checkSuccessMock struct{}
+
+func (c *checkError) Error() string       { return "check error" }
+func (m checkFailureMock) Perform() error { return &checkError{} }
+func (m checkSuccessMock) Perform() error { return nil }
+
 type handlerTestCase struct {
-	name     string
-	query    string
-	expected int
+	name      string
+	query     string
+	expected  int
+	checkList []Check
 }
 
 func TestStatusHandler(t *testing.T) {
 	testCases := []handlerTestCase{
 		{
-			name:     "returns-400-when-ports-param-is-not-present",
+			name:     "returns-400-when-any-url-param-is-present",
 			query:    "",
 			expected: http.StatusBadRequest,
 		},
 		{
-			name:     "returns-200-when-ports-param-is-present",
-			query:    "?ports=8080",
-			expected: http.StatusOK,
+			name:      "returns-503-when-a-url-check-fails",
+			query:     "?url=http://localhost:8080",
+			expected:  http.StatusServiceUnavailable,
+			checkList: []Check{checkFailureMock{}},
+		},
+		{
+			name:      "returns-503-when-a-check-fails-after-a-success",
+			query:     "?url=http://localhost:8080&url=https://localhost:8443",
+			expected:  http.StatusServiceUnavailable,
+			checkList: []Check{checkSuccessMock{}, checkFailureMock{}},
+		},
+		{
+			name:      "returns-200-when-all-checks-success",
+			query:     "?url=http://localhost:8080&url=https://localhost:8443",
+			expected:  http.StatusOK,
+			checkList: []Check{checkSuccessMock{}, checkSuccessMock{}},
 		},
 	}
 
 	testHandler(t, StatusHandler, testCases)
-
 }
 
 func testHandler(t *testing.T, handler func(http.ResponseWriter, *http.Request), testCases []handlerTestCase) {
 	for _, testCase := range testCases {
+		checkList = testCase.checkList
+		defer func() { checkList = []Check{} }()
+
 		req, err := http.NewRequest("GET", testCase.query, nil)
 
 		if err != nil {
