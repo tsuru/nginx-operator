@@ -6,22 +6,27 @@ import (
 	"testing"
 )
 
-type checkError struct{}
-type checkFailureMock struct{}
-type checkSuccessMock struct{}
+type remoteServiceSuccess struct{}
+type remoteServiceFailure struct{}
 
-func (c *checkError) Error() string       { return "check error" }
-func (m checkFailureMock) Perform() error { return &checkError{} }
-func (m checkSuccessMock) Perform() error { return nil }
+func (f remoteServiceSuccess) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	w.WriteHeader(http.StatusOK)
+}
+
+func (f remoteServiceFailure) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	w.WriteHeader(http.StatusBadGateway)
+}
 
 type handlerTestCase struct {
-	name      string
-	query     string
-	expected  int
-	checkList []Check
+	name     string
+	query    string
+	expected int
 }
 
 func TestHealthcheckHandler(t *testing.T) {
+	successServer := httptest.NewServer(remoteServiceSuccess{})
+	failureServer := httptest.NewServer(remoteServiceFailure{})
+
 	testCases := []handlerTestCase{
 		{
 			name:     "returns-400-when-any-url-param-is-present",
@@ -29,22 +34,29 @@ func TestHealthcheckHandler(t *testing.T) {
 			expected: http.StatusBadRequest,
 		},
 		{
-			name:      "returns-503-when-a-url-check-fails",
-			query:     "?url=http://localhost:8080",
-			expected:  http.StatusServiceUnavailable,
-			checkList: []Check{checkFailureMock{}},
+			name:     "returns-400-when-url-format-is-invalid",
+			query:    "?url=127.0.0.1:8080",
+			expected: http.StatusBadRequest,
 		},
 		{
-			name:      "returns-503-when-a-check-fails-after-a-success",
-			query:     "?url=http://localhost:8080&url=https://localhost:8443",
-			expected:  http.StatusServiceUnavailable,
-			checkList: []Check{checkSuccessMock{}, checkFailureMock{}},
+			name:     "returns-503-when-get-to-remote-url-does-not-reply",
+			query:    "?url=http://127.0.0.1:81",
+			expected: http.StatusServiceUnavailable,
 		},
 		{
-			name:      "returns-200-when-all-checks-success",
-			query:     "?url=http://localhost:8080&url=https://localhost:8443",
-			expected:  http.StatusOK,
-			checkList: []Check{checkSuccessMock{}, checkSuccessMock{}},
+			name:     "returns-503-when-external-service-healthcheck-fails",
+			query:    "?url=" + failureServer.URL,
+			expected: http.StatusServiceUnavailable,
+		},
+		{
+			name:     "returns-200-when-all-checks-success",
+			query:    "?url=" + successServer.URL,
+			expected: http.StatusOK,
+		},
+		{
+			name:     "allows-queries-to-multiple-services",
+			query:    "?url=" + successServer.URL + "&url=" + failureServer.URL,
+			expected: http.StatusServiceUnavailable,
 		},
 	}
 
@@ -53,9 +65,6 @@ func TestHealthcheckHandler(t *testing.T) {
 
 func testHandler(t *testing.T, handler func(http.ResponseWriter, *http.Request), testCases []handlerTestCase) {
 	for _, testCase := range testCases {
-		checkList = testCase.checkList
-		defer func() { checkList = []Check{} }()
-
 		req, err := http.NewRequest("GET", testCase.query, nil)
 
 		if err != nil {

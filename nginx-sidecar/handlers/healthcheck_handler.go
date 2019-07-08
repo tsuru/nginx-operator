@@ -1,67 +1,43 @@
 package handlers
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 )
-
-type Check interface {
-	Perform() error
-}
-
-type HTTPCheck struct {
-	URL string
-}
-
-func (c HTTPCheck) Perform() error {
-	resp, err := http.Get(c.URL)
-
-	if err != nil || resp.StatusCode >= 400 {
-		fmt.Println(err)
-		return err
-	}
-
-	return nil
-}
-
-var checkList []Check
 
 func HealthcheckHandler(w http.ResponseWriter, r *http.Request) {
 	urls := r.URL.Query()["url"]
 
 	if len(urls) < 1 {
+		log.Println("missing parameter url")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	if len(checkList) == 0 {
-		for _, urlToCheck := range urls {
-			urlToCheck, err := url.Parse(urlToCheck)
+	for _, urlToCheck := range urls {
+		urlToCheck, err := url.Parse(urlToCheck)
 
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-
-			checkList = append(checkList, HTTPCheck{URL: urlToCheck.String()})
-			defer func() { checkList = []Check{} }()
+		if err != nil {
+			log.Printf("url format error: %q", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
-	}
 
-	if err := performChecks(); err != nil {
-		w.WriteHeader(http.StatusServiceUnavailable)
-		return
+		resp, err := http.Get(urlToCheck.String())
+
+		if err != nil {
+			log.Printf("healthcheck request error: %q", err)
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+
+		if resp.StatusCode < 200 || resp.StatusCode >= 400 {
+			log.Printf("unexpected status code: %d", resp.StatusCode)
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)
-}
-
-func performChecks() error {
-	for _, check := range checkList {
-		if err := check.Perform(); err != nil {
-			return err
-		}
-	}
-	return nil
 }
