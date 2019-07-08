@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/tsuru/nginx-operator/healthcheck/handlers"
+	"github.com/tsuru/nginx-operator/nginx-sidecar/handlers"
 	"log"
 	"net/http"
 )
@@ -9,7 +9,7 @@ import (
 const listen = ":59999"
 
 func main() {
-	http.HandleFunc("/status", handlers.StatusHandler)
+	http.HandleFunc("/healthcheck", handlers.HealthcheckHandler)
 
 	log.Fatal(http.ListenAndServe(listen, nil))
 }

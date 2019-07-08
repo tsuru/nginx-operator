@@ -21,7 +21,7 @@ type handlerTestCase struct {
 	checkList []Check
 }
 
-func TestStatusHandler(t *testing.T) {
+func TestHealthcheckHandler(t *testing.T) {
 	testCases := []handlerTestCase{
 		{
 			name:     "returns-400-when-any-url-param-is-present",
@@ -48,7 +48,7 @@ func TestStatusHandler(t *testing.T) {
 		},
 	}
 
-	testHandler(t, StatusHandler, testCases)
+	testHandler(t, HealthcheckHandler, testCases)
 }
 
 func testHandler(t *testing.T, handler func(http.ResponseWriter, *http.Request), testCases []handlerTestCase) {

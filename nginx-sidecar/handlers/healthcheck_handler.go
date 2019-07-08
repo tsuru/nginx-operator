@@ -27,7 +27,7 @@ func (c HTTPCheck) Perform() error {
 
 var checkList []Check
 
-func StatusHandler(w http.ResponseWriter, r *http.Request) {
+func HealthcheckHandler(w http.ResponseWriter, r *http.Request) {
 	urls := r.URL.Query()["url"]
 
 	if len(urls) < 1 {
