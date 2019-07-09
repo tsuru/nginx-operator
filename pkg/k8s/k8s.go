@@ -24,6 +24,10 @@ const (
 	defaultHTTPSPort     = int32(8443)
 	defaultHTTPSPortName = "https"
 
+	// Path and port to the healthcheck service.
+	healthcheckSidecarPort = int32(59999)
+	healthcheckPath        = "/healthcheck"
+
 	// Mount path where nginx.conf will be placed
 	configMountPath = "/etc/nginx"
 
