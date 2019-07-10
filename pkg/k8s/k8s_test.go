@@ -108,7 +108,7 @@ func baseDeployment() appv1.Deployment {
 							},
 						},
 						{
-							Name:  sidecarContainerName,
+							Name:  healthcheckSidecarName,
 							Image: sidecarContainerImage,
 						},
 					},

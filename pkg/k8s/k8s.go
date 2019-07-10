@@ -27,10 +27,10 @@ const (
 	defaultHTTPSPortName = "https"
 
 	// Path and port to the healthcheck service
-	healthcheckPort = 59999
-	healthcheckPath = "/healthcheck"
+	healthcheckPort        = 59999
+	healthcheckPath        = "/healthcheck"
+	healthcheckSidecarName = "nginx-healthchecker"
 
-	sidecarContainerName  = "nginx-sidecar"
 	sidecarContainerImage = "tsuru/nginx-operator-sidecar:latest"
 
 	// Mount path where nginx.conf will be placed
@@ -107,7 +107,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 							},
 						},
 						{
-							Name:  sidecarContainerName,
+							Name:  healthcheckSidecarName,
 							Image: sidecarContainerImage,
 						},
 					},
