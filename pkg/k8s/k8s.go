@@ -3,7 +3,9 @@ package k8s
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"sort"
+	"strconv"
 
 	"github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
 	appv1 "k8s.io/api/apps/v1"
@@ -24,9 +26,12 @@ const (
 	defaultHTTPSPort     = int32(8443)
 	defaultHTTPSPortName = "https"
 
-	// Path and port to the healthcheck service.
-	healthcheckSidecarPort = int32(59999)
-	healthcheckPath        = "/healthcheck"
+	// Path and port to the healthcheck service
+	healthcheckPort = 59999
+	healthcheckPath = "/healthcheck"
+
+	sidecarContainerName  = "nginx-sidecar"
+	sidecarContainerImage = "bernardolins/ntest:latest"
 
 	// Mount path where nginx.conf will be placed
 	configMountPath = "/etc/nginx"
@@ -94,12 +99,16 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 							ReadinessProbe: &corev1.Probe{
 								Handler: corev1.Handler{
 									HTTPGet: &corev1.HTTPGetAction{
-										Path:   valueOrDefault(n.Spec.HealthcheckPath, "/"),
-										Port:   intstr.FromString(defaultHTTPPortName),
+										Path:   buildHealthcheckPath(n.Spec),
+										Port:   intstr.FromInt(healthcheckPort),
 										Scheme: corev1.URISchemeHTTP,
 									},
 								},
 							},
+						},
+						{
+							Name:  sidecarContainerName,
+							Image: sidecarContainerImage,
 						},
 					},
 					Affinity: n.Spec.PodTemplate.Affinity,
@@ -220,6 +229,20 @@ func SetNginxSpec(o *metav1.ObjectMeta, spec v1alpha1.NginxSpec) error {
 	return nil
 }
 
+func buildHealthcheckPath(spec v1alpha1.NginxSpec) string {
+	httpURL := "http://localhost:" + strconv.Itoa(int(defaultHTTPPort)) + spec.HealthcheckPath
+
+	query := url.Values{}
+	query.Add("url", httpURL)
+
+	if spec.Certificates != nil {
+		httpsURL := "https://localhost:" + strconv.Itoa(int(defaultHTTPSPort)) + spec.HealthcheckPath
+		query.Add("url", httpsURL)
+	}
+
+	return healthcheckPath + "?" + query.Encode()
+}
+
 func setupConfig(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {
 	if conf == nil {
 		return
@@ -271,15 +294,6 @@ func setupTLS(secret *v1alpha1.TLSSecret, dep *appv1.Deployment) {
 		return
 	}
 
-	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
-		Handler: corev1.Handler{
-			HTTPGet: &corev1.HTTPGetAction{
-				Path:   dep.Spec.Template.Spec.Containers[0].ReadinessProbe.Handler.HTTPGet.Path,
-				Port:   intstr.FromString(defaultHTTPSPortName),
-				Scheme: corev1.URISchemeHTTPS,
-			},
-		},
-	}
 	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
 		Name:      "nginx-certs",
 		MountPath: certMountPath,

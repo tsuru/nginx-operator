@@ -15,6 +15,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+var httpHealthcheckQuery = "url=http%3A%2F%2Flocalhost%3A8080"
+var httpsHealthcheckQuery = "url=http%3A%2F%2Flocalhost%3A8080&url=https%3A%2F%2Flocalhost%3A8443"
+
 func baseNginx() v1alpha1.Nginx {
 	return v1alpha1.Nginx{
 		ObjectMeta: metav1.ObjectMeta{
@@ -97,12 +100,16 @@ func baseDeployment() appv1.Deployment {
 							ReadinessProbe: &corev1.Probe{
 								Handler: corev1.Handler{
 									HTTPGet: &corev1.HTTPGetAction{
-										Path:   "/",
-										Port:   intstr.FromString(defaultHTTPPortName),
+										Path:   "/healthcheck?" + httpHealthcheckQuery,
+										Port:   intstr.FromInt(healthcheckPort),
 										Scheme: corev1.URISchemeHTTP,
 									},
 								},
 							},
+						},
+						{
+							Name:  sidecarContainerName,
+							Image: sidecarContainerImage,
 						},
 					},
 				},
@@ -258,9 +265,9 @@ func Test_NewDeployment(t *testing.T) {
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 					Handler: corev1.Handler{
 						HTTPGet: &corev1.HTTPGetAction{
-							Path:   "/",
-							Port:   intstr.FromString(defaultHTTPSPortName),
-							Scheme: corev1.URISchemeHTTPS,
+							Path:   "/healthcheck?" + httpsHealthcheckQuery,
+							Port:   intstr.FromInt(healthcheckPort),
+							Scheme: corev1.URISchemeHTTP,
 						},
 					},
 				}
@@ -314,9 +321,9 @@ func Test_NewDeployment(t *testing.T) {
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 					Handler: corev1.Handler{
 						HTTPGet: &corev1.HTTPGetAction{
-							Path:   "/",
-							Port:   intstr.FromString(defaultHTTPSPortName),
-							Scheme: corev1.URISchemeHTTPS,
+							Path:   "/healthcheck?" + httpsHealthcheckQuery,
+							Port:   intstr.FromInt(healthcheckPort),
+							Scheme: corev1.URISchemeHTTP,
 						},
 					},
 				}
@@ -374,9 +381,9 @@ func Test_NewDeployment(t *testing.T) {
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 					Handler: corev1.Handler{
 						HTTPGet: &corev1.HTTPGetAction{
-							Path:   "/",
-							Port:   intstr.FromString(defaultHTTPSPortName),
-							Scheme: corev1.URISchemeHTTPS,
+							Path:   "/healthcheck?" + httpsHealthcheckQuery,
+							Port:   intstr.FromInt(healthcheckPort),
+							Scheme: corev1.URISchemeHTTP,
 						},
 					},
 				}
