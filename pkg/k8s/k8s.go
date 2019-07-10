@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/url"
 	"sort"
-	"strconv"
 
 	"github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
 	appv1 "k8s.io/api/apps/v1"
@@ -230,17 +229,17 @@ func SetNginxSpec(o *metav1.ObjectMeta, spec v1alpha1.NginxSpec) error {
 }
 
 func buildHealthcheckPath(spec v1alpha1.NginxSpec) string {
-	httpURL := "http://localhost:" + strconv.Itoa(int(defaultHTTPPort)) + spec.HealthcheckPath
+	httpURL := fmt.Sprintf("http://localhost:%d%s", defaultHTTPPort, spec.HealthcheckPath)
 
 	query := url.Values{}
 	query.Add("url", httpURL)
 
 	if spec.Certificates != nil {
-		httpsURL := "https://localhost:" + strconv.Itoa(int(defaultHTTPSPort)) + spec.HealthcheckPath
+		httpsURL := fmt.Sprintf("https://localhost:%d%s", defaultHTTPSPort, spec.HealthcheckPath)
 		query.Add("url", httpsURL)
 	}
 
-	return healthcheckPath + "?" + query.Encode()
+	return fmt.Sprintf("%s?%s", healthcheckPath, query.Encode())
 }
 
 func setupConfig(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {
