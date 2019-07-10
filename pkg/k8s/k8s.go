@@ -31,7 +31,7 @@ const (
 	healthcheckPath = "/healthcheck"
 
 	sidecarContainerName  = "nginx-sidecar"
-	sidecarContainerImage = "bernardolins/ntest:latest"
+	sidecarContainerImage = "tsuru/nginx-operator-sidecar:latest"
 
 	// Mount path where nginx.conf will be placed
 	configMountPath = "/etc/nginx"
