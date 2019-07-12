@@ -6,8 +6,8 @@ addons:
     packages:
       - docker-ce
 install:
-  - curl -L https://github.com/operator-framework/operator-sdk/releases/download/v0.8.1/operator-sdk-v0.8.1-x86_64-linux-gnu -o /usr/local/bin/operator-sdksdk
-  - chmod +x /usr/local/bin/operator-sdk
+  - sudo curl -L https://github.com/operator-framework/operator-sdk/releases/download/v0.8.1/operator-sdk-v0.8.1-x86_64-linux-gnu -o /usr/local/bin/operator-sdk
+  - sudo chmod +x /usr/local/bin/operator-sdk
   - cd $TRAVIS_BUILD_DIR
 jobs:
   fast_finish: true
