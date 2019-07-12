@@ -4,7 +4,10 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"time"
 )
+
+const timeout = time.Duration(1 * time.Second)
 
 func HealthcheckHandler(w http.ResponseWriter, r *http.Request) {
 	urls := r.URL.Query()["url"]
@@ -24,7 +27,8 @@ func HealthcheckHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		resp, err := http.Get(urlToCheck.String())
+		client := http.Client{Timeout: timeout}
+		resp, err := client.Get(urlToCheck.String())
 
 		if err != nil {
 			log.Printf("healthcheck request error: %q", err)

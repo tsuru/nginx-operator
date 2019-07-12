@@ -6,10 +6,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 type remoteServiceSuccess struct{}
 type remoteServiceFailure struct{}
+type remoteServiceTimeout struct{}
 
 func (f remoteServiceSuccess) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
@@ -17,6 +19,10 @@ func (f remoteServiceSuccess) ServeHTTP(w http.ResponseWriter, req *http.Request
 
 func (f remoteServiceFailure) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusBadGateway)
+}
+
+func (f remoteServiceTimeout) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	time.Sleep(timeout)
 }
 
 type handlerTestCase struct {
@@ -28,10 +34,11 @@ type handlerTestCase struct {
 func TestHealthcheckHandler(t *testing.T) {
 	successServer := httptest.NewServer(remoteServiceSuccess{})
 	failureServer := httptest.NewServer(remoteServiceFailure{})
+	timeoutServer := httptest.NewServer(remoteServiceTimeout{})
 
 	testCases := []handlerTestCase{
 		{
-			name:     "returns-400-when-any-url-param-is-present",
+			name:     "returns-400-when-no-url-param-is-present",
 			query:    "",
 			expected: http.StatusBadRequest,
 		},
@@ -41,7 +48,7 @@ func TestHealthcheckHandler(t *testing.T) {
 			expected: http.StatusBadRequest,
 		},
 		{
-			name:     "returns-503-when-get-to-remote-url-does-not-reply",
+			name:     "returns-503-when-remote-url-does-not-reply",
 			query:    "?url=http://127.0.0.1:81",
 			expected: http.StatusServiceUnavailable,
 		},
@@ -51,7 +58,12 @@ func TestHealthcheckHandler(t *testing.T) {
 			expected: http.StatusServiceUnavailable,
 		},
 		{
-			name:     "returns-200-when-all-checks-success",
+			name:     "returns-503-when-external-service-timeouts",
+			query:    "?url=" + timeoutServer.URL,
+			expected: http.StatusServiceUnavailable,
+		},
+		{
+			name:     "returns-200-when-all-checks-succeed",
 			query:    "?url=" + successServer.URL,
 			expected: http.StatusOK,
 		},
