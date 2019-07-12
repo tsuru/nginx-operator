@@ -5,13 +5,9 @@ addons:
   apt:
     packages:
       - docker-ce
-env:
-  - OPERATOR_SDK_BINARY_DIR=/usr/local/bin/operator-sdk
-  - OPERATOR_SDK_VERSION=v0.8.1
-  - OPERATOR_SDK_INSTALL=https://github.com/operator-framework/operator-sdk/releases/download/${OPERATOR_SDK_VERSION}/operator-sdk-${OPERATOR_SDK_VERSION}-x86_64-linux-gnu
 install:
-  - curl $OPERATOR_SDK_INSTALL -o $OPERATOR_SDK_BINARY_DIR
-  - chmod +x $OPERATOR_SDK_BINARY_DIR
+  - curl -L https://github.com/operator-framework/operator-sdk/releases/download/v0.8.1/operator-sdk-v0.8.1-x86_64-linux-gnu -o /usr/local/bin/operator-sdksdk
+  - chmod +x /usr/local/bin/operator-sdk
   - cd $TRAVIS_BUILD_DIR
 jobs:
   fast_finish: true
