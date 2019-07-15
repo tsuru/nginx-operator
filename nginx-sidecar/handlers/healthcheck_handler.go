@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"crypto/tls"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -14,8 +15,9 @@ func HealthcheckHandler(w http.ResponseWriter, r *http.Request) {
 	urls := r.URL.Query()["url"]
 
 	if len(urls) < 1 {
-		log.Println("missing parameter url")
-		w.WriteHeader(http.StatusBadRequest)
+		message := "missing parameter url"
+		log.Println(message)
+		http.Error(w, message, http.StatusBadRequest)
 		return
 	}
 
@@ -23,8 +25,9 @@ func HealthcheckHandler(w http.ResponseWriter, r *http.Request) {
 		urlToCheck, err := url.Parse(urlToCheck)
 
 		if err != nil {
-			log.Printf("url format error: %q", err)
-			w.WriteHeader(http.StatusBadRequest)
+			message := fmt.Sprintf("url format error: %q", err)
+			log.Printf(message)
+			http.Error(w, message, http.StatusBadRequest)
 			return
 		}
 
@@ -39,14 +42,16 @@ func HealthcheckHandler(w http.ResponseWriter, r *http.Request) {
 		resp, err := client.Get(urlToCheck.String())
 
 		if err != nil {
-			log.Printf("healthcheck request error: %q", err)
-			w.WriteHeader(http.StatusServiceUnavailable)
+			message := fmt.Sprintf("healthcheck request error: %q", err)
+			log.Printf(message)
+			http.Error(w, message, http.StatusServiceUnavailable)
 			return
 		}
 
 		if resp.StatusCode < 200 || resp.StatusCode >= 400 {
-			log.Printf("unexpected status code: %d", resp.StatusCode)
-			w.WriteHeader(http.StatusServiceUnavailable)
+			message := fmt.Sprintf("unexpected status code: %d", resp.StatusCode)
+			log.Printf(message)
+			http.Error(w, message, http.StatusServiceUnavailable)
 			return
 		}
 	}
