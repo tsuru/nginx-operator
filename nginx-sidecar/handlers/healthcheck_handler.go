@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"crypto/tls"
 	"log"
 	"net/http"
 	"net/url"
@@ -27,7 +28,14 @@ func HealthcheckHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		client := http.Client{Timeout: timeout}
+		client := http.Client{
+			Timeout: timeout,
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+			},
+		}
 		resp, err := client.Get(urlToCheck.String())
 
 		if err != nil {

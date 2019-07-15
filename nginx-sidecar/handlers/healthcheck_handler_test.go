@@ -35,6 +35,7 @@ func TestHealthcheckHandler(t *testing.T) {
 	successServer := httptest.NewServer(remoteServiceSuccess{})
 	failureServer := httptest.NewServer(remoteServiceFailure{})
 	timeoutServer := httptest.NewServer(remoteServiceTimeout{})
+	httpsServer := httptest.NewTLSServer(remoteServiceSuccess{})
 
 	testCases := []handlerTestCase{
 		{
@@ -71,6 +72,11 @@ func TestHealthcheckHandler(t *testing.T) {
 			name:     "allows-queries-to-multiple-services",
 			query:    "?url=" + successServer.URL + "&url=" + failureServer.URL,
 			expected: http.StatusServiceUnavailable,
+		},
+		{
+			name:     "works-with-tls-server",
+			query:    "?url=" + successServer.URL + "&url=" + httpsServer.URL,
+			expected: http.StatusOK,
 		},
 	}
 
