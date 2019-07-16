@@ -93,7 +93,7 @@ func Test_Operator(t *testing.T) {
 		}
 
 		for _, tt := range tests {
-			output, err := kubectl("exec", podName, "-n", testingNamespace, "--", "sha256sum", tt.filename)
+			output, err := kubectl("exec", podName, "-n", testingNamespace, "-c", "nginx", "--", "sha256sum", tt.filename)
 			require.NoError(t, err)
 			assert.Contains(t, string(output), tt.expectedSha256)
 		}
@@ -123,7 +123,7 @@ func waitPodBeAvailable(name, namespace string) error {
 	timeout := time.After(5 * time.Minute)
 	pingMessage := "PING"
 	for {
-		output, err := kubectl("exec", name, "-n", namespace, "--", "echo", "-n", pingMessage)
+		output, err := kubectl("exec", name, "-n", namespace, "-c", "nginx", "--", "echo", "-n", pingMessage)
 		if err == nil && string(output) == pingMessage {
 			return nil
 		}

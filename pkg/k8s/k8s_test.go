@@ -15,6 +15,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+var httpHealthcheckQuery = "url=http%3A%2F%2Flocalhost%3A8080"
+var httpsHealthcheckQuery = "url=http%3A%2F%2Flocalhost%3A8080&url=https%3A%2F%2Flocalhost%3A8443"
+
 func baseNginx() v1alpha1.Nginx {
 	return v1alpha1.Nginx{
 		ObjectMeta: metav1.ObjectMeta{
@@ -94,6 +97,19 @@ func baseDeployment() appv1.Deployment {
 									Protocol:      corev1.ProtocolTCP,
 								},
 							},
+							ReadinessProbe: &corev1.Probe{
+								Handler: corev1.Handler{
+									HTTPGet: &corev1.HTTPGetAction{
+										Path:   "/healthcheck?" + httpHealthcheckQuery,
+										Port:   intstr.FromInt(healthcheckPort),
+										Scheme: corev1.URISchemeHTTP,
+									},
+								},
+							},
+						},
+						{
+							Name:  healthcheckSidecarName,
+							Image: sidecarContainerImage,
 						},
 					},
 				},
@@ -158,13 +174,11 @@ func Test_NewDeployment(t *testing.T) {
 						SubPath:   "nginx.conf",
 					},
 				}
-				mode := int32(0644)
 				d.Spec.Template.Spec.Volumes = []corev1.Volume{
 					{
 						Name: "nginx-config",
 						VolumeSource: corev1.VolumeSource{
 							ConfigMap: &corev1.ConfigMapVolumeSource{
-								DefaultMode: &mode,
 								LocalObjectReference: corev1.LocalObjectReference{
 									Name: "config-map-xpto",
 								},
@@ -196,7 +210,6 @@ func Test_NewDeployment(t *testing.T) {
 				d.Spec.Template.Annotations = map[string]string{
 					"config-inline": "server {}",
 				}
-				mode := int32(0644)
 				d.Spec.Template.Spec.Volumes = []corev1.Volume{
 					{
 						Name: "nginx-config",
@@ -205,104 +218,12 @@ func Test_NewDeployment(t *testing.T) {
 								Items: []corev1.DownwardAPIVolumeFile{
 									{
 										Path: "nginx.conf",
-										Mode: &mode,
 										FieldRef: &corev1.ObjectFieldSelector{
 											FieldPath: "metadata.annotations['config-inline']",
 										},
 									},
 								},
 							},
-						},
-					},
-				}
-				return d
-			},
-		},
-		{
-			name: "with-healthcheck-configmap",
-			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
-				n.Spec.Healthcheck = &v1alpha1.ConfigRef{
-					Kind: v1alpha1.ConfigKindConfigMap,
-					Name: "config-map-xpto",
-				}
-				return n
-			},
-			deployFn: func(d appv1.Deployment) appv1.Deployment {
-				d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
-					{
-						Name:      "healthcheck-script",
-						MountPath: "/usr/local/bin/healthcheck.sh",
-						SubPath:   "healthcheck.sh",
-					},
-				}
-				mode := int32(0744)
-				d.Spec.Template.Spec.Volumes = []corev1.Volume{
-					{
-						Name: "healthcheck-script",
-						VolumeSource: corev1.VolumeSource{
-							ConfigMap: &corev1.ConfigMapVolumeSource{
-								DefaultMode: &mode,
-								LocalObjectReference: corev1.LocalObjectReference{
-									Name: "config-map-xpto",
-								},
-							},
-						},
-					},
-				}
-				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
-					Handler: corev1.Handler{
-						Exec: &corev1.ExecAction{
-							Command: []string{"/usr/local/bin/healthcheck.sh"},
-						},
-					},
-				}
-				return d
-			},
-		},
-		{
-			name: "with-healthcheck-inline",
-			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
-				n.Spec.Healthcheck = &v1alpha1.ConfigRef{
-					Kind:  v1alpha1.ConfigKindInline,
-					Name:  "healthcheck-inline",
-					Value: "curl localhost:8080",
-				}
-				return n
-			},
-			deployFn: func(d appv1.Deployment) appv1.Deployment {
-				d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
-					{
-						Name:      "healthcheck-script",
-						MountPath: "/usr/local/bin/healthcheck.sh",
-						SubPath:   "healthcheck.sh",
-					},
-				}
-				d.Spec.Template.Annotations = map[string]string{
-					"healthcheck-inline": "curl localhost:8080",
-				}
-				mode := int32(0744)
-				d.Spec.Template.Spec.Volumes = []corev1.Volume{
-					{
-						Name: "healthcheck-script",
-						VolumeSource: corev1.VolumeSource{
-							DownwardAPI: &corev1.DownwardAPIVolumeSource{
-								Items: []corev1.DownwardAPIVolumeFile{
-									{
-										Path: "healthcheck.sh",
-										Mode: &mode,
-										FieldRef: &corev1.ObjectFieldSelector{
-											FieldPath: "metadata.annotations['healthcheck-inline']",
-										},
-									},
-								},
-							},
-						},
-					},
-				}
-				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
-					Handler: corev1.Handler{
-						Exec: &corev1.ExecAction{
-							Command: []string{"/usr/local/bin/healthcheck.sh"},
 						},
 					},
 				}
@@ -340,6 +261,15 @@ func Test_NewDeployment(t *testing.T) {
 				}
 				d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
 					{Name: "nginx-certs", MountPath: "/etc/nginx/certs"},
+				}
+				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+					Handler: corev1.Handler{
+						HTTPGet: &corev1.HTTPGetAction{
+							Path:   "/healthcheck?" + httpsHealthcheckQuery,
+							Port:   intstr.FromInt(healthcheckPort),
+							Scheme: corev1.URISchemeHTTP,
+						},
+					},
 				}
 				d.Spec.Template.Spec.Volumes = []corev1.Volume{
 					{
@@ -387,6 +317,15 @@ func Test_NewDeployment(t *testing.T) {
 				}
 				d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
 					{Name: "nginx-certs", MountPath: "/etc/nginx/certs"},
+				}
+				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+					Handler: corev1.Handler{
+						HTTPGet: &corev1.HTTPGetAction{
+							Path:   "/healthcheck?" + httpsHealthcheckQuery,
+							Port:   intstr.FromInt(healthcheckPort),
+							Scheme: corev1.URISchemeHTTP,
+						},
+					},
 				}
 				d.Spec.Template.Spec.Volumes = []corev1.Volume{
 					{
@@ -438,6 +377,15 @@ func Test_NewDeployment(t *testing.T) {
 				}
 				d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
 					{Name: "nginx-certs", MountPath: "/etc/nginx/certs"},
+				}
+				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+					Handler: corev1.Handler{
+						HTTPGet: &corev1.HTTPGetAction{
+							Path:   "/healthcheck?" + httpsHealthcheckQuery,
+							Port:   intstr.FromInt(healthcheckPort),
+							Scheme: corev1.URISchemeHTTP,
+						},
+					},
 				}
 				d.Spec.Template.Spec.Volumes = []corev1.Volume{
 					{
