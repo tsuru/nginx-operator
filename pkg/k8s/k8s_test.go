@@ -7,6 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/stretchr/testify/assert"
+	tsuruConfig "github.com/tsuru/config"
 	"github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -117,7 +118,7 @@ func baseDeployment() appv1.Deployment {
 						},
 						{
 							Name:  healthcheckSidecarName,
-							Image: sidecarContainerImage,
+							Image: defaultSidecarContainerImage,
 						},
 					},
 				},
@@ -128,9 +129,10 @@ func baseDeployment() appv1.Deployment {
 
 func Test_NewDeployment(t *testing.T) {
 	tests := []struct {
-		name     string
-		nginxFn  func(n v1alpha1.Nginx) v1alpha1.Nginx
-		deployFn func(d appv1.Deployment) appv1.Deployment
+		name       string
+		nginxFn    func(n v1alpha1.Nginx) v1alpha1.Nginx
+		deployFn   func(d appv1.Deployment) appv1.Deployment
+		teardownFn func()
 	}{
 		{
 			name: "empty-spec",
@@ -535,6 +537,20 @@ func Test_NewDeployment(t *testing.T) {
 				return d
 			},
 		},
+		{
+			name: "when NGINX controller is configured to use a custom sidecar container image",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				tsuruConfig.Set("nginx-controller:sidecar:image", "private.registry.example.com/tsuru/nginx-operator-sidecar")
+				d.Spec.Template.Spec.Containers[1].Image = "private.registry.example.com/tsuru/nginx-operator-sidecar"
+				return d
+			},
+			teardownFn: func() {
+				tsuruConfig.Unset("nginx-controller:sidecar:image")
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -553,6 +569,9 @@ func Test_NewDeployment(t *testing.T) {
 			assert.NoError(t, err)
 			want.Annotations[generatedFromAnnotation] = string(spec)
 			assertDeployment(t, &want, dep)
+			if tt.teardownFn != nil {
+				tt.teardownFn()
+			}
 		})
 	}
 }
