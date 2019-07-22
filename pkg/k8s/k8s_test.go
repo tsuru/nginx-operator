@@ -83,8 +83,9 @@ func baseDeployment() appv1.Deployment {
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:  "nginx",
-							Image: "nginx:latest",
+							Name:    "nginx",
+							Image:   "nginx:latest",
+							Command: nginxEntrypoint,
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          defaultHTTPPortName,
@@ -103,6 +104,13 @@ func baseDeployment() appv1.Deployment {
 										Path:   "/healthcheck?" + httpHealthcheckQuery,
 										Port:   intstr.FromInt(healthcheckPort),
 										Scheme: corev1.URISchemeHTTP,
+									},
+								},
+							},
+							Lifecycle: &corev1.Lifecycle{
+								PostStart: &corev1.Handler{
+									Exec: &corev1.ExecAction{
+										Command: postStartCommand,
 									},
 								},
 							},
