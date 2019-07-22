@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"sort"
 
+	tsuruConfig "github.com/tsuru/config"
 	"github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -30,7 +31,7 @@ const (
 	healthcheckPath        = "/healthcheck"
 	healthcheckSidecarName = "nginx-healthchecker"
 
-	sidecarContainerImage = "tsuru/nginx-operator-sidecar:latest"
+	defaultSidecarContainerImage = "tsuru/nginx-operator-sidecar:latest"
 
 	// Mount path where nginx.conf will be placed
 	configMountPath = "/etc/nginx"
@@ -51,6 +52,9 @@ const (
 // NewDeployment creates a deployment for a given Nginx resource.
 func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 	n.Spec.Image = valueOrDefault(n.Spec.Image, defaultNginxImage)
+
+	customSidecarContainerImage, _ := tsuruConfig.GetString("nginx-controller:sidecar:image")
+
 	deployment := appv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
@@ -107,7 +111,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 						},
 						{
 							Name:  healthcheckSidecarName,
-							Image: sidecarContainerImage,
+							Image: valueOrDefault(customSidecarContainerImage, defaultSidecarContainerImage),
 						},
 					},
 					Affinity: n.Spec.PodTemplate.Affinity,
