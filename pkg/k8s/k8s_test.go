@@ -450,7 +450,7 @@ func Test_NewDeployment(t *testing.T) {
 		{
 			name: "with-resources",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
-				n.Spec.PodTemplate.Resources = corev1.ResourceRequirements{
+				n.Spec.Resources = corev1.ResourceRequirements{
 					Limits: corev1.ResourceList(map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceMemory: *resource.NewQuantity(int64(100), resource.DecimalSI),
 					}),

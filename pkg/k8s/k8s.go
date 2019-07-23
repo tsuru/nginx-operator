@@ -111,7 +111,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 									Protocol:      corev1.ProtocolTCP,
 								},
 							},
-							Resources: n.Spec.PodTemplate.Resources,
+							Resources: n.Spec.Resources,
 							ReadinessProbe: &corev1.Probe{
 								Handler: corev1.Handler{
 									HTTPGet: &corev1.HTTPGetAction{
