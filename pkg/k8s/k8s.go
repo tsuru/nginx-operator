@@ -48,6 +48,18 @@ const (
 	generatedFromAnnotation = "nginx.tsuru.io/generated-from"
 )
 
+var nginxEntrypoint = []string{
+	"/bin/sh",
+	"-c",
+	"while ! [ -f /tmp/done ]; do sleep 0.5; done && nginx -g 'daemon off;'",
+}
+
+var postStartCommand = []string{
+	"/bin/sh",
+	"-c",
+	"nginx -t && touch /tmp/done",
+}
+
 // NewDeployment creates a deployment for a given Nginx resource.
 func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 	n.Spec.Image = valueOrDefault(n.Spec.Image, defaultNginxImage)
@@ -80,8 +92,9 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:  "nginx",
-							Image: n.Spec.Image,
+							Name:    "nginx",
+							Image:   n.Spec.Image,
+							Command: nginxEntrypoint,
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          defaultHTTPPortName,
@@ -101,6 +114,13 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 										Path:   buildHealthcheckPath(n.Spec),
 										Port:   intstr.FromInt(healthcheckPort),
 										Scheme: corev1.URISchemeHTTP,
+									},
+								},
+							},
+							Lifecycle: &corev1.Lifecycle{
+								PostStart: &corev1.Handler{
+									Exec: &corev1.ExecAction{
+										Command: postStartCommand,
 									},
 								},
 							},
