@@ -65,7 +65,6 @@ var postStartCommand = []string{
 func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 	n.Spec.Image = valueOrDefault(n.Spec.Image, defaultNginxImage)
 	customSidecarContainerImage, _ := tsuruConfig.GetString("nginx-controller:sidecar:image")
-	labels := mergeMap(n.Spec.PodTemplate.Labels, LabelsForNginx(n.Name))
 	deployment := appv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
@@ -85,13 +84,13 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 		Spec: appv1.DeploymentSpec{
 			Replicas: n.Spec.Replicas,
 			Selector: &metav1.LabelSelector{
-				MatchLabels: labels,
+				MatchLabels: assembleLabels(*n),
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace:   n.Namespace,
-					Annotations: n.Spec.PodTemplate.Annotations,
-					Labels:      labels,
+					Annotations: assembleAnnotations(*n),
+					Labels:      assembleLabels(*n),
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
@@ -385,4 +384,43 @@ func valueOrDefault(value, def string) string {
 		return value
 	}
 	return def
+}
+
+func assembleLabels(n v1alpha1.Nginx) map[string]string {
+	labels := LabelsForNginx(n.Name)
+	if value, err := tsuruConfig.Get("nginx-controller:pod-template:labels"); err == nil {
+		if controllerLabels, ok := value.(map[interface{}]interface{}); ok {
+			labels = mergeMap(labels, convertToStringMap(controllerLabels))
+		}
+	}
+	return mergeMap(labels, n.Spec.PodTemplate.Labels)
+}
+
+func assembleAnnotations(n v1alpha1.Nginx) map[string]string {
+	var annotations map[string]string
+	if value, err := tsuruConfig.Get("nginx-controller:pod-template:annotations"); err == nil {
+		if controllerAnnotations, ok := value.(map[interface{}]interface{}); ok {
+			annotations = convertToStringMap(controllerAnnotations)
+		}
+	}
+	return mergeMap(annotations, n.Spec.PodTemplate.Annotations)
+}
+
+func convertToStringMap(m map[interface{}]interface{}) map[string]string {
+	var result map[string]string
+	for k, v := range m {
+		if result == nil {
+			result = make(map[string]string)
+		}
+		key, ok := k.(string)
+		if !ok {
+			continue
+		}
+		value, ok := v.(string)
+		if !ok {
+			continue
+		}
+		result[key] = value
+	}
+	return result
 }

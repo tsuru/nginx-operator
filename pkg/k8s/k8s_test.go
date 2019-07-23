@@ -587,6 +587,95 @@ func Test_NewDeployment(t *testing.T) {
 				return d
 			},
 		},
+		{
+			name: "when nginx controller has custom annotations",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				tsuruConfig.Set("nginx-controller:pod-template:annotations", map[interface{}]interface{}{
+					"nginx.tsuru.io/some-key": "some value",
+				})
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Annotations = map[string]string{
+					"nginx.tsuru.io/some-key": "some value",
+				}
+				return d
+			},
+			teardownFn: func() {
+				tsuruConfig.Unset("nginx-controller:pod-template:annotations")
+			},
+		},
+		{
+			name: "when nginx resource has both controller and user annotations",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				tsuruConfig.Set("nginx-controller:pod-template:annotations", map[interface{}]interface{}{
+					"nginx.tsuru.io/some-key":       "some value",
+					"nginx.tsuru.io/conflicted-key": "controller value",
+				})
+				n.Spec.PodTemplate.Annotations = map[string]string{
+					"some-user-annotation":          "value",
+					"nginx.tsuru.io/conflicted-key": "user wins",
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Annotations = map[string]string{
+					"nginx.tsuru.io/some-key":       "some value",
+					"some-user-annotation":          "value",
+					"nginx.tsuru.io/conflicted-key": "user wins",
+				}
+				return d
+			},
+			teardownFn: func() {
+				tsuruConfig.Unset("nginx-controller:pod-template:annotations")
+			},
+		},
+		{
+			name: "when nginx controller has custom labels",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				tsuruConfig.Set("nginx-controller:pod-template:labels", map[interface{}]interface{}{
+					"nginx_custom_label": "custom label",
+				})
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				expectedLabels := mergeMap(d.Spec.Template.Labels, map[string]string{"nginx_custom_label": "custom label"})
+				d.Spec.Selector.MatchLabels = expectedLabels
+				d.Spec.Template.Labels = expectedLabels
+				return d
+			},
+			teardownFn: func() {
+				tsuruConfig.Unset("nginx-controller:pod-template:labels")
+			},
+		},
+		{
+			name: "when nginx resource has both controller and user labels",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				tsuruConfig.Set("nginx-controller:pod-template:labels", map[interface{}]interface{}{
+					"nginx_custom_label": "custom label",
+					"conflicted_label":   "controller value",
+				})
+				n.Spec.PodTemplate.Labels = map[string]string{
+					"user_custom_label": "custom value",
+					"conflicted_label":  "user wins",
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				expectedLabels := mergeMap(d.Spec.Template.Labels, map[string]string{
+					"nginx_custom_label": "custom label",
+					"user_custom_label":  "custom value",
+					"conflicted_label":   "user wins",
+				})
+
+				d.Spec.Selector.MatchLabels = expectedLabels
+				d.Spec.Template.Labels = expectedLabels
+				return d
+			},
+			teardownFn: func() {
+				tsuruConfig.Unset("nginx-controller:pod-template:labels")
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
