@@ -64,9 +64,8 @@ var postStartCommand = []string{
 // NewDeployment creates a deployment for a given Nginx resource.
 func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 	n.Spec.Image = valueOrDefault(n.Spec.Image, defaultNginxImage)
-
 	customSidecarContainerImage, _ := tsuruConfig.GetString("nginx-controller:sidecar:image")
-
+	labels := mergeMap(n.Spec.PodTemplate.Labels, LabelsForNginx(n.Name))
 	deployment := appv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
@@ -86,12 +85,13 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 		Spec: appv1.DeploymentSpec{
 			Replicas: n.Spec.Replicas,
 			Selector: &metav1.LabelSelector{
-				MatchLabels: LabelsForNginx(n.Name),
+				MatchLabels: labels,
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Namespace: n.Namespace,
-					Labels:    LabelsForNginx(n.Name),
+					Namespace:   n.Namespace,
+					Annotations: n.Spec.PodTemplate.Annotations,
+					Labels:      labels,
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{

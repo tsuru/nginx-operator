@@ -551,6 +551,42 @@ func Test_NewDeployment(t *testing.T) {
 				tsuruConfig.Unset("nginx-controller:sidecar:image")
 			},
 		},
+		{
+			name: "when adding extra labels to PodTemplate",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.PodTemplate.Labels = map[string]string{
+					"some-custom-label": "label-value",
+					"project":           "z",
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				expetecLabels := mergeMap(map[string]string{
+					"some-custom-label": "label-value",
+					"project":           "z",
+				}, d.Spec.Template.Labels)
+				d.Spec.Selector.MatchLabels = expetecLabels
+				d.Spec.Template.Labels = expetecLabels
+				return d
+			},
+		},
+		{
+			name: "when adding extra annotations to PodTemplate",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.PodTemplate.Annotations = map[string]string{
+					"tsuru.io/pool":        "some-pool",
+					"tsuru.io/another-key": "another-value",
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Annotations = map[string]string{
+					"tsuru.io/pool":        "some-pool",
+					"tsuru.io/another-key": "another-value",
+				}
+				return d
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
