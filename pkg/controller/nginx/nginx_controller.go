@@ -11,7 +11,6 @@ import (
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -243,10 +242,9 @@ func (r *ReconcileNginx) refreshStatus(nginx *nginxv1alpha1.Nginx) error {
 // listPods return all the pods for the given nginx sorted by name
 func listPods(c client.Client, nginx *nginxv1alpha1.Nginx) ([]nginxv1alpha1.PodStatus, error) {
 	podList := &corev1.PodList{}
-
-	labelSelector := labels.SelectorFromSet(k8s.LabelsForNginx(nginx.Name))
-	listOps := &client.ListOptions{Namespace: nginx.Namespace, LabelSelector: labelSelector}
-	err := c.List(context.TODO(), listOps, podList)
+	err := c.List(context.TODO(), podList,
+		client.InNamespace(nginx.Namespace),
+		client.MatchingLabels(k8s.LabelsForNginx(nginx.Name)))
 	if err != nil {
 		return nil, err
 	}
@@ -271,10 +269,9 @@ func listPods(c client.Client, nginx *nginxv1alpha1.Nginx) ([]nginxv1alpha1.PodS
 // listServices return all the services for the given nginx sorted by name
 func listServices(c client.Client, nginx *nginxv1alpha1.Nginx) ([]nginxv1alpha1.ServiceStatus, error) {
 	serviceList := &corev1.ServiceList{}
-
-	labelSelector := labels.SelectorFromSet(k8s.LabelsForNginx(nginx.Name))
-	listOps := &client.ListOptions{Namespace: nginx.Namespace, LabelSelector: labelSelector}
-	err := c.List(context.TODO(), listOps, serviceList)
+	err := c.List(context.TODO(), serviceList,
+		client.InNamespace(nginx.Namespace),
+		client.MatchingLabels(k8s.LabelsForNginx(nginx.Name)))
 	if err != nil {
 		return nil, err
 	}
