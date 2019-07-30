@@ -9,13 +9,14 @@ install:
   - sudo curl -L https://github.com/operator-framework/operator-sdk/releases/download/v0.8.1/operator-sdk-v0.8.1-x86_64-linux-gnu -o /usr/local/bin/operator-sdk
   - sudo chmod +x /usr/local/bin/operator-sdk
   - cd $TRAVIS_BUILD_DIR
+go:
+  - 1.12.x
 jobs:
   fast_finish: true
   include:
     - stage: test
       script: make test
       env: GOARCH=amd64
-      go: 1.10.x
     - stage: integration
       script: "./scripts/localkube-integration.sh"
       after_failure:
@@ -38,11 +39,7 @@ jobs:
       script:
         - echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
         - if [ -n "$TRAVIS_TAG" ]; then make TAG=$TRAVIS_TAG push; else make push; fi
-      go: 1.10.x
       if: "(NOT type IN (pull_request)) AND (branch = master) OR (tag IS present)"
-matrix:
-  allow_failures:
-    - go: master
 notifications:
   slack:
     rooms:
