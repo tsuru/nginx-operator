@@ -141,6 +141,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 	setupConfig(n.Spec.Config, &deployment)
 	setupTLS(n.Spec.Certificates, &deployment)
 	setupExtraFiles(n.Spec.ExtraFiles, &deployment)
+	setupCacheVolume(n.Spec.Cache, &deployment)
 
 	// This is done on the last step because n.Spec may have mutated during these methods
 	if err := SetNginxSpec(&deployment.ObjectMeta, n.Spec); err != nil {
@@ -423,4 +424,28 @@ func convertToStringMap(m map[interface{}]interface{}) map[string]string {
 		result[key] = value
 	}
 	return result
+}
+
+func setupCacheVolume(cache v1alpha1.NginxCacheSpec, dep *appv1.Deployment) {
+	if cache.Path == "" {
+		return
+	}
+	const cacheVolName = "cache-vol"
+	medium := corev1.StorageMediumDefault
+	if cache.InMemory {
+		medium = corev1.StorageMediumMemory
+	}
+	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, corev1.Volume{
+		Name: cacheVolName,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{
+				Medium:    medium,
+				SizeLimit: cache.Size,
+			},
+		},
+	})
+	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
+		Name:      cacheVolName,
+		MountPath: cache.Path,
+	})
 }
