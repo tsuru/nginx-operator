@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	tsuruConfig "github.com/tsuru/config"
 	"github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -674,6 +674,59 @@ func Test_NewDeployment(t *testing.T) {
 			},
 			teardownFn: func() {
 				tsuruConfig.Unset("nginx-controller:pod-template:labels")
+			},
+		},
+		{
+			name: "with-cache",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.Cache = v1alpha1.NginxCacheSpec{
+					Path: "/var/cache",
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.Containers[0].VolumeMounts = append(d.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
+					Name:      "cache-vol",
+					MountPath: "/var/cache",
+				})
+				d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, corev1.Volume{
+					Name: "cache-vol",
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				})
+				return d
+			},
+		},
+		{
+			name: "with-cache-memory-size",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				q, err := resource.ParseQuantity("10Mi")
+				require.NoError(t, err)
+				n.Spec.Cache = v1alpha1.NginxCacheSpec{
+					InMemory: true,
+					Path:     "/var/cache",
+					Size:     &q,
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.Containers[0].VolumeMounts = append(d.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
+					Name:      "cache-vol",
+					MountPath: "/var/cache",
+				})
+				q, err := resource.ParseQuantity("10Mi")
+				require.NoError(t, err)
+				d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, corev1.Volume{
+					Name: "cache-vol",
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{
+							Medium:    "Memory",
+							SizeLimit: &q,
+						},
+					},
+				})
+				return d
 			},
 		},
 	}
