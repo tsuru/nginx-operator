@@ -10,6 +10,7 @@ import (
 	"github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -59,6 +60,13 @@ var postStartCommand = []string{
 	"/bin/sh",
 	"-c",
 	"nginx -t && touch /tmp/done",
+}
+
+var healthcheckResources = corev1.ResourceRequirements{
+	Limits: corev1.ResourceList{
+		corev1.ResourceCPU:    resource.MustParse("50m"),
+		corev1.ResourceMemory: resource.MustParse("30Mi"),
+	},
 }
 
 // NewDeployment creates a deployment for a given Nginx resource.
@@ -129,8 +137,9 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 							},
 						},
 						{
-							Name:  healthcheckSidecarName,
-							Image: valueOrDefault(customSidecarContainerImage, defaultSidecarContainerImage),
+							Name:      healthcheckSidecarName,
+							Image:     valueOrDefault(customSidecarContainerImage, defaultSidecarContainerImage),
+							Resources: healthcheckResources,
 						},
 					},
 					Affinity: n.Spec.PodTemplate.Affinity,
