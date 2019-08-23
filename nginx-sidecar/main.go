@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/tsuru/nginx-operator/nginx-sidecar/handlers"
 	"log"
 	"net/http"
+
+	"github.com/tsuru/nginx-operator/nginx-sidecar/handlers"
 )
 
 const listen = ":59999"

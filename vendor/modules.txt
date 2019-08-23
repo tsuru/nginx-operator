@@ -170,6 +170,7 @@ k8s.io/api/storage/v1beta1
 k8s.io/api/admission/v1beta1
 # k8s.io/apimachinery v0.0.0-20190612125636-6a5db36e93ad => k8s.io/apimachinery v0.0.0-20190221213512-86fb29eff628
 k8s.io/apimachinery/pkg/runtime
+k8s.io/apimachinery/pkg/api/resource
 k8s.io/apimachinery/pkg/apis/meta/v1
 k8s.io/apimachinery/pkg/runtime/schema
 k8s.io/apimachinery/pkg/api/errors
@@ -187,7 +188,6 @@ k8s.io/apimachinery/pkg/util/json
 k8s.io/apimachinery/pkg/util/naming
 k8s.io/apimachinery/pkg/util/runtime
 k8s.io/apimachinery/pkg/util/sets
-k8s.io/apimachinery/pkg/api/resource
 k8s.io/apimachinery/pkg/fields
 k8s.io/apimachinery/pkg/selection
 k8s.io/apimachinery/pkg/watch

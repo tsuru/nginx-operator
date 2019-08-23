@@ -26,7 +26,7 @@ func HealthcheckHandler(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil {
 			message := fmt.Sprintf("url format error: %q", err)
-			log.Printf(message)
+			log.Print(message)
 			http.Error(w, message, http.StatusBadRequest)
 			return
 		}
@@ -43,14 +43,14 @@ func HealthcheckHandler(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil {
 			message := fmt.Sprintf("healthcheck request error: %q", err)
-			log.Printf(message)
+			log.Print(message)
 			http.Error(w, message, http.StatusServiceUnavailable)
 			return
 		}
 
 		if resp.StatusCode < 200 || resp.StatusCode >= 400 {
 			message := fmt.Sprintf("unexpected status code: %d", resp.StatusCode)
-			log.Printf(message)
+			log.Print(message)
 			http.Error(w, message, http.StatusServiceUnavailable)
 			return
 		}

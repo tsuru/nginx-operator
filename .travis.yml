@@ -16,7 +16,10 @@ jobs:
   include:
     - stage: test
       script: make test
-      env: GOARCH=amd64
+      env: JOB=test
+    - stage: test
+      script: make lint
+      env: JOB=lint
     - stage: integration
       script: "./scripts/localkube-integration.sh"
       after_failure:
