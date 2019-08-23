@@ -1,6 +1,7 @@
 package nginx
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -110,14 +111,14 @@ func TestReconcileNginx_reconcileService(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, got)
 				expectedPorts := []corev1.ServicePort{
-					corev1.ServicePort{
+					{
 						Name:       "http",
 						TargetPort: intstr.FromString("http"),
 						Protocol:   corev1.ProtocolTCP,
 						NodePort:   int32(30666),
 						Port:       int32(80),
 					},
-					corev1.ServicePort{
+					{
 						Name:       "https",
 						TargetPort: intstr.FromString("https"),
 						Protocol:   corev1.ProtocolTCP,
@@ -143,7 +144,7 @@ func TestReconcileNginx_reconcileService(t *testing.T) {
 			err := reconciler.reconcileService(tt.nginx)
 			gotService := &corev1.Service{}
 			serviceName := types.NamespacedName{Name: tt.nginx.Name + "-service", Namespace: tt.nginx.Namespace}
-			require.NoError(t, reconciler.client.Get(nil, serviceName, gotService))
+			require.NoError(t, reconciler.client.Get(context.Background(), serviceName, gotService))
 			tt.assertion(t, err, gotService)
 		})
 	}

@@ -2,10 +2,14 @@ TAG=latest
 IMAGE=tsuru/nginx-operator
 SIDECAR_IMAGE=tsuru/nginx-operator-sidecar
 
-.PHONY: test deploy local build push generate
+.PHONY: test deploy local build push generate lint
 
 test:
 	go test ./...
+
+lint:
+	curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin
+	golangci-lint run ./...
 
 deploy:
 	kubectl apply -f deploy/

@@ -27,9 +27,9 @@ func TestMain(m *testing.M) {
 }
 
 func Test_Operator(t *testing.T) {
-	cleanup, err := createNamespace(testingNamespace)
-	if err != nil {
-		t.Fatal(err)
+	cleanup, outErr := createNamespace(testingNamespace)
+	if outErr != nil {
+		t.Fatal(outErr)
 	}
 	defer cleanup()
 
@@ -46,7 +46,7 @@ func Test_Operator(t *testing.T) {
 	})
 
 	t.Run("with-certificates.yaml", func(t *testing.T) {
-		err = apply("testdata/with-certificates.yaml", testingNamespace)
+		err := apply("testdata/with-certificates.yaml", testingNamespace)
 		require.NoError(t, err)
 
 		nginx, err := getReadyNginx("my-secured-nginx", 1, 1)
@@ -70,24 +70,24 @@ func Test_Operator(t *testing.T) {
 		err = waitPodBeAvailable(podName, testingNamespace)
 		require.NoError(t, err)
 
-		tests := []struct{
-			filename string
+		tests := []struct {
+			filename       string
 			expectedSha256 string
 		}{
 			{
-				filename: "/etc/nginx/certs/rsa.crt",
+				filename:       "/etc/nginx/certs/rsa.crt",
 				expectedSha256: "f50457089e715bbc9d5a31a16cf53cc2f13a68333df71559bb5d06be2d2b8a63",
 			},
 			{
-				filename: "/etc/nginx/certs/rsa.key",
+				filename:       "/etc/nginx/certs/rsa.key",
 				expectedSha256: "18580c25b2807b4c95502dd7051d414299e40d8d14024ad5d69c9915ec41e66e",
 			},
 			{
-				filename: "/etc/nginx/certs/custom_dir/custom_name.crt",
+				filename:       "/etc/nginx/certs/custom_dir/custom_name.crt",
 				expectedSha256: "159af275ab3b22d9737617e51daca64efafb48287ecb3650661d2116cb4ef0c9",
 			},
 			{
-				filename: "/etc/nginx/certs/custom_dir/custom_name.key",
+				filename:       "/etc/nginx/certs/custom_dir/custom_name.key",
 				expectedSha256: "253b9795dcd80c493dcfade6b3dc5506fac1a38850abaa4e639fada5ea3dad5e",
 			},
 		}

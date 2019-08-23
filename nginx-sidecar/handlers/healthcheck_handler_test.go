@@ -1,12 +1,13 @@
 package handlers
 
 import (
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type remoteServiceSuccess struct{}
@@ -80,19 +81,17 @@ func TestHealthcheckHandler(t *testing.T) {
 		},
 	}
 
-	testHandler(t, HealthcheckHandler, testCases)
-}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			req, err := http.NewRequest("GET", tt.query, nil)
+			require.NoError(t, err)
 
-func testHandler(t *testing.T, handler func(http.ResponseWriter, *http.Request), testCases []handlerTestCase) {
-	for _, testCase := range testCases {
-		req, err := http.NewRequest("GET", testCase.query, nil)
-		require.NoError(t, err)
+			recorder := httptest.NewRecorder()
+			handler := http.HandlerFunc(HealthcheckHandler)
 
-		recorder := httptest.NewRecorder()
-		handler := http.HandlerFunc(handler)
+			handler.ServeHTTP(recorder, req)
 
-		handler.ServeHTTP(recorder, req)
-
-		assert.Equal(t, testCase.expected, recorder.Code)
+			assert.Equal(t, tt.expected, recorder.Code)
+		})
 	}
 }
