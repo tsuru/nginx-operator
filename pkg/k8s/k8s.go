@@ -53,7 +53,7 @@ const (
 var nginxEntrypoint = []string{
 	"/bin/sh",
 	"-c",
-	"while ! [ -f /tmp/done ]; do sleep 0.5; done && nginx -g 'daemon off;'",
+	"while ! [ -f /tmp/done ]; do sleep 0.5; done && exec nginx -g 'daemon off;'",
 }
 
 var postStartCommand = []string{
