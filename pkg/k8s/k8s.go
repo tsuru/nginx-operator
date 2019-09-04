@@ -234,9 +234,13 @@ func nginxService(n *v1alpha1.Nginx) corev1.ServiceType {
 // LabelsForNginx returns the labels for a Nginx CR with the given name
 func LabelsForNginx(name string) map[string]string {
 	return map[string]string{
-		"nginx_cr": name,
-		"app":      "nginx",
+		"nginx.tsuru.io/resource-name": name,
+		"nginx.tsuru.io/app":           "nginx",
 	}
+}
+
+func GetNginxNameFromObject(o metav1.Object) string {
+	return o.GetLabels()["nginx.tsuru.io/resource-name"]
 }
 
 // ExtractNginxSpec extracts the nginx used to create the object

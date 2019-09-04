@@ -60,15 +60,17 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	return c.Watch(&source.Kind{Type: &corev1.Pod{}},
 		&handler.EnqueueRequestsFromMapFunc{
 			ToRequests: handler.ToRequestsFunc(func(o handler.MapObject) []reconcile.Request {
-				if nginxCR, ok := o.Meta.GetLabels()["nginx_cr"]; ok {
-					return []reconcile.Request{
-						{NamespacedName: types.NamespacedName{
-							Name:      nginxCR,
-							Namespace: o.Meta.GetNamespace(),
-						}},
-					}
+				nginxResourceName := k8s.GetNginxNameFromObject(o.Meta)
+				if nginxResourceName == "" {
+					return nil
 				}
-				return []reconcile.Request{}
+
+				return []reconcile.Request{
+					{NamespacedName: types.NamespacedName{
+						Name:      nginxResourceName,
+						Namespace: o.Meta.GetNamespace(),
+					}},
+				}
 			}),
 		},
 	)

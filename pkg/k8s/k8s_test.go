@@ -72,8 +72,8 @@ func baseDeployment() appv1.Deployment {
 		Spec: appv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"nginx_cr": "my-nginx",
-					"app":      "nginx",
+					"nginx.tsuru.io/resource-name": "my-nginx",
+					"nginx.tsuru.io/app":           "nginx",
 				},
 			},
 			Template: corev1.PodTemplateSpec{
@@ -81,8 +81,8 @@ func baseDeployment() appv1.Deployment {
 					Name:      "",
 					Namespace: "default",
 					Labels: map[string]string{
-						"nginx_cr": "my-nginx",
-						"app":      "nginx",
+						"nginx.tsuru.io/resource-name": "my-nginx",
+						"nginx.tsuru.io/app":           "nginx",
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -784,8 +784,8 @@ func TestNewService(t *testing.T) {
 					Name:      "my-nginx-service",
 					Namespace: "default",
 					Labels: map[string]string{
-						"nginx_cr": "my-nginx",
-						"app":      "nginx",
+						"nginx.tsuru.io/resource-name": "my-nginx",
+						"nginx.tsuru.io/app":           "nginx",
 					},
 				},
 				Spec: corev1.ServiceSpec{
@@ -804,8 +804,8 @@ func TestNewService(t *testing.T) {
 						},
 					},
 					Selector: map[string]string{
-						"nginx_cr": "my-nginx",
-						"app":      "nginx",
+						"nginx.tsuru.io/resource-name": "my-nginx",
+						"nginx.tsuru.io/app":           "nginx",
 					},
 					Type: corev1.ServiceTypeClusterIP,
 				},
@@ -823,8 +823,8 @@ func TestNewService(t *testing.T) {
 					Name:      "my-nginx-service",
 					Namespace: "default",
 					Labels: map[string]string{
-						"nginx_cr": "my-nginx",
-						"app":      "nginx",
+						"nginx.tsuru.io/resource-name": "my-nginx",
+						"nginx.tsuru.io/app":           "nginx",
 					},
 				},
 				Spec: corev1.ServiceSpec{
@@ -843,8 +843,8 @@ func TestNewService(t *testing.T) {
 						},
 					},
 					Selector: map[string]string{
-						"nginx_cr": "my-nginx",
-						"app":      "nginx",
+						"nginx.tsuru.io/resource-name": "my-nginx",
+						"nginx.tsuru.io/app":           "nginx",
 					},
 					Type: corev1.ServiceTypeLoadBalancer,
 				},
@@ -862,8 +862,8 @@ func TestNewService(t *testing.T) {
 					Name:      "my-nginx-service",
 					Namespace: "default",
 					Labels: map[string]string{
-						"nginx_cr": "my-nginx",
-						"app":      "nginx",
+						"nginx.tsuru.io/resource-name": "my-nginx",
+						"nginx.tsuru.io/app":           "nginx",
 					},
 				},
 				Spec: corev1.ServiceSpec{
@@ -883,8 +883,8 @@ func TestNewService(t *testing.T) {
 					},
 					Type: corev1.ServiceTypeClusterIP,
 					Selector: map[string]string{
-						"nginx_cr": "my-nginx",
-						"app":      "nginx",
+						"nginx.tsuru.io/resource-name": "my-nginx",
+						"nginx.tsuru.io/app":           "nginx",
 					},
 				},
 			},
@@ -895,8 +895,8 @@ func TestNewService(t *testing.T) {
 				n := nginxWithService()
 				n.Spec.Service.LoadBalancerIP = "10.0.0.1"
 				n.Spec.Service.Labels = map[string]string{
-					"x":   "y",
-					"app": "ignored",
+					"x":                  "y",
+					"nginx.tsuru.io/app": "ignored",
 				}
 				n.Spec.Service.Annotations = map[string]string{
 					"a": "b",
@@ -912,9 +912,9 @@ func TestNewService(t *testing.T) {
 					Name:      "my-nginx-service",
 					Namespace: "default",
 					Labels: map[string]string{
-						"nginx_cr": "my-nginx",
-						"app":      "nginx",
-						"x":        "y",
+						"nginx.tsuru.io/resource-name": "my-nginx",
+						"nginx.tsuru.io/app":           "nginx",
+						"x":                            "y",
 					},
 					Annotations: map[string]string{
 						"a": "b",
@@ -936,8 +936,8 @@ func TestNewService(t *testing.T) {
 						},
 					},
 					Selector: map[string]string{
-						"nginx_cr": "my-nginx",
-						"app":      "nginx",
+						"nginx.tsuru.io/resource-name": "my-nginx",
+						"nginx.tsuru.io/app":           "nginx",
 					},
 					Type:           corev1.ServiceTypeLoadBalancer,
 					LoadBalancerIP: "10.0.0.1",
