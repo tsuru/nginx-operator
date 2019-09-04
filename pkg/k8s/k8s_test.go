@@ -571,12 +571,10 @@ func Test_NewDeployment(t *testing.T) {
 				return n
 			},
 			deployFn: func(d appv1.Deployment) appv1.Deployment {
-				expetecLabels := mergeMap(map[string]string{
+				d.Spec.Template.Labels = mergeMap(map[string]string{
 					"some-custom-label": "label-value",
 					"project":           "z",
 				}, d.Spec.Template.Labels)
-				d.Spec.Selector.MatchLabels = expetecLabels
-				d.Spec.Template.Labels = expetecLabels
 				return d
 			},
 		},
@@ -650,7 +648,6 @@ func Test_NewDeployment(t *testing.T) {
 			},
 			deployFn: func(d appv1.Deployment) appv1.Deployment {
 				expectedLabels := mergeMap(d.Spec.Template.Labels, map[string]string{"nginx_custom_label": "custom label"})
-				d.Spec.Selector.MatchLabels = expectedLabels
 				d.Spec.Template.Labels = expectedLabels
 				return d
 			},
@@ -677,8 +674,6 @@ func Test_NewDeployment(t *testing.T) {
 					"user_custom_label":  "custom value",
 					"conflicted_label":   "user wins",
 				})
-
-				d.Spec.Selector.MatchLabels = expectedLabels
 				d.Spec.Template.Labels = expectedLabels
 				return d
 			},

@@ -96,7 +96,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 		Spec: appv1.DeploymentSpec{
 			Replicas: n.Spec.Replicas,
 			Selector: &metav1.LabelSelector{
-				MatchLabels: assembleLabels(*n),
+				MatchLabels: LabelsForNginx(n.Name),
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
