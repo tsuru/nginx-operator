@@ -5,6 +5,7 @@ go 1.12
 require (
 	cloud.google.com/go v0.43.0 // indirect
 	github.com/evanphx/json-patch v4.5.0+incompatible // indirect
+	github.com/go-openapi/spec v0.19.0
 	github.com/golang/groupcache v0.0.0-20190702054246-869f871628b6 // indirect
 	github.com/googleapis/gnostic v0.3.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.3 // indirect
@@ -24,7 +25,7 @@ require (
 	k8s.io/apimachinery v0.0.0-20190612125636-6a5db36e93ad
 	k8s.io/client-go v11.0.0+incompatible
 	k8s.io/klog v0.3.3 // indirect
-	k8s.io/kube-openapi v0.0.0-20190722073852-5e22f3d471e6 // indirect
+	k8s.io/kube-openapi v0.0.0-20190722073852-5e22f3d471e6
 	sigs.k8s.io/controller-runtime v0.1.10
 )
 

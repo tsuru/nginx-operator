@@ -10,6 +10,198 @@ spec:
     plural: nginxes
     singular: nginx
   scope: Namespaced
-  version: v1alpha1
   subresources:
     status: {}
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          properties:
+            cache:
+              description: Cache allows configuring a cache volume for nginx to use.
+              properties:
+                inMemory:
+                  description: InMemory if set to true creates a memory backed volume.
+                  type: boolean
+                path:
+                  description: Path is the mount path for the cache volume.
+                  type: string
+                size:
+                  description: Size is the maximum size allowed for the cache volume.
+                  type: string
+              required:
+              - path
+              type: object
+            certificates:
+              description: Certificates refers to a Secret containing one or more
+                certificate-key pairs.
+              properties:
+                items:
+                  description: Items maps the key and path where the certificate-key
+                    pairs should be mounted on nginx container.
+                  items:
+                    properties:
+                      certificateField:
+                        description: CertificateField is the field name that contains
+                          the certificate.
+                        type: string
+                      certificatePath:
+                        description: CertificatePath holds the path where the certificate
+                          should be stored inside the nginx container. Defaults to
+                          same as CertificatedField.
+                        type: string
+                      keyField:
+                        description: KeyField is the field name that contains the
+                          key.
+                        type: string
+                      keyPath:
+                        description: KeyPath holds the path where the key should be
+                          store inside the nginx container. Defaults to same as KeyField.
+                        type: string
+                    required:
+                    - certificateField
+                    - keyField
+                    type: object
+                  type: array
+                secretName:
+                  description: SecretName refers to the Secret holding the certificates
+                    and keys pairs.
+                  type: string
+              required:
+              - secretName
+              - items
+              type: object
+            config:
+              description: Config is a reference to the NGINX config object which
+                stores the NGINX configuration file. When provided the file is mounted
+                in NGINX container on "/etc/nginx/nginx.conf".
+              properties:
+                kind:
+                  description: Kind of the config object. Defaults to ConfigKindConfigMap.
+                  type: string
+                name:
+                  description: Name of the config object. Required when Kind is ConfigKindConfigMap.
+                  type: string
+                value:
+                  description: Value is a inline configuration content. Required when
+                    Kind is ConfigKindInline.
+                  type: string
+              type: object
+            extraFiles:
+              description: ExtraFiles references to additional files into a object
+                in the cluster. These additional files will be mounted on `/etc/nginx/extra_files`.
+              properties:
+                files:
+                  additionalProperties:
+                    type: string
+                  description: Files maps each key entry from the ConfigMap to its
+                    relative location on the nginx filesystem.
+                  type: object
+                name:
+                  description: Name points to a ConfigMap resource (in the same namespace)
+                    which holds the files.
+                  type: string
+              required:
+              - name
+              type: object
+            healthcheckPath:
+              description: HealthcheckPath defines the endpoint used to check whether
+                instance is working or not.
+              type: string
+            image:
+              description: Image is the container image name. Defaults to "nginx:latest".
+              type: string
+            podTemplate:
+              description: Template used to configure the nginx pod.
+              properties:
+                affinity:
+                  description: Affinity to be set on the nginx pod.
+                  type: object
+                annotations:
+                  additionalProperties:
+                    type: string
+                  description: Annotations are custom annotations to be set into Pod.
+                  type: object
+                labels:
+                  additionalProperties:
+                    type: string
+                  description: Labels are custom labels to be added into Pod.
+                  type: object
+              required:
+              - annotations
+              type: object
+            replicas:
+              description: Replicas is the number of desired pods. Defaults to the
+                default deployment replicas value.
+              format: int32
+              type: integer
+            resources:
+              description: Resources requirements to be set on the NGINX container.
+              type: object
+            service:
+              description: Service to expose the nginx pod
+              properties:
+                annotations:
+                  additionalProperties:
+                    type: string
+                  description: Annotations are extra annotations for the service.
+                  type: object
+                labels:
+                  additionalProperties:
+                    type: string
+                  description: Labels are extra labels for the service.
+                  type: object
+                loadBalancerIP:
+                  description: LoadBalancerIP is an optional load balancer IP for
+                    the service.
+                  type: string
+                type:
+                  description: Type is the type of the service. Defaults to the default
+                    service type value.
+                  type: string
+              type: object
+          type: object
+        status:
+          properties:
+            pods:
+              items:
+                properties:
+                  name:
+                    description: Name is the name of the POD running nginx
+                    type: string
+                  podIP:
+                    description: PodIP is the IP if the POD
+                    type: string
+                required:
+                - name
+                - podIP
+                type: object
+              type: array
+            services:
+              items:
+                properties:
+                  name:
+                    description: Name is the name of the Service created by nginx
+                    type: string
+                required:
+                - name
+                type: object
+              type: array
+          type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
