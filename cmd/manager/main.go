@@ -16,6 +16,7 @@ import (
 	tsuruConfig "github.com/tsuru/config"
 	"github.com/tsuru/nginx-operator/pkg/apis"
 	"github.com/tsuru/nginx-operator/pkg/controller"
+	nginxOperatorVersion "github.com/tsuru/nginx-operator/version"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -31,6 +32,7 @@ func printVersion() {
 	log.Info(fmt.Sprintf("Go Version: %s", runtime.Version()))
 	log.Info(fmt.Sprintf("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH))
 	log.Info(fmt.Sprintf("Version of operator-sdk: %v", sdkVersion.Version))
+	log.Info(fmt.Sprintf("Nginx Operator version: %s)", nginxOperatorVersion.Version))
 }
 
 func init() {
