@@ -86,38 +86,35 @@ type ReconcileNginx struct {
 
 // Reconcile reads that state of the cluster for a Nginx object and makes changes based on the state read
 // and what is in the Nginx.Spec
-// TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
-// a Pod as an example
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileNginx) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling Nginx")
+	reqLogger := log.WithValues("Nginx", request)
+	reqLogger.Info("Starting Nginx reconciling")
+	defer reqLogger.Info("Finishing Nginx reconciling")
 
 	ctx := context.Background()
 
-	// Fetch the Nginx instance
 	instance := &nginxv1alpha1.Nginx{}
 	err := r.client.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			// Request object not found, could have been deleted after reconcile request.
-			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
-			// Return and don't requeue
+			reqLogger.Info("Nginx resource not found, skipping reconcile")
 			return reconcile.Result{}, nil
 		}
-		// Error reading the object - requeue the request.
+
+		reqLogger.Error(err, "Unable to get Nginx resource")
 		return reconcile.Result{}, err
 	}
 
 	if err := r.reconcileNginx(ctx, instance); err != nil {
-		reqLogger.Error(err, "fail to reconcile")
+		reqLogger.Error(err, "Fail to reconcile")
 		return reconcile.Result{}, err
 	}
 
 	if err := r.refreshStatus(ctx, instance); err != nil {
-		reqLogger.Error(err, "fail to refresh status")
+		reqLogger.Error(err, "Fail to refresh status subresource")
 		return reconcile.Result{}, err
 	}
 
