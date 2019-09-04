@@ -19,9 +19,9 @@ data:
 apiVersion: nginx.tsuru.io/v1alpha1
 kind: Nginx
 metadata:
-  name: nginx-example
+  name: nginx-with-configmap
 spec:
   replicas: 1
-  configRef:
+  config:
     kind: ConfigMap
     name: nginxconf

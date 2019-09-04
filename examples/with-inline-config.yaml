@@ -2,9 +2,20 @@
 apiVersion: nginx.tsuru.io/v1alpha1
 kind: Nginx
 metadata:
-  name: basic-nginx
+  name: nginx-with-inline-config
 spec:
-  configRef:
+  config:
     name: nginx-config
     kind: Inline
-    value: "xpto"
+    value: |-
+      events {}
+
+      http {
+        server {
+          listen 8080;
+
+          location / {
+            return 200 'hello';
+          }
+        }
+      }
