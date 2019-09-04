@@ -145,7 +145,7 @@ func TestReconcileNginx_reconcileService(t *testing.T) {
 				client: fake.NewFakeClientWithScheme(scheme, resources...),
 				scheme: scheme,
 			}
-			err := reconciler.reconcileService(tt.nginx)
+			err := reconciler.reconcileService(context.TODO(), tt.nginx)
 			gotService := &corev1.Service{}
 			serviceName := types.NamespacedName{Name: tt.nginx.Name + "-service", Namespace: tt.nginx.Namespace}
 			require.NoError(t, reconciler.client.Get(context.Background(), serviceName, gotService))

@@ -95,9 +95,11 @@ func (r *ReconcileNginx) Reconcile(request reconcile.Request) (reconcile.Result,
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling Nginx")
 
+	ctx := context.Background()
+
 	// Fetch the Nginx instance
 	instance := &nginxv1alpha1.Nginx{}
-	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
+	err := r.client.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -109,12 +111,12 @@ func (r *ReconcileNginx) Reconcile(request reconcile.Request) (reconcile.Result,
 		return reconcile.Result{}, err
 	}
 
-	if err := r.reconcileNginx(instance); err != nil {
+	if err := r.reconcileNginx(ctx, instance); err != nil {
 		reqLogger.Error(err, "fail to reconcile")
 		return reconcile.Result{}, err
 	}
 
-	if err := r.refreshStatus(instance); err != nil {
+	if err := r.refreshStatus(ctx, instance); err != nil {
 		reqLogger.Error(err, "fail to refresh status")
 		return reconcile.Result{}, err
 	}
@@ -122,26 +124,25 @@ func (r *ReconcileNginx) Reconcile(request reconcile.Request) (reconcile.Result,
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileNginx) reconcileNginx(nginx *nginxv1alpha1.Nginx) error {
-
-	if err := r.reconcileDeployment(nginx); err != nil {
+func (r *ReconcileNginx) reconcileNginx(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
+	if err := r.reconcileDeployment(ctx, nginx); err != nil {
 		return err
 	}
 
-	if err := r.reconcileService(nginx); err != nil {
+	if err := r.reconcileService(ctx, nginx); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (r *ReconcileNginx) reconcileDeployment(nginx *nginxv1alpha1.Nginx) error {
+func (r *ReconcileNginx) reconcileDeployment(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
 	newDeploy, err := k8s.NewDeployment(nginx)
 	if err != nil {
 		return fmt.Errorf("failed to assemble deployment from nginx: %v", err)
 	}
 
-	err = r.client.Create(context.TODO(), newDeploy)
+	err = r.client.Create(ctx, newDeploy)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create deployment: %v", err)
 	}
@@ -152,7 +153,7 @@ func (r *ReconcileNginx) reconcileDeployment(nginx *nginxv1alpha1.Nginx) error {
 
 	currDeploy := &appv1.Deployment{}
 
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: newDeploy.Name, Namespace: newDeploy.Namespace}, currDeploy)
+	err = r.client.Get(ctx, types.NamespacedName{Name: newDeploy.Name, Namespace: newDeploy.Namespace}, currDeploy)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve deployment: %v", err)
 	}
@@ -171,23 +172,23 @@ func (r *ReconcileNginx) reconcileDeployment(nginx *nginxv1alpha1.Nginx) error {
 		return fmt.Errorf("failed to set nginx spec into object meta: %v", err)
 	}
 
-	if err := r.client.Update(context.TODO(), currDeploy); err != nil {
+	if err := r.client.Update(ctx, currDeploy); err != nil {
 		return fmt.Errorf("failed to update deployment: %v", err)
 	}
 
 	return nil
 }
 
-func (r *ReconcileNginx) reconcileService(nginx *nginxv1alpha1.Nginx) error {
+func (r *ReconcileNginx) reconcileService(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
 	svcName := types.NamespacedName{
 		Name:      fmt.Sprintf("%s-service", nginx.Name),
 		Namespace: nginx.Namespace,
 	}
 	currentService := &corev1.Service{}
-	err := r.client.Get(context.TODO(), svcName, currentService)
+	err := r.client.Get(ctx, svcName, currentService)
 
 	if err != nil && errors.IsNotFound(err) {
-		return r.client.Create(context.TODO(), k8s.NewService(nginx))
+		return r.client.Create(ctx, k8s.NewService(nginx))
 	}
 
 	if err != nil {
@@ -209,17 +210,16 @@ func (r *ReconcileNginx) reconcileService(nginx *nginxv1alpha1.Nginx) error {
 	}
 
 	currentService.Spec.Ports = newService.Spec.Ports
-	return r.client.Update(context.TODO(), currentService)
+	return r.client.Update(ctx, currentService)
 }
 
-func (r *ReconcileNginx) refreshStatus(nginx *nginxv1alpha1.Nginx) error {
-
-	pods, err := listPods(r.client, nginx)
+func (r *ReconcileNginx) refreshStatus(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
+	pods, err := listPods(ctx, r.client, nginx)
 	if err != nil {
 		return fmt.Errorf("failed to list pods for nginx: %v", err)
 	}
 
-	services, err := listServices(r.client, nginx)
+	services, err := listServices(ctx, r.client, nginx)
 	if err != nil {
 		return fmt.Errorf("failed to list services for nginx: %v", err)
 	}
@@ -235,7 +235,7 @@ func (r *ReconcileNginx) refreshStatus(nginx *nginxv1alpha1.Nginx) error {
 	if !reflect.DeepEqual(pods, nginx.Status.Pods) || !reflect.DeepEqual(services, nginx.Status.Services) {
 		nginx.Status.Pods = pods
 		nginx.Status.Services = services
-		err := r.client.Status().Update(context.TODO(), nginx)
+		err := r.client.Status().Update(ctx, nginx)
 		if err != nil {
 			return fmt.Errorf("failed to update nginx status: %v", err)
 		}
@@ -245,11 +245,11 @@ func (r *ReconcileNginx) refreshStatus(nginx *nginxv1alpha1.Nginx) error {
 }
 
 // listPods return all the pods for the given nginx sorted by name
-func listPods(c client.Client, nginx *nginxv1alpha1.Nginx) ([]nginxv1alpha1.PodStatus, error) {
+func listPods(ctx context.Context, c client.Client, nginx *nginxv1alpha1.Nginx) ([]nginxv1alpha1.PodStatus, error) {
 	podList := &corev1.PodList{}
 	labelSelector := labels.SelectorFromSet(k8s.LabelsForNginx(nginx.Name))
 	listOps := &client.ListOptions{Namespace: nginx.Namespace, LabelSelector: labelSelector}
-	err := c.List(context.TODO(), listOps, podList)
+	err := c.List(ctx, listOps, podList)
 	if err != nil {
 		return nil, err
 	}
@@ -272,11 +272,11 @@ func listPods(c client.Client, nginx *nginxv1alpha1.Nginx) ([]nginxv1alpha1.PodS
 }
 
 // listServices return all the services for the given nginx sorted by name
-func listServices(c client.Client, nginx *nginxv1alpha1.Nginx) ([]nginxv1alpha1.ServiceStatus, error) {
+func listServices(ctx context.Context, c client.Client, nginx *nginxv1alpha1.Nginx) ([]nginxv1alpha1.ServiceStatus, error) {
 	serviceList := &corev1.ServiceList{}
 	labelSelector := labels.SelectorFromSet(k8s.LabelsForNginx(nginx.Name))
 	listOps := &client.ListOptions{Namespace: nginx.Namespace, LabelSelector: labelSelector}
-	err := c.List(context.TODO(), listOps, serviceList)
+	err := c.List(ctx, listOps, serviceList)
 	if err != nil {
 		return nil, err
 	}
