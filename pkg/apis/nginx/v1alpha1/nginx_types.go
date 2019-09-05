@@ -82,7 +82,7 @@ type NginxStatus struct {
 
 // Nginx is the Schema for the nginxes API
 // +kubebuilder:subresource:status
-// +k8s:openapi-gen=true
+// +k8s:openapi-gen=false
 type Nginx struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
