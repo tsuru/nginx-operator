@@ -74,14 +74,19 @@ type NginxPodTemplateSpec struct {
 
 // NginxStatus defines the observed state of Nginx
 type NginxStatus struct {
-	Pods     []PodStatus     `json:"pods,omitempty"`
-	Services []ServiceStatus `json:"services,omitempty"`
+	// CurrentReplicas is the last observed number from the NGINX object.
+	CurrentReplicas int32 `json:"currentReplicas,omitempty"`
+	// PodSelector is the NGINX's pod label selector.
+	PodSelector string          `json:"podSelector,omitempty"`
+	Pods        []PodStatus     `json:"pods,omitempty"`
+	Services    []ServiceStatus `json:"services,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Nginx is the Schema for the nginxes API
 // +kubebuilder:subresource:status
+// +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.currentReplicas,selectorpath=.status.podSelector
 // +k8s:openapi-gen=false
 type Nginx struct {
 	metav1.TypeMeta   `json:",inline"`

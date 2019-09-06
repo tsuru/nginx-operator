@@ -11,6 +11,10 @@ spec:
     singular: nginx
   scope: Namespaced
   subresources:
+    scale:
+      labelSelectorPath: .status.podSelector
+      specReplicasPath: .spec.replicas
+      statusReplicasPath: .status.currentReplicas
     status: {}
   validation: {}
   version: v1alpha1

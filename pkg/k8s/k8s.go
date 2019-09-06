@@ -16,6 +16,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8slabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -237,6 +238,11 @@ func LabelsForNginx(name string) map[string]string {
 		"nginx.tsuru.io/resource-name": name,
 		"nginx.tsuru.io/app":           "nginx",
 	}
+}
+
+// LabelsForNginxString returns the labels in string format.
+func LabelsForNginxString(name string) string {
+	return k8slabels.FormatLabels(LabelsForNginx(name))
 }
 
 func GetNginxNameFromObject(o metav1.Object) string {

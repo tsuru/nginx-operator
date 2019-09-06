@@ -234,6 +234,9 @@ func (r *ReconcileNginx) refreshStatus(ctx context.Context, nginx *nginxv1alpha1
 	if !reflect.DeepEqual(pods, nginx.Status.Pods) || !reflect.DeepEqual(services, nginx.Status.Services) {
 		nginx.Status.Pods = pods
 		nginx.Status.Services = services
+		nginx.Status.CurrentReplicas = int32(len(pods))
+		nginx.Status.PodSelector = k8s.LabelsForNginxString(nginx.Name)
+
 		err := r.client.Status().Update(ctx, nginx)
 		if err != nil {
 			return fmt.Errorf("failed to update nginx status: %v", err)
