@@ -66,10 +66,13 @@ type NginxPodTemplateSpec struct {
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 	// Annotations are custom annotations to be set into Pod.
 	// +optional
-	Annotations map[string]string `json:"annotations,omitmepty"`
+	Annotations map[string]string `json:"annotations,omitempty"`
 	// Labels are custom labels to be added into Pod.
 	// +optional
 	Labels map[string]string `json:"labels,omitempty"`
+	//HostNetwork enabled causes the pod to use the host's network namespace.
+	// +optional
+	HostNetwork bool `json:"hostNetwork,omitempty"`
 }
 
 // NginxStatus defines the observed state of Nginx

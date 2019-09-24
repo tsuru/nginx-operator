@@ -20,8 +20,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-var httpHealthcheckQuery = "url=http%3A%2F%2Flocalhost%3A8080"
-var httpsHealthcheckQuery = "url=http%3A%2F%2Flocalhost%3A8080&url=https%3A%2F%2Flocalhost%3A8443"
+var (
+	httpHealthcheckQuery             = "url=http%3A%2F%2Flocalhost%3A8080"
+	httpHostNetworkHealthcheckQuery  = "url=http%3A%2F%2Flocalhost%3A80"
+	httpsHealthcheckQuery            = "url=http%3A%2F%2Flocalhost%3A8080&url=https%3A%2F%2Flocalhost%3A8443"
+	httpsHostNetworkHealthcheckQuery = "url=http%3A%2F%2Flocalhost%3A80&url=https%3A%2F%2Flocalhost%3A443"
+)
 
 func baseNginx() v1alpha1.Nginx {
 	return v1alpha1.Nginx{
@@ -450,6 +454,98 @@ func Test_NewDeployment(t *testing.T) {
 								{MatchExpressions: []corev1.NodeSelectorRequirement{
 									{Key: "tsuru.io/pool", Values: []string{"my-pool"}},
 								}},
+							},
+						},
+					},
+				}
+				return d
+			},
+		},
+		{
+			name: "with-host-network",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.PodTemplate.HostNetwork = true
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.HostNetwork = true
+				d.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
+					{
+						Name:          defaultHTTPPortName,
+						ContainerPort: defaultHTTPHostNetworkPort,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          defaultHTTPSPortName,
+						ContainerPort: defaultHTTPSHostNetworkPort,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				}
+				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+					Handler: corev1.Handler{
+						HTTPGet: &corev1.HTTPGetAction{
+							Path:   "/healthcheck?" + httpHostNetworkHealthcheckQuery,
+							Port:   intstr.FromInt(healthcheckPort),
+							Scheme: corev1.URISchemeHTTP,
+						},
+					},
+				}
+				return d
+			},
+		},
+		{
+			name: "with-tls-and-host-network",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.PodTemplate.HostNetwork = true
+				n.Spec.Certificates = &v1alpha1.TLSSecret{
+					SecretName: "my-secret",
+					Items: []v1alpha1.TLSSecretItem{
+						{
+							CertificateField: "cert-field",
+							CertificatePath:  "cert-path",
+							KeyField:         "key-field",
+							KeyPath:          "key-path",
+						},
+					},
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.HostNetwork = true
+				d.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
+					{
+						Name:          defaultHTTPPortName,
+						ContainerPort: defaultHTTPHostNetworkPort,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          defaultHTTPSPortName,
+						ContainerPort: defaultHTTPSHostNetworkPort,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				}
+				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+					Handler: corev1.Handler{
+						HTTPGet: &corev1.HTTPGetAction{
+							Path:   "/healthcheck?" + httpsHostNetworkHealthcheckQuery,
+							Port:   intstr.FromInt(healthcheckPort),
+							Scheme: corev1.URISchemeHTTP,
+						},
+					},
+				}
+				d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
+					{Name: "nginx-certs", MountPath: "/etc/nginx/certs"},
+				}
+				d.Spec.Template.Spec.Volumes = []corev1.Volume{
+					{
+						Name: "nginx-certs",
+						VolumeSource: corev1.VolumeSource{
+							Secret: &corev1.SecretVolumeSource{
+								SecretName: "my-secret",
+								Items: []corev1.KeyToPath{
+									{Key: "cert-field", Path: "cert-path"},
+									{Key: "key-field", Path: "key-path"},
+								},
 							},
 						},
 					},
