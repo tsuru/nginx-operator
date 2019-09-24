@@ -458,6 +458,29 @@ func Test_NewDeployment(t *testing.T) {
 			},
 		},
 		{
+			name: "with-host-network",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.PodTemplate.HostNetwork = true
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.HostNetwork = true
+				d.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
+					{
+						Name:          defaultHTTPPortName,
+						ContainerPort: defaultHTTPHostNetworkPort,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          defaultHTTPSPortName,
+						ContainerPort: defaultHTTPSHostNetworkPort,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				}
+				return d
+			},
+		},
+		{
 			name: "with-resources",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
 				n.Spec.Resources = corev1.ResourceRequirements{

@@ -26,11 +26,13 @@ const (
 	defaultNginxImage = "nginx:latest"
 
 	// Default port names used by the nginx container and the ClusterIP service
-	defaultHTTPPort     = int32(8080)
-	defaultHTTPPortName = "http"
+	defaultHTTPPort            = int32(8080)
+	defaultHTTPHostNetworkPort = int32(80)
+	defaultHTTPPortName        = "http"
 
-	defaultHTTPSPort     = int32(8443)
-	defaultHTTPSPortName = "https"
+	defaultHTTPSPort            = int32(8443)
+	defaultHTTPSHostNetworkPort = int32(443)
+	defaultHTTPSPortName        = "https"
 
 	// Path and port to the healthcheck service
 	healthcheckPort        = 59999
@@ -108,21 +110,9 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:    "nginx",
-							Image:   n.Spec.Image,
-							Command: nginxEntrypoint,
-							Ports: []corev1.ContainerPort{
-								{
-									Name:          defaultHTTPPortName,
-									ContainerPort: defaultHTTPPort,
-									Protocol:      corev1.ProtocolTCP,
-								},
-								{
-									Name:          defaultHTTPSPortName,
-									ContainerPort: defaultHTTPSPort,
-									Protocol:      corev1.ProtocolTCP,
-								},
-							},
+							Name:      "nginx",
+							Image:     n.Spec.Image,
+							Command:   nginxEntrypoint,
 							Resources: n.Spec.Resources,
 							ReadinessProbe: &corev1.Probe{
 								Handler: corev1.Handler{
@@ -147,11 +137,13 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 							Resources: healthcheckResources,
 						},
 					},
-					Affinity: n.Spec.PodTemplate.Affinity,
+					Affinity:    n.Spec.PodTemplate.Affinity,
+					HostNetwork: n.Spec.PodTemplate.HostNetwork,
 				},
 			},
 		},
 	}
+	setupPorts(n.Spec.PodTemplate, &deployment)
 	setupConfig(n.Spec.Config, &deployment)
 	setupTLS(n.Spec.Certificates, &deployment)
 	setupExtraFiles(n.Spec.ExtraFiles, &deployment)
@@ -287,6 +279,27 @@ func buildHealthcheckPath(spec v1alpha1.NginxSpec) string {
 	}
 
 	return fmt.Sprintf("%s?%s", healthcheckPath, query.Encode())
+}
+
+func setupPorts(podSpec v1alpha1.NginxPodTemplateSpec, dep *appv1.Deployment) {
+	httpPort := defaultHTTPPort
+	httpsPort := defaultHTTPSPort
+	if podSpec.HostNetwork {
+		httpPort = defaultHTTPHostNetworkPort
+		httpsPort = defaultHTTPSHostNetworkPort
+	}
+	dep.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
+		{
+			Name:          defaultHTTPPortName,
+			ContainerPort: httpPort,
+			Protocol:      corev1.ProtocolTCP,
+		},
+		{
+			Name:          defaultHTTPSPortName,
+			ContainerPort: httpsPort,
+			Protocol:      corev1.ProtocolTCP,
+		},
+	}
 }
 
 func setupConfig(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {
