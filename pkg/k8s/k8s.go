@@ -268,13 +268,14 @@ func SetNginxSpec(o *metav1.ObjectMeta, spec v1alpha1.NginxSpec) error {
 }
 
 func buildHealthcheckPath(spec v1alpha1.NginxSpec) string {
-	httpURL := fmt.Sprintf("http://localhost:%d%s", defaultHTTPPort, spec.HealthcheckPath)
+	httpPort, httpsPort := nginxPorts(spec.PodTemplate)
+	httpURL := fmt.Sprintf("http://localhost:%d%s", httpPort, spec.HealthcheckPath)
 
 	query := url.Values{}
 	query.Add("url", httpURL)
 
 	if spec.Certificates != nil {
-		httpsURL := fmt.Sprintf("https://localhost:%d%s", defaultHTTPSPort, spec.HealthcheckPath)
+		httpsURL := fmt.Sprintf("https://localhost:%d%s", httpsPort, spec.HealthcheckPath)
 		query.Add("url", httpsURL)
 	}
 
@@ -282,12 +283,7 @@ func buildHealthcheckPath(spec v1alpha1.NginxSpec) string {
 }
 
 func setupPorts(podSpec v1alpha1.NginxPodTemplateSpec, dep *appv1.Deployment) {
-	httpPort := defaultHTTPPort
-	httpsPort := defaultHTTPSPort
-	if podSpec.HostNetwork {
-		httpPort = defaultHTTPHostNetworkPort
-		httpsPort = defaultHTTPSHostNetworkPort
-	}
+	httpPort, httpsPort := nginxPorts(podSpec)
 	dep.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
 		{
 			Name:          defaultHTTPPortName,
@@ -300,6 +296,16 @@ func setupPorts(podSpec v1alpha1.NginxPodTemplateSpec, dep *appv1.Deployment) {
 			Protocol:      corev1.ProtocolTCP,
 		},
 	}
+}
+
+func nginxPorts(podSpec v1alpha1.NginxPodTemplateSpec) (int32, int32) {
+	httpPort := defaultHTTPPort
+	httpsPort := defaultHTTPSPort
+	if podSpec.HostNetwork {
+		httpPort = defaultHTTPHostNetworkPort
+		httpsPort = defaultHTTPSHostNetworkPort
+	}
+	return httpPort, httpsPort
 }
 
 func setupConfig(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {
