@@ -554,6 +554,23 @@ func Test_NewDeployment(t *testing.T) {
 			},
 		},
 		{
+			name: "with-security-context",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.PodTemplate.SecurityContext = &corev1.PodSecurityContext{
+					RunAsUser:  new(int64),
+					RunAsGroup: new(int64),
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{
+					RunAsUser:  new(int64),
+					RunAsGroup: new(int64),
+				}
+				return d
+			},
+		},
+		{
 			name: "with-resources",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
 				n.Spec.Resources = corev1.ResourceRequirements{
