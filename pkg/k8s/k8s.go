@@ -110,10 +110,11 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:      "nginx",
-							Image:     n.Spec.Image,
-							Command:   nginxEntrypoint,
-							Resources: n.Spec.Resources,
+							Name:            "nginx",
+							Image:           n.Spec.Image,
+							Command:         nginxEntrypoint,
+							Resources:       n.Spec.Resources,
+							SecurityContext: n.Spec.SecurityContext,
 							ReadinessProbe: &corev1.Probe{
 								Handler: corev1.Handler{
 									HTTPGet: &corev1.HTTPGetAction{
@@ -137,9 +138,8 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 							Resources: healthcheckResources,
 						},
 					},
-					Affinity:        n.Spec.PodTemplate.Affinity,
-					HostNetwork:     n.Spec.PodTemplate.HostNetwork,
-					SecurityContext: n.Spec.PodTemplate.SecurityContext,
+					Affinity:    n.Spec.PodTemplate.Affinity,
+					HostNetwork: n.Spec.PodTemplate.HostNetwork,
 				},
 			},
 		},
