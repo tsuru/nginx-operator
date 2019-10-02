@@ -217,10 +217,10 @@ func (r *ReconcileNginx) refreshStatus(ctx context.Context, nginx *nginxv1alpha1
 	if err != nil {
 		return fmt.Errorf("failed to list pods for nginx: %v", err)
 	}
-
 	services, err := listServices(ctx, r.client, nginx)
 	if err != nil {
 		return fmt.Errorf("failed to list services for nginx: %v", err)
+
 	}
 
 	sort.Slice(nginx.Status.Pods, func(i, j int) bool {
@@ -236,7 +236,6 @@ func (r *ReconcileNginx) refreshStatus(ctx context.Context, nginx *nginxv1alpha1
 		nginx.Status.Services = services
 		nginx.Status.CurrentReplicas = int32(len(pods))
 		nginx.Status.PodSelector = k8s.LabelsForNginxString(nginx.Name)
-
 		err := r.client.Status().Update(ctx, nginx)
 		if err != nil {
 			return fmt.Errorf("failed to update nginx status: %v", err)
@@ -257,13 +256,20 @@ func listPods(ctx context.Context, c client.Client, nginx *nginxv1alpha1.Nginx) 
 	}
 
 	var pods []nginxv1alpha1.PodStatus
+
 	for _, p := range podList.Items {
 		if p.Status.PodIP == "" {
 			p.Status.PodIP = "<pending>"
 		}
+
+		if p.Status.HostIP == "" {
+			p.Status.HostIP = "<pending>"
+		}
+
 		pods = append(pods, nginxv1alpha1.PodStatus{
-			Name:  p.Name,
-			PodIP: p.Status.PodIP,
+			Name:   p.Name,
+			PodIP:  p.Status.PodIP,
+			HostIP: p.Status.HostIP,
 		})
 	}
 	sort.Slice(pods, func(i, j int) bool {

@@ -107,6 +107,8 @@ type PodStatus struct {
 	Name string `json:"name"`
 	// PodIP is the IP if the POD
 	PodIP string `json:"podIP"`
+	// HostIP is the IP where POD is running
+	HostIP string `json:"hostIP"`
 }
 
 type ServiceStatus struct {
