@@ -172,10 +172,12 @@ func mergeMap(a, b map[string]string) map[string]string {
 func NewService(n *v1alpha1.Nginx) *corev1.Service {
 	var labels, annotations map[string]string
 	var lbIP string
+	var externalTrafficPolicy corev1.ServiceExternalTrafficPolicyType
 	if n.Spec.Service != nil {
 		labels = n.Spec.Service.Labels
 		annotations = n.Spec.Service.Annotations
 		lbIP = n.Spec.Service.LoadBalancerIP
+		externalTrafficPolicy = n.Spec.Service.ExternalTrafficPolicy
 	}
 	service := corev1.Service{
 		TypeMeta: metav1.TypeMeta{
@@ -210,9 +212,10 @@ func NewService(n *v1alpha1.Nginx) *corev1.Service {
 					Port:       int32(443),
 				},
 			},
-			Selector:       LabelsForNginx(n.Name),
-			LoadBalancerIP: lbIP,
-			Type:           nginxService(n),
+			Selector:              LabelsForNginx(n.Name),
+			LoadBalancerIP:        lbIP,
+			Type:                  nginxService(n),
+			ExternalTrafficPolicy: externalTrafficPolicy,
 		},
 	}
 	return &service

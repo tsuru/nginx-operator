@@ -129,6 +129,11 @@ type NginxService struct {
 	// Annotations are extra annotations for the service.
 	// +optional
 	Annotations map[string]string `json:"annotations,omitempty"`
+	// ExternalTrafficPolicy defines whether external traffic will be routed to
+	// node-local or cluster-wide endpoints. Defaults to the default Service
+	// externalTrafficPolicy value.
+	// +optional
+	ExternalTrafficPolicy corev1.ServiceExternalTrafficPolicyType `json:"externalTrafficPolicy,omitempty"`
 }
 
 // ConfigRef is a reference to a config object.
