@@ -134,6 +134,10 @@ type NginxService struct {
 	// externalTrafficPolicy value.
 	// +optional
 	ExternalTrafficPolicy corev1.ServiceExternalTrafficPolicyType `json:"externalTrafficPolicy,omitempty"`
+	// UsePodSelector defines whether Service should automatically map the
+	// endpoints using the pod's label selector. Defaults to true.
+	// +optional
+	UsePodSelector *bool `json:"usePodSelector,omitempty"`
 }
 
 // ConfigRef is a reference to a config object.
