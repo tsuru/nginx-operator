@@ -186,6 +186,11 @@ func (in *NginxService) DeepCopyInto(out *NginxService) {
 			(*out)[key] = val
 		}
 	}
+	if in.UsePodSelector != nil {
+		in, out := &in.UsePodSelector, &out.UsePodSelector
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
