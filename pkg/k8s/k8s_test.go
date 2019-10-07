@@ -1057,6 +1057,51 @@ func TestNewService(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "using Local externalTrafficPolicy",
+			nginx: func() v1alpha1.Nginx {
+				n := nginxWithService()
+				n.Spec.Service.Type = corev1.ServiceTypeLoadBalancer
+				n.Spec.Service.ExternalTrafficPolicy = corev1.ServiceExternalTrafficPolicyTypeLocal
+				return n
+			}(),
+			want: &corev1.Service{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Service",
+					APIVersion: "v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-nginx-service",
+					Namespace: "default",
+					Labels: map[string]string{
+						"nginx.tsuru.io/resource-name": "my-nginx",
+						"nginx.tsuru.io/app":           "nginx",
+					},
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{
+							Name:       "http",
+							Protocol:   corev1.ProtocolTCP,
+							TargetPort: intstr.FromString("http"),
+							Port:       int32(80),
+						},
+						{
+							Name:       "https",
+							Protocol:   corev1.ProtocolTCP,
+							TargetPort: intstr.FromString("https"),
+							Port:       int32(443),
+						},
+					},
+					Selector: map[string]string{
+						"nginx.tsuru.io/resource-name": "my-nginx",
+						"nginx.tsuru.io/app":           "nginx",
+					},
+					Type:                  corev1.ServiceTypeLoadBalancer,
+					ExternalTrafficPolicy: corev1.ServiceExternalTrafficPolicyTypeLocal,
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
