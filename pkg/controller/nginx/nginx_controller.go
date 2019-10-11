@@ -183,18 +183,29 @@ func (r *ReconcileNginx) reconcileService(ctx context.Context, nginx *nginxv1alp
 		Name:      fmt.Sprintf("%s-service", nginx.Name),
 		Namespace: nginx.Namespace,
 	}
-	currentService := &corev1.Service{}
-	err := r.client.Get(ctx, svcName, currentService)
 
+	logger := log.WithName("reconcileService").WithValues("Service", svcName)
+	logger.V(4).Info("Getting Service resource")
+
+	newService := k8s.NewService(nginx)
+
+	var currentService corev1.Service
+	err := r.client.Get(ctx, svcName, &currentService)
 	if err != nil && errors.IsNotFound(err) {
-		return r.client.Create(ctx, k8s.NewService(nginx))
+		logger.
+			WithValues("ServiceResource", newService).V(4).Info("Creating a Service resource")
+
+		return r.client.Create(ctx, newService)
 	}
 
 	if err != nil {
 		return fmt.Errorf("failed to retrieve Service resource: %v", err)
 	}
 
-	newService := k8s.NewService(nginx)
+	newService.ResourceVersion = currentService.ResourceVersion
+	newService.Spec.ClusterIP = currentService.Spec.ClusterIP
+	newService.Spec.HealthCheckNodePort = currentService.Spec.HealthCheckNodePort
+
 	// avoid nodeport reallocation preserving the current ones
 	for _, currentPort := range currentService.Spec.Ports {
 		for index, newPort := range newService.Spec.Ports {
@@ -204,12 +215,9 @@ func (r *ReconcileNginx) reconcileService(ctx context.Context, nginx *nginxv1alp
 		}
 	}
 
-	if reflect.DeepEqual(currentService.Spec.Ports, newService.Spec.Ports) {
-		return nil
-	}
+	logger.WithValues("ServiceResource", newService).V(4).Info("Updating Service resource")
 
-	currentService.Spec.Ports = newService.Spec.Ports
-	return r.client.Update(ctx, currentService)
+	return r.client.Update(ctx, newService)
 }
 
 func (r *ReconcileNginx) refreshStatus(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
