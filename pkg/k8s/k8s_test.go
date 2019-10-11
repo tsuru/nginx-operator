@@ -469,6 +469,10 @@ func Test_NewDeployment(t *testing.T) {
 			},
 			deployFn: func(d appv1.Deployment) appv1.Deployment {
 				d.Spec.Template.Spec.HostNetwork = true
+				d.Spec.Template.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
+					RunAsUser:  rootUID,
+					RunAsGroup: rootUID,
+				}
 				d.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
 					{
 						Name:          defaultHTTPPortName,
@@ -512,6 +516,10 @@ func Test_NewDeployment(t *testing.T) {
 			},
 			deployFn: func(d appv1.Deployment) appv1.Deployment {
 				d.Spec.Template.Spec.HostNetwork = true
+				d.Spec.Template.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
+					RunAsUser:  rootUID,
+					RunAsGroup: rootUID,
+				}
 				d.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
 					{
 						Name:          defaultHTTPPortName,
@@ -567,6 +575,61 @@ func Test_NewDeployment(t *testing.T) {
 					RunAsUser:  new(int64),
 					RunAsGroup: new(int64),
 				}
+				return d
+			},
+		},
+		{
+			name: "with-security-context-and-host-network",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.PodTemplate = v1alpha1.NginxPodTemplateSpec{
+					HostNetwork: true,
+				}
+				n.Spec.SecurityContext = &corev1.SecurityContext{
+					Capabilities: &corev1.Capabilities{
+						Drop: []corev1.Capability{corev1.Capability("all")},
+						Add:  []corev1.Capability{corev1.Capability("NET_BIND_SERVICE")},
+					},
+					RunAsUser:  func(n int64) *int64 { return &n }(int64(100)),
+					RunAsGroup: func(n int64) *int64 { return &n }(int64(100)),
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.HostNetwork = true
+				d.Spec.Template.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
+					Capabilities: &corev1.Capabilities{
+						Drop: []corev1.Capability{
+							"all",
+						},
+						Add: []corev1.Capability{
+							"NET_BIND_SERVICE",
+						},
+					},
+					RunAsUser:  rootUID,
+					RunAsGroup: rootUID,
+				}
+				d.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
+					{
+						Name:          defaultHTTPPortName,
+						ContainerPort: defaultHTTPHostNetworkPort,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          defaultHTTPSPortName,
+						ContainerPort: defaultHTTPSHostNetworkPort,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				}
+				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+					Handler: corev1.Handler{
+						HTTPGet: &corev1.HTTPGetAction{
+							Path:   "/healthcheck?" + httpHostNetworkHealthcheckQuery,
+							Port:   intstr.FromInt(healthcheckPort),
+							Scheme: corev1.URISchemeHTTP,
+						},
+					},
+				}
+
 				return d
 			},
 		},

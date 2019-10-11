@@ -76,10 +76,24 @@ var healthcheckResources = corev1.ResourceRequirements{
 	},
 }
 
+// User ID to root
+var rootUID *int64 = new(int64)
+
 // NewDeployment creates a deployment for a given Nginx resource.
 func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 	n.Spec.Image = valueOrDefault(n.Spec.Image, defaultNginxImage)
 	customSidecarContainerImage, _ := tsuruConfig.GetString("nginx-controller:sidecar:image")
+
+	securityContext := n.Spec.SecurityContext
+	if n.Spec.PodTemplate.HostNetwork {
+		if securityContext == nil {
+			securityContext = &corev1.SecurityContext{}
+		}
+
+		securityContext.RunAsUser = rootUID
+		securityContext.RunAsGroup = rootUID
+	}
+
 	deployment := appv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
@@ -114,7 +128,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 							Image:           n.Spec.Image,
 							Command:         nginxEntrypoint,
 							Resources:       n.Spec.Resources,
-							SecurityContext: n.Spec.SecurityContext,
+							SecurityContext: securityContext,
 							ReadinessProbe: &corev1.Probe{
 								Handler: corev1.Handler{
 									HTTPGet: &corev1.HTTPGetAction{
