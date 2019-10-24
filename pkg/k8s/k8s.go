@@ -66,7 +66,9 @@ var nginxEntrypoint = []string{
 var postStartCommand = []string{
 	"/bin/sh",
 	"-c",
-	"nginx -t && touch /tmp/done",
+	"nginx -t",
+	"&&",
+	"touch /tmp/done",
 }
 
 var healthcheckResources = corev1.ResourceRequirements{
@@ -138,13 +140,6 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 									},
 								},
 							},
-							Lifecycle: &corev1.Lifecycle{
-								PostStart: &corev1.Handler{
-									Exec: &corev1.ExecAction{
-										Command: postStartCommand,
-									},
-								},
-							},
 						},
 						{
 							Name:      healthcheckSidecarName,
@@ -163,6 +158,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 	setupTLS(n.Spec.Certificates, &deployment)
 	setupExtraFiles(n.Spec.ExtraFiles, &deployment)
 	setupCacheVolume(n.Spec.Cache, &deployment)
+	setupLifecycle(n.Spec.Lifecycle, &deployment)
 
 	// This is done on the last step because n.Spec may have mutated during these methods
 	if err := SetNginxSpec(&deployment.ObjectMeta, n.Spec); err != nil {
@@ -512,4 +508,14 @@ func setupCacheVolume(cache v1alpha1.NginxCacheSpec, dep *appv1.Deployment) {
 		Name:      cacheVolName,
 		MountPath: cache.Path,
 	})
+}
+
+func setupLifecycle(lifecycle *corev1.Lifecycle, dep *appv1.Deployment) {
+	dep.Spec.Template.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
+		PostStart: &corev1.Handler{
+			Exec: &corev1.ExecAction{
+				Command: postStartCommand,
+			},
+		},
+	}
 }
