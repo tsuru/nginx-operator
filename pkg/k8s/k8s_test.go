@@ -119,7 +119,7 @@ func baseDeployment() appv1.Deployment {
 							Lifecycle: &corev1.Lifecycle{
 								PostStart: &corev1.Handler{
 									Exec: &corev1.ExecAction{
-										Command: postStartCommand,
+										Command: defaultPostStartCommand,
 									},
 								},
 							},
@@ -907,6 +907,86 @@ func Test_NewDeployment(t *testing.T) {
 						},
 					},
 				})
+				return d
+			},
+		},
+		{
+			name: "with-lifecycle",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.Lifecycle = &corev1.Lifecycle{
+					PreStop: &corev1.Handler{
+						Exec: &corev1.ExecAction{
+							Command: []string{
+								"echo",
+								"hello world",
+							},
+						},
+					},
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
+					PreStop: &corev1.Handler{
+						Exec: &corev1.ExecAction{
+							Command: []string{
+								"echo",
+								"hello world",
+							},
+						},
+					},
+				}
+				return d
+			},
+		},
+		{
+			name: "with-lifecycle-poststart-exec",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.Lifecycle = &corev1.Lifecycle{
+					PreStop: &corev1.Handler{
+						Exec: &corev1.ExecAction{
+							Command: []string{
+								"echo",
+								"hello world",
+							},
+						},
+					},
+					PostStart: &corev1.Handler{
+						Exec: &corev1.ExecAction{
+							Command: []string{
+								"echo",
+								"hello world",
+							},
+						},
+					},
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
+					PreStop: &corev1.Handler{
+						Exec: &corev1.ExecAction{
+							Command: []string{
+								"echo",
+								"hello world",
+							},
+						},
+					},
+					PostStart: &corev1.Handler{
+						Exec: &corev1.ExecAction{
+							Command: []string{
+								"/bin/sh",
+								"-c",
+								"nginx -t",
+								"&&",
+								"touch /tmp/done",
+								"&&",
+								"echo",
+								"hello world",
+							},
+						},
+					},
+				}
 				return d
 			},
 		},
