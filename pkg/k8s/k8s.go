@@ -521,13 +521,31 @@ func setupLifecycle(lifecycle *corev1.Lifecycle, dep *appv1.Deployment) {
 		}
 		return
 	}
-	if lifecycle.PostStart != nil && lifecycle.PostStart.Exec != nil {
-		lifecycleCommand := lifecycle.PostStart.Exec.Command
-		if len(lifecycleCommand) > 0 {
-			postStartCommand := append(defaultPostStartCommand, "&&")
-			postStartCommand = append(postStartCommand, lifecycleCommand...)
-			lifecycle.PostStart.Exec.Command = postStartCommand
+	if lifecycle.PostStart == nil {
+		lifecycle.PostStart = &corev1.Handler{
+			Exec: &corev1.ExecAction{
+				Command: defaultPostStartCommand,
+			},
 		}
+		dep.Spec.Template.Spec.Containers[0].Lifecycle = lifecycle
+		return
+	}
+	if lifecycle.PostStart.Exec == nil {
+		lifecycle.PostStart.Exec = &corev1.ExecAction{
+			Command: defaultPostStartCommand,
+		}
+		dep.Spec.Template.Spec.Containers[0].Lifecycle = lifecycle
+		return
+	}
+	if lifecycle.PostStart.Exec != nil {
+		var postStartCommand []string
+		if len(lifecycle.PostStart.Exec.Command) > 0 {
+			postStartCommand = append(defaultPostStartCommand, "&&")
+			postStartCommand = append(postStartCommand, lifecycle.PostStart.Exec.Command...)
+		} else {
+			postStartCommand = defaultPostStartCommand
+		}
+		lifecycle.PostStart.Exec.Command = postStartCommand
 	}
 	dep.Spec.Template.Spec.Containers[0].Lifecycle = lifecycle
 }
