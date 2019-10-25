@@ -911,7 +911,7 @@ func Test_NewDeployment(t *testing.T) {
 			},
 		},
 		{
-			name: "with-lifecycle",
+			name: "with-lifecycle-pre-stop",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
 				n.Spec.Lifecycle = &corev1.Lifecycle{
 					PreStop: &corev1.Handler{
@@ -932,6 +932,49 @@ func Test_NewDeployment(t *testing.T) {
 							Command: []string{
 								"echo",
 								"hello world",
+							},
+						},
+					},
+					PostStart: &corev1.Handler{
+						Exec: &corev1.ExecAction{
+							Command: []string{
+								"/bin/sh",
+								"-c",
+								"nginx -t",
+								"&&",
+								"touch /tmp/done",
+							},
+						},
+					},
+				}
+				return d
+			},
+		},
+		{
+			name: "with-lifecycle-post-start-without-exec",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.Lifecycle = &corev1.Lifecycle{
+					PostStart: &corev1.Handler{
+						HTTPGet: &corev1.HTTPGetAction{
+							Path: "/test",
+						},
+					},
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
+					PostStart: &corev1.Handler{
+						HTTPGet: &corev1.HTTPGetAction{
+							Path: "/test",
+						},
+						Exec: &corev1.ExecAction{
+							Command: []string{
+								"/bin/sh",
+								"-c",
+								"nginx -t",
+								"&&",
+								"touch /tmp/done",
 							},
 						},
 					},
@@ -983,6 +1026,35 @@ func Test_NewDeployment(t *testing.T) {
 								"&&",
 								"echo",
 								"hello world",
+							},
+						},
+					},
+				}
+				return d
+			},
+		},
+		{
+			name: "with-lifecycle-poststart-exec-empty-command",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.Lifecycle = &corev1.Lifecycle{
+					PostStart: &corev1.Handler{
+						Exec: &corev1.ExecAction{
+							Command: []string{},
+						},
+					},
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
+					PostStart: &corev1.Handler{
+						Exec: &corev1.ExecAction{
+							Command: []string{
+								"/bin/sh",
+								"-c",
+								"nginx -t",
+								"&&",
+								"touch /tmp/done",
 							},
 						},
 					},
