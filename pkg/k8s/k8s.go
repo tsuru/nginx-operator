@@ -63,7 +63,7 @@ var nginxEntrypoint = []string{
 	"while ! [ -f /tmp/done ]; do sleep 0.5; done && exec nginx -g 'daemon off;'",
 }
 
-var postStartCommand = []string{
+var defaultPostStartCommand = []string{
 	"/bin/sh",
 	"-c",
 	"nginx -t",
@@ -511,11 +511,23 @@ func setupCacheVolume(cache v1alpha1.NginxCacheSpec, dep *appv1.Deployment) {
 }
 
 func setupLifecycle(lifecycle *corev1.Lifecycle, dep *appv1.Deployment) {
-	dep.Spec.Template.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
-		PostStart: &corev1.Handler{
-			Exec: &corev1.ExecAction{
-				Command: postStartCommand,
+	if lifecycle == nil {
+		dep.Spec.Template.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
+			PostStart: &corev1.Handler{
+				Exec: &corev1.ExecAction{
+					Command: defaultPostStartCommand,
+				},
 			},
-		},
+		}
+		return
 	}
+	if lifecycle.PostStart != nil && lifecycle.PostStart.Exec != nil {
+		lifecycleCommand := lifecycle.PostStart.Exec.Command
+		if len(lifecycleCommand) > 0 {
+			postStartCommand := append(defaultPostStartCommand, "&&")
+			postStartCommand = append(postStartCommand, lifecycleCommand...)
+			lifecycle.PostStart.Exec.Command = postStartCommand
+		}
+	}
+	dep.Spec.Template.Spec.Containers[0].Lifecycle = lifecycle
 }
