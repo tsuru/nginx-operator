@@ -510,34 +510,22 @@ func setupCacheVolume(cache v1alpha1.NginxCacheSpec, dep *appv1.Deployment) {
 	})
 }
 
-func setupLifecycle(lifecycle *corev1.Lifecycle, dep *appv1.Deployment) {
-	if lifecycle == nil {
-		dep.Spec.Template.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
-			PostStart: &corev1.Handler{
-				Exec: &corev1.ExecAction{
-					Command: defaultPostStartCommand,
-				},
-			},
-		}
-		return
-	}
-	if lifecycle.PostStart == nil {
-		lifecycle.PostStart = &corev1.Handler{
+func setupLifecycle(lifecycle *v1alpha1.NginxLifecycle, dep *appv1.Deployment) {
+	defaultLifecycle := &corev1.Lifecycle{
+		PostStart: &corev1.Handler{
 			Exec: &corev1.ExecAction{
 				Command: defaultPostStartCommand,
 			},
-		}
-		dep.Spec.Template.Spec.Containers[0].Lifecycle = lifecycle
+		},
+	}
+	dep.Spec.Template.Spec.Containers[0].Lifecycle = defaultLifecycle
+	if lifecycle == nil {
 		return
 	}
-	if lifecycle.PostStart.Exec == nil {
-		lifecycle.PostStart.Exec = &corev1.ExecAction{
-			Command: defaultPostStartCommand,
-		}
-		dep.Spec.Template.Spec.Containers[0].Lifecycle = lifecycle
-		return
+	if lifecycle.PreStop != nil && lifecycle.PreStop.Exec != nil {
+		defaultLifecycle.PreStop = &corev1.Handler{Exec: lifecycle.PreStop.Exec}
 	}
-	if lifecycle.PostStart.Exec != nil {
+	if lifecycle.PostStart != nil && lifecycle.PostStart.Exec != nil {
 		var postStartCommand []string
 		if len(lifecycle.PostStart.Exec.Command) > 0 {
 			postStartCommand = append(defaultPostStartCommand, "&&")
@@ -545,7 +533,6 @@ func setupLifecycle(lifecycle *corev1.Lifecycle, dep *appv1.Deployment) {
 		} else {
 			postStartCommand = defaultPostStartCommand
 		}
-		lifecycle.PostStart.Exec.Command = postStartCommand
+		defaultLifecycle.PostStart.Exec.Command = postStartCommand
 	}
-	dep.Spec.Template.Spec.Containers[0].Lifecycle = lifecycle
 }

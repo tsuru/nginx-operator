@@ -55,7 +55,7 @@ type NginxSpec struct {
 	// Lifecycle describes actions that should be executed when
 	// some event happens to nginx container.
 	// +optional
-	Lifecycle *corev1.Lifecycle `json:"lifecycle,omitempty"`
+	Lifecycle *NginxLifecycle `json:"lifecycle,omitempty"`
 }
 
 type NginxCacheSpec struct {
@@ -66,6 +66,15 @@ type NginxCacheSpec struct {
 	// Size is the maximum size allowed for the cache volume.
 	// +optional
 	Size *resource.Quantity `json:"size,omitempty"`
+}
+
+type NginxLifecycle struct {
+	PostStart *NginxLifecycleHandler
+	PreStop   *NginxLifecycleHandler
+}
+
+type NginxLifecycleHandler struct {
+	Exec *corev1.ExecAction
 }
 
 type NginxPodTemplateSpec struct {
