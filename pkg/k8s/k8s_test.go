@@ -913,8 +913,8 @@ func Test_NewDeployment(t *testing.T) {
 		{
 			name: "with-lifecycle-pre-stop",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
-				n.Spec.Lifecycle = &corev1.Lifecycle{
-					PreStop: &corev1.Handler{
+				n.Spec.Lifecycle = &v1alpha1.NginxLifecycle{
+					PreStop: &v1alpha1.NginxLifecycleHandler{
 						Exec: &corev1.ExecAction{
 							Command: []string{
 								"echo",
@@ -936,38 +936,6 @@ func Test_NewDeployment(t *testing.T) {
 						},
 					},
 					PostStart: &corev1.Handler{
-						Exec: &corev1.ExecAction{
-							Command: []string{
-								"/bin/sh",
-								"-c",
-								"nginx -t",
-								"&&",
-								"touch /tmp/done",
-							},
-						},
-					},
-				}
-				return d
-			},
-		},
-		{
-			name: "with-lifecycle-post-start-without-exec",
-			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
-				n.Spec.Lifecycle = &corev1.Lifecycle{
-					PostStart: &corev1.Handler{
-						HTTPGet: &corev1.HTTPGetAction{
-							Path: "/test",
-						},
-					},
-				}
-				return n
-			},
-			deployFn: func(d appv1.Deployment) appv1.Deployment {
-				d.Spec.Template.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
-					PostStart: &corev1.Handler{
-						HTTPGet: &corev1.HTTPGetAction{
-							Path: "/test",
-						},
 						Exec: &corev1.ExecAction{
 							Command: []string{
 								"/bin/sh",
@@ -985,8 +953,8 @@ func Test_NewDeployment(t *testing.T) {
 		{
 			name: "with-lifecycle-poststart-exec",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
-				n.Spec.Lifecycle = &corev1.Lifecycle{
-					PreStop: &corev1.Handler{
+				n.Spec.Lifecycle = &v1alpha1.NginxLifecycle{
+					PreStop: &v1alpha1.NginxLifecycleHandler{
 						Exec: &corev1.ExecAction{
 							Command: []string{
 								"echo",
@@ -994,7 +962,7 @@ func Test_NewDeployment(t *testing.T) {
 							},
 						},
 					},
-					PostStart: &corev1.Handler{
+					PostStart: &v1alpha1.NginxLifecycleHandler{
 						Exec: &corev1.ExecAction{
 							Command: []string{
 								"echo",
@@ -1036,8 +1004,8 @@ func Test_NewDeployment(t *testing.T) {
 		{
 			name: "with-lifecycle-poststart-exec-empty-command",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
-				n.Spec.Lifecycle = &corev1.Lifecycle{
-					PostStart: &corev1.Handler{
+				n.Spec.Lifecycle = &v1alpha1.NginxLifecycle{
+					PostStart: &v1alpha1.NginxLifecycleHandler{
 						Exec: &corev1.ExecAction{
 							Command: []string{},
 						},
