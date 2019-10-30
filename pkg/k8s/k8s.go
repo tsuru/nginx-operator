@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/url"
 	"sort"
+	"strings"
 
 	tsuruConfig "github.com/tsuru/config"
 	"github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
@@ -66,9 +67,7 @@ var nginxEntrypoint = []string{
 var defaultPostStartCommand = []string{
 	"/bin/sh",
 	"-c",
-	"nginx -t",
-	"&&",
-	"touch /tmp/done",
+	"nginx -t && touch /tmp/done",
 }
 
 var healthcheckResources = corev1.ResourceRequirements{
@@ -511,28 +510,35 @@ func setupCacheVolume(cache v1alpha1.NginxCacheSpec, dep *appv1.Deployment) {
 }
 
 func setupLifecycle(lifecycle *v1alpha1.NginxLifecycle, dep *appv1.Deployment) {
-	defaultLifecycle := &corev1.Lifecycle{
+	defaultLifecycle := corev1.Lifecycle{
 		PostStart: &corev1.Handler{
 			Exec: &corev1.ExecAction{
 				Command: defaultPostStartCommand,
 			},
 		},
 	}
-	dep.Spec.Template.Spec.Containers[0].Lifecycle = defaultLifecycle
+	dep.Spec.Template.Spec.Containers[0].Lifecycle = &defaultLifecycle
 	if lifecycle == nil {
 		return
 	}
 	if lifecycle.PreStop != nil && lifecycle.PreStop.Exec != nil {
-		defaultLifecycle.PreStop = &corev1.Handler{Exec: lifecycle.PreStop.Exec}
+		dep.Spec.Template.Spec.Containers[0].Lifecycle.PreStop = &corev1.Handler{Exec: lifecycle.PreStop.Exec}
 	}
 	if lifecycle.PostStart != nil && lifecycle.PostStart.Exec != nil {
 		var postStartCommand []string
 		if len(lifecycle.PostStart.Exec.Command) > 0 {
-			postStartCommand = append(defaultPostStartCommand, "&&")
-			postStartCommand = append(postStartCommand, lifecycle.PostStart.Exec.Command...)
+			lastElemIndex := len(defaultPostStartCommand) - 1
+			for i, item := range defaultPostStartCommand {
+				if i < lastElemIndex {
+					postStartCommand = append(postStartCommand, item)
+				}
+			}
+			postStartCommandString := defaultPostStartCommand[lastElemIndex]
+			lifecyclePoststartCommandString := strings.Join(lifecycle.PostStart.Exec.Command, " ")
+			postStartCommand = append(postStartCommand, fmt.Sprintf("%s && %s", postStartCommandString, lifecyclePoststartCommandString))
 		} else {
 			postStartCommand = defaultPostStartCommand
 		}
-		defaultLifecycle.PostStart.Exec.Command = postStartCommand
+		dep.Spec.Template.Spec.Containers[0].Lifecycle.PostStart.Exec.Command = postStartCommand
 	}
 }
