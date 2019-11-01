@@ -51,7 +51,6 @@ type NginxSpec struct {
 	// SecurityContext configures security attributes for the nginx container.
 	// +optional
 	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
-
 	// Lifecycle describes actions that should be executed when
 	// some event happens to nginx container.
 	// +optional
@@ -69,12 +68,12 @@ type NginxCacheSpec struct {
 }
 
 type NginxLifecycle struct {
-	PostStart *NginxLifecycleHandler
-	PreStop   *NginxLifecycleHandler
+	PostStart *NginxLifecycleHandler `json:"postStart,omitempty"`
+	PreStop   *NginxLifecycleHandler `json:"preStop,omitempty"`
 }
 
 type NginxLifecycleHandler struct {
-	Exec *corev1.ExecAction
+	Exec *corev1.ExecAction `json:"exec,omitempty"`
 }
 
 type NginxPodTemplateSpec struct {
