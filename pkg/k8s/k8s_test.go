@@ -1021,6 +1021,17 @@ func Test_NewDeployment(t *testing.T) {
 				return d
 			},
 		},
+		{
+			name: "with custom termination graceful period",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.PodTemplate.TerminationGracePeriodSeconds = func(n int64) *int64 { return &n }(int64(60 * 2))
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.TerminationGracePeriodSeconds = func(n int64) *int64 { return &n }(int64(60 * 2))
+				return d
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
