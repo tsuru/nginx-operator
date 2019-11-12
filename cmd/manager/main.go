@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"time"
 
 	"github.com/operator-framework/operator-sdk/pkg/leader"
 	sdkVersion "github.com/operator-framework/operator-sdk/version"
@@ -24,9 +25,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
 )
 
-var log = logf.Log.WithName("cmd")
+var (
+	log = logf.Log.WithName("cmd")
 
-var configFile string
+	configFile string
+	syncPeriod time.Duration
+)
 
 func printVersion() {
 	log.Info(fmt.Sprintf("Go Version: %s", runtime.Version()))
@@ -38,6 +42,7 @@ func printVersion() {
 func init() {
 	flag.StringVar(&configFile, "config", "", "Path to configuration file")
 	flag.StringVar(&configFile, "c", "", "Path to configuration file")
+	flag.DurationVar(&syncPeriod, "sync-period", time.Duration(5*time.Minute), "Time period which the observed resources are reconciled")
 }
 
 func main() {
@@ -79,7 +84,7 @@ func main() {
 	}
 
 	// Create a new Cmd to provide shared dependencies and start components
-	mgr, err := manager.New(cfg, manager.Options{})
+	mgr, err := manager.New(cfg, manager.Options{SyncPeriod: &syncPeriod})
 	if err != nil {
 		log.Error(err, "")
 		os.Exit(1)
