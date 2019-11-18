@@ -5,9 +5,20 @@
 package v1alpha1
 
 import (
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+type NginxDeploymentStrategyType string
+
+const (
+	NginxDeploymentStrategyRollingUpdate = NginxDeploymentStrategyType("RollingUpdate")
+	NginxDeploymentStrategyBlueGreen     = NginxDeploymentStrategyType("BlueGreen")
+
+	DefaultNginxDeploymentStrategy = NginxDeploymentStrategyRollingUpdate
 )
 
 // NginxSpec defines the desired state of Nginx
@@ -55,6 +66,12 @@ type NginxSpec struct {
 	// some event happens to nginx container.
 	// +optional
 	Lifecycle *NginxLifecycle `json:"lifecycle,omitempty"`
+	// DeploymentStrategy defines the deploy strategy when updating Nginx's
+	// pods to new ones. Defaults to RollingUpdate.
+	// +optional
+	DeploymentStrategy NginxDeploymentStrategyType `json:"deploymentStrategy,omitempty"`
+
+	BlueGreenDuration time.Duration
 }
 
 type NginxCacheSpec struct {
@@ -101,9 +118,11 @@ type NginxStatus struct {
 	// CurrentReplicas is the last observed number from the NGINX object.
 	CurrentReplicas int32 `json:"currentReplicas,omitempty"`
 	// PodSelector is the NGINX's pod label selector.
-	PodSelector string          `json:"podSelector,omitempty"`
-	Pods        []PodStatus     `json:"pods,omitempty"`
-	Services    []ServiceStatus `json:"services,omitempty"`
+	PodSelector string `json:"podSelector,omitempty"`
+
+	Deployments []DeploymentStatus `json:"deployments,omitempty"`
+	Pods        []PodStatus        `json:"pods,omitempty"`
+	Services    []ServiceStatus    `json:"services,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -118,6 +137,12 @@ type Nginx struct {
 
 	Spec   NginxSpec   `json:"spec,omitempty"`
 	Status NginxStatus `json:"status,omitempty"`
+}
+
+type DeploymentStatus struct {
+	Name         string    `json:"name"`
+	CreatedAt    time.Time `json:"createdAt"`
+	LastUpdateAt time.Time `json:"lastUpdateAt"`
 }
 
 type PodStatus struct {

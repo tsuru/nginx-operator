@@ -110,29 +110,54 @@ func (r *ReconcileNginx) reconcileNginx(ctx context.Context, nginx *nginxv1alpha
 	return nil
 }
 
+func (r *ReconcileNginx) getDeployment(ctx context.Context, nginx *nginxv1alpha1.Nginx) (*appv1.Deployment, error) {
+	deploymentName := types.NamespacedName{
+		Name:      nginx.Name,
+		Namespace: nginx.Namespace,
+	}
+
+	if len(nginx.Status.Deployments) >= 1 {
+		deploymentName.Name = nginx.Status.Deployments[0].Name
+	}
+
+	var deployment appv1.Deployment
+	err := r.client.Get(ctx, deploymentName, &deployment)
+	if err != nil && errors.IsNotFound(err) {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &deployment, nil
+}
+
 func (r *ReconcileNginx) reconcileDeployment(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
-	newDeploy, err := k8s.NewDeployment(nginx)
+	if nginx.Spec.DeploymentStrategy == nginxv1alpha1.NginxDeploymentStrategyBlueGreen {
+		return r.reconcileBlueGreenDeployment(ctx, nginx)
+	}
+
+	currentDeployment, err := r.getDeployment(ctx, nginx)
+	if err != nil {
+		return err
+	}
+
+	newDeployment, err := k8s.NewDeployment(nginx)
 	if err != nil {
 		return fmt.Errorf("failed to assemble deployment from nginx: %v", err)
 	}
 
-	err = r.client.Create(ctx, newDeploy)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create deployment: %v", err)
+	if currentDeployment == nil {
+		err = r.client.Create(ctx, newDeployment)
+		if err != nil {
+			return err
+		}
+
+		return r.updateDeploymentStatus(ctx, nginx, newDeployment)
 	}
 
-	if err == nil {
-		return nil
-	}
-
-	currDeploy := &appv1.Deployment{}
-
-	err = r.client.Get(ctx, types.NamespacedName{Name: newDeploy.Name, Namespace: newDeploy.Namespace}, currDeploy)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve deployment: %v", err)
-	}
-
-	currSpec, err := k8s.ExtractNginxSpec(currDeploy.ObjectMeta)
+	currSpec, err := k8s.ExtractNginxSpec(currentDeployment.ObjectMeta)
 	if err != nil {
 		return fmt.Errorf("failed to extract nginx from deployment: %v", err)
 	}
@@ -141,13 +166,25 @@ func (r *ReconcileNginx) reconcileDeployment(ctx context.Context, nginx *nginxv1
 		return nil
 	}
 
-	currDeploy.Spec = newDeploy.Spec
-	if err := k8s.SetNginxSpec(&currDeploy.ObjectMeta, nginx.Spec); err != nil {
+	currentDeployment.Spec = newDeployment.Spec
+	if err = k8s.SetNginxSpec(&currentDeployment.ObjectMeta, nginx.Spec); err != nil {
 		return fmt.Errorf("failed to set nginx spec into object meta: %v", err)
 	}
 
-	if err := r.client.Update(ctx, currDeploy); err != nil {
-		return fmt.Errorf("failed to update deployment: %v", err)
+	err = r.client.Update(ctx, currentDeployment)
+	if err != nil {
+		return err
+	}
+
+	return r.updateDeploymentStatus(ctx, nginx, currentDeployment)
+}
+
+func (r *ReconcileNginx) updateDeploymentStatus(ctx context.Context, nginx *nginxv1alpha1.Nginx, deployment *appv1.Deployment) error {
+	for index := range nginx.Status.Deployments {
+		if nginx.Status.Deployments[index].Name == deployment.Name {
+			nginx.Status.Deployments[index].LastUpdateAt = time.Now().UTC()
+			return r.client.Status().Update(ctx, nginx)
+		}
 	}
 
 	nginx.Status.Deployments = append(nginx.Status.Deployments, nginxv1alpha1.DeploymentStatus{
