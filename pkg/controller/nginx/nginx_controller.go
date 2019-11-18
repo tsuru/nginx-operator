@@ -8,14 +8,13 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"sort"
+	"time"
 
 	nginxv1alpha1 "github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
 	"github.com/tsuru/nginx-operator/pkg/k8s"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -54,26 +53,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// HACK(nettoclaudio): Since the Nginx needs store all its pods' info into
-	// the status field, we need watching every pod changes and enqueue a new
-	// reconcile request to its Nginx owner, if any.
-	return c.Watch(&source.Kind{Type: &corev1.Pod{}},
-		&handler.EnqueueRequestsFromMapFunc{
-			ToRequests: handler.ToRequestsFunc(func(o handler.MapObject) []reconcile.Request {
-				nginxResourceName := k8s.GetNginxNameFromObject(o.Meta)
-				if nginxResourceName == "" {
-					return nil
-				}
-
-				return []reconcile.Request{
-					{NamespacedName: types.NamespacedName{
-						Name:      nginxResourceName,
-						Namespace: o.Meta.GetNamespace(),
-					}},
-				}
-			}),
-		},
-	)
+	return nil
 }
 
 var _ reconcile.Reconciler = &ReconcileNginx{}
@@ -112,11 +92,6 @@ func (r *ReconcileNginx) Reconcile(request reconcile.Request) (reconcile.Result,
 
 	if err := r.reconcileNginx(ctx, instance); err != nil {
 		reqLogger.Error(err, "Fail to reconcile")
-		return reconcile.Result{}, err
-	}
-
-	if err := r.refreshStatus(ctx, instance); err != nil {
-		reqLogger.Error(err, "Fail to refresh status subresource")
 		return reconcile.Result{}, err
 	}
 
@@ -175,7 +150,17 @@ func (r *ReconcileNginx) reconcileDeployment(ctx context.Context, nginx *nginxv1
 		return fmt.Errorf("failed to update deployment: %v", err)
 	}
 
-	return nil
+	nginx.Status.Deployments = append(nginx.Status.Deployments, nginxv1alpha1.DeploymentStatus{
+		Name:         deployment.Name,
+		CreatedAt:    deployment.CreationTimestamp.Time,
+		LastUpdateAt: time.Now(),
+	})
+
+	return r.client.Status().Update(ctx, nginx)
+}
+
+func (r *ReconcileNginx) reconcileBlueGreenDeployment(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
+	return fmt.Errorf("not implemented yet")
 }
 
 func (r *ReconcileNginx) reconcileService(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
@@ -218,95 +203,4 @@ func (r *ReconcileNginx) reconcileService(ctx context.Context, nginx *nginxv1alp
 	logger.WithValues("ServiceResource", newService).V(4).Info("Updating Service resource")
 
 	return r.client.Update(ctx, newService)
-}
-
-func (r *ReconcileNginx) refreshStatus(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
-	pods, err := listPods(ctx, r.client, nginx)
-	if err != nil {
-		return fmt.Errorf("failed to list pods for nginx: %v", err)
-	}
-	services, err := listServices(ctx, r.client, nginx)
-	if err != nil {
-		return fmt.Errorf("failed to list services for nginx: %v", err)
-
-	}
-
-	sort.Slice(nginx.Status.Pods, func(i, j int) bool {
-		return nginx.Status.Pods[i].Name < nginx.Status.Pods[j].Name
-	})
-
-	sort.Slice(nginx.Status.Services, func(i, j int) bool {
-		return nginx.Status.Services[i].Name < nginx.Status.Services[j].Name
-	})
-
-	if !reflect.DeepEqual(pods, nginx.Status.Pods) || !reflect.DeepEqual(services, nginx.Status.Services) {
-		nginx.Status.Pods = pods
-		nginx.Status.Services = services
-		nginx.Status.CurrentReplicas = int32(len(pods))
-		nginx.Status.PodSelector = k8s.LabelsForNginxString(nginx.Name)
-		err := r.client.Status().Update(ctx, nginx)
-		if err != nil {
-			return fmt.Errorf("failed to update nginx status: %v", err)
-		}
-	}
-
-	return nil
-}
-
-// listPods return all the pods for the given nginx sorted by name
-func listPods(ctx context.Context, c client.Client, nginx *nginxv1alpha1.Nginx) ([]nginxv1alpha1.PodStatus, error) {
-	podList := &corev1.PodList{}
-	labelSelector := labels.SelectorFromSet(k8s.LabelsForNginx(nginx.Name))
-	listOps := &client.ListOptions{Namespace: nginx.Namespace, LabelSelector: labelSelector}
-	err := c.List(ctx, listOps, podList)
-	if err != nil {
-		return nil, err
-	}
-
-	var pods []nginxv1alpha1.PodStatus
-
-	for _, p := range podList.Items {
-		if p.Status.PodIP == "" {
-			p.Status.PodIP = "<pending>"
-		}
-
-		if p.Status.HostIP == "" {
-			p.Status.HostIP = "<pending>"
-		}
-
-		pods = append(pods, nginxv1alpha1.PodStatus{
-			Name:   p.Name,
-			PodIP:  p.Status.PodIP,
-			HostIP: p.Status.HostIP,
-		})
-	}
-	sort.Slice(pods, func(i, j int) bool {
-		return pods[i].Name < pods[j].Name
-	})
-
-	return pods, nil
-}
-
-// listServices return all the services for the given nginx sorted by name
-func listServices(ctx context.Context, c client.Client, nginx *nginxv1alpha1.Nginx) ([]nginxv1alpha1.ServiceStatus, error) {
-	serviceList := &corev1.ServiceList{}
-	labelSelector := labels.SelectorFromSet(k8s.LabelsForNginx(nginx.Name))
-	listOps := &client.ListOptions{Namespace: nginx.Namespace, LabelSelector: labelSelector}
-	err := c.List(ctx, listOps, serviceList)
-	if err != nil {
-		return nil, err
-	}
-
-	var services []nginxv1alpha1.ServiceStatus
-	for _, s := range serviceList.Items {
-		services = append(services, nginxv1alpha1.ServiceStatus{
-			Name: s.Name,
-		})
-	}
-
-	sort.Slice(services, func(i, j int) bool {
-		return services[i].Name < services[j].Name
-	})
-
-	return services, nil
 }
