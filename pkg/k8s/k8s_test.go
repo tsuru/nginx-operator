@@ -72,6 +72,10 @@ func baseDeployment() appv1.Deployment {
 			Name:        "my-nginx",
 			Namespace:   "default",
 			Annotations: make(map[string]string),
+			Labels: map[string]string{
+				"nginx.tsuru.io/resource-name": "my-nginx",
+				"nginx.tsuru.io/app":           "nginx",
+			},
 		},
 		Spec: appv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
