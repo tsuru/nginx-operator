@@ -140,9 +140,7 @@ type Nginx struct {
 }
 
 type DeploymentStatus struct {
-	Name         string    `json:"name"`
-	CreatedAt    time.Time `json:"createdAt"`
-	LastUpdateAt time.Time `json:"lastUpdateAt"`
+	Name string `json:"name"`
 }
 
 type PodStatus struct {

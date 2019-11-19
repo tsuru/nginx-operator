@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"time"
 
 	nginxv1alpha1 "github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
 	"github.com/tsuru/nginx-operator/pkg/k8s"
@@ -110,35 +109,12 @@ func (r *ReconcileNginx) reconcileNginx(ctx context.Context, nginx *nginxv1alpha
 	return nil
 }
 
-func (r *ReconcileNginx) getDeployment(ctx context.Context, nginx *nginxv1alpha1.Nginx) (*appv1.Deployment, error) {
-	deploymentName := types.NamespacedName{
-		Name:      nginx.Name,
-		Namespace: nginx.Namespace,
-	}
-
-	if len(nginx.Status.Deployments) >= 1 {
-		deploymentName.Name = nginx.Status.Deployments[0].Name
-	}
-
-	var deployment appv1.Deployment
-	err := r.client.Get(ctx, deploymentName, &deployment)
-	if err != nil && errors.IsNotFound(err) {
-		return nil, nil
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &deployment, nil
-}
-
 func (r *ReconcileNginx) reconcileDeployment(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
 	if nginx.Spec.DeploymentStrategy == nginxv1alpha1.NginxDeploymentStrategyBlueGreen {
 		return r.reconcileBlueGreenDeployment(ctx, nginx)
 	}
 
-	currentDeployment, err := r.getDeployment(ctx, nginx)
+	currentDeployment, err := getDeployment(ctx, r.client, nginx)
 	if err != nil {
 		return err
 	}
@@ -154,7 +130,7 @@ func (r *ReconcileNginx) reconcileDeployment(ctx context.Context, nginx *nginxv1
 			return err
 		}
 
-		return r.updateDeploymentStatus(ctx, nginx, newDeployment)
+		return nil
 	}
 
 	currSpec, err := k8s.ExtractNginxSpec(currentDeployment.ObjectMeta)
@@ -176,24 +152,7 @@ func (r *ReconcileNginx) reconcileDeployment(ctx context.Context, nginx *nginxv1
 		return err
 	}
 
-	return r.updateDeploymentStatus(ctx, nginx, currentDeployment)
-}
-
-func (r *ReconcileNginx) updateDeploymentStatus(ctx context.Context, nginx *nginxv1alpha1.Nginx, deployment *appv1.Deployment) error {
-	for index := range nginx.Status.Deployments {
-		if nginx.Status.Deployments[index].Name == deployment.Name {
-			nginx.Status.Deployments[index].LastUpdateAt = time.Now().UTC()
-			return r.client.Status().Update(ctx, nginx)
-		}
-	}
-
-	nginx.Status.Deployments = append(nginx.Status.Deployments, nginxv1alpha1.DeploymentStatus{
-		Name:         deployment.Name,
-		CreatedAt:    deployment.CreationTimestamp.Time,
-		LastUpdateAt: time.Now(),
-	})
-
-	return r.client.Status().Update(ctx, nginx)
+	return nil
 }
 
 func (r *ReconcileNginx) reconcileBlueGreenDeployment(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
@@ -240,4 +199,27 @@ func (r *ReconcileNginx) reconcileService(ctx context.Context, nginx *nginxv1alp
 	logger.WithValues("ServiceResource", newService).V(4).Info("Updating Service resource")
 
 	return r.client.Update(ctx, newService)
+}
+
+func getDeployment(ctx context.Context, client client.Client, nginx *nginxv1alpha1.Nginx) (*appv1.Deployment, error) {
+	deploymentName := types.NamespacedName{
+		Name:      nginx.Name,
+		Namespace: nginx.Namespace,
+	}
+
+	if len(nginx.Status.Deployments) >= 1 {
+		deploymentName.Name = nginx.Status.Deployments[0].Name
+	}
+
+	var deployment appv1.Deployment
+	err := client.Get(ctx, deploymentName, &deployment)
+	if err != nil && errors.IsNotFound(err) {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &deployment, nil
 }
