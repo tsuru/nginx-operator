@@ -144,6 +144,7 @@ func baseDeployment() appv1.Deployment {
 func Test_NewDeployment(t *testing.T) {
 	tests := []struct {
 		name       string
+		color      string
 		nginxFn    func(n v1alpha1.Nginx) v1alpha1.Nginx
 		deployFn   func(d appv1.Deployment) appv1.Deployment
 		teardownFn func()
@@ -1032,6 +1033,41 @@ func Test_NewDeployment(t *testing.T) {
 				return d
 			},
 		},
+		{
+			name:  "with specified color",
+			color: "blue",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Name = "my-nginx-blue"
+				d.Labels = map[string]string{
+					"nginx.tsuru.io/instance-name":  "my-nginx",
+					"nginx.tsuru.io/instance-color": "blue",
+				}
+				d.Spec.Selector = &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"nginx.tsuru.io/app":           "nginx",
+						"nginx.tsuru.io/resource-name": "my-nginx-blue",
+					},
+				}
+				d.Spec.Template.Spec.Affinity = &corev1.Affinity{
+					PodAffinity: &corev1.PodAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+							{
+								TopologyKey: "kubernetes.io/hostname",
+								LabelSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										LabelInstanceName: "my-nginx",
+									},
+								},
+							},
+						},
+					},
+				}
+				return d
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1044,7 +1080,12 @@ func Test_NewDeployment(t *testing.T) {
 					Kind:    "Nginx",
 				}),
 			}
-			dep, err := NewDeployment(&nginx)
+			if want.Labels == nil {
+				want.Labels = map[string]string{
+					"nginx.tsuru.io/instance-name": nginx.Name,
+				}
+			}
+			dep, err := NewDeployment(&nginx, tt.color)
 			assert.NoError(t, err)
 			spec, err := json.Marshal(nginx.Spec)
 			assert.NoError(t, err)

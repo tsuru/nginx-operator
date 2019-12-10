@@ -9,15 +9,22 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"time"
 
 	nginxv1alpha1 "github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
 	"github.com/tsuru/nginx-operator/pkg/k8s"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
+	watchtools "k8s.io/client-go/tools/watch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -37,7 +44,7 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileNginx{client: mgr.GetClient(), scheme: mgr.GetScheme()}
+	return &ReconcileNginx{mgr: mgr, client: mgr.GetClient(), scheme: mgr.GetScheme()}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -84,6 +91,7 @@ type ReconcileNginx struct {
 	// that reads objects from the cache and writes to the apiserver
 	client client.Client
 	scheme *runtime.Scheme
+	mgr    manager.Manager
 }
 
 // Reconcile reads that state of the cluster for a Nginx object and makes changes based on the state read
@@ -136,7 +144,11 @@ func (r *ReconcileNginx) reconcileNginx(ctx context.Context, nginx *nginxv1alpha
 }
 
 func (r *ReconcileNginx) reconcileDeployment(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
-	newDeploy, err := k8s.NewDeployment(nginx)
+	if nginx.Spec.Service.ExternalTrafficPolicy == corev1.ServiceExternalTrafficPolicyTypeLocal {
+		return r.reconcileDeploymentBlueGreen(ctx, nginx)
+	}
+
+	newDeploy, err := k8s.NewDeployment(nginx, "")
 	if err != nil {
 		return fmt.Errorf("failed to assemble deployment from nginx: %v", err)
 	}
@@ -176,6 +188,66 @@ func (r *ReconcileNginx) reconcileDeployment(ctx context.Context, nginx *nginxv1
 	}
 
 	return nil
+}
+
+func (r *ReconcileNginx) reconcileDeploymentBlueGreen(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
+	colors := []string{"blue", "green"}
+	depList := &appv1.DeploymentList{}
+	err := r.client.List(ctx, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(labels.Set{
+			k8s.LabelInstanceName: nginx.Name,
+		}),
+	}, depList)
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	var oldDeploy *appv1.Deployment
+	colorIdx := 0
+
+	if depList.Size() > 1 {
+		return fmt.Errorf("too many deployments found for app: %#v", depList.Items)
+	}
+
+	if depList.Size() > 0 {
+		oldDeploy = &depList.Items[0]
+		if depList.Items[0].Labels[k8s.LabelInstanceColor] == colors[colorIdx] {
+			colorIdx = (colorIdx + 1) % len(colors)
+		}
+	}
+
+	currSpec, err := k8s.ExtractNginxSpec(oldDeploy.ObjectMeta)
+	if err != nil {
+		return fmt.Errorf("failed to extract nginx from deployment: %v", err)
+	}
+
+	if reflect.DeepEqual(nginx.Spec, currSpec) {
+		return nil
+	}
+
+	var color string
+	if oldDeploy != nil {
+		color = colors[colorIdx]
+	}
+
+	newDeploy, err := k8s.NewDeployment(nginx, color)
+	if err != nil {
+		return fmt.Errorf("failed to create deployment: %w", err)
+	}
+	err = r.client.Create(ctx, newDeploy)
+	if err != nil {
+		return err
+	}
+	err = r.waitRollout(ctx, newDeploy)
+	if err != nil {
+		err = fmt.Errorf("rollout failed for %v: %w", newDeploy.Name, err)
+		deleteErr := r.client.Delete(ctx, newDeploy)
+		if deleteErr != nil {
+			return fmt.Errorf("unable to delete failed deployment after error: %v - original error: %w", deleteErr, err)
+		}
+		return err
+	}
+	return r.client.Delete(ctx, oldDeploy)
 }
 
 func (r *ReconcileNginx) reconcileService(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
@@ -309,4 +381,57 @@ func listServices(ctx context.Context, c client.Client, nginx *nginxv1alpha1.Ngi
 	})
 
 	return services, nil
+}
+
+func (r *ReconcileNginx) waitRollout(ctx context.Context, deploy *appv1.Deployment) error {
+	fieldSelector := fields.OneTermEqualSelector("metadata.name", deploy.Name).String()
+
+	rawClient, err := kubernetes.NewForConfig(r.mgr.GetConfig())
+	if err != nil {
+		return err
+	}
+
+	lw := &cache.ListWatch{
+		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			return rawClient.Apps().Deployments(deploy.Namespace).List(metav1.ListOptions{
+				FieldSelector: fieldSelector,
+			})
+		},
+		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			return rawClient.Apps().Deployments(deploy.Namespace).Watch(metav1.ListOptions{
+				FieldSelector: fieldSelector,
+			})
+		},
+	}
+
+	preconditionFunc := func(store cache.Store) (bool, error) {
+		_, exists, err := store.Get(&metav1.ObjectMeta{Namespace: deploy.Namespace, Name: deploy.Name})
+		if err != nil {
+			return true, err
+		}
+		if !exists {
+			return true, errors.NewNotFound(appv1.Resource("deployment"), deploy.Name)
+		}
+		return false, nil
+	}
+
+	timeout := 5 * time.Minute
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	_, err = watchtools.UntilWithSync(ctx, lw, deploy, preconditionFunc, func(e watch.Event) (bool, error) {
+		switch t := e.Type; t {
+		case watch.Added, watch.Modified:
+			evtDeploy := e.Object.(*appv1.Deployment)
+			if evtDeploy.Generation <= evtDeploy.Status.ObservedGeneration {
+				// rollout is done
+				return true, nil
+			}
+			return false, nil
+		case watch.Deleted:
+			return true, fmt.Errorf("object has been deleted")
+		default:
+			return true, fmt.Errorf("internal error: unexpected event %#v", e)
+		}
+	})
+	return err
 }

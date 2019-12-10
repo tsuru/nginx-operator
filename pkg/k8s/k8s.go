@@ -56,6 +56,13 @@ const (
 
 	// Annotation key used to stored the nginx that created the deployment
 	generatedFromAnnotation = "nginx.tsuru.io/generated-from"
+
+	// Label used to identify the base name for the nginx instance
+	LabelInstanceName = "nginx.tsuru.io/instance-name"
+
+	// Label used to identify the color for a nginx instance, as in blue vs
+	// green.
+	LabelInstanceColor = "nginx.tsuru.io/instance-color"
 )
 
 var nginxEntrypoint = []string{
@@ -80,8 +87,10 @@ var healthcheckResources = corev1.ResourceRequirements{
 // User ID to root
 var rootUID *int64 = new(int64)
 
-// NewDeployment creates a deployment for a given Nginx resource.
-func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
+// NewDeployment creates a deployment for a given Nginx resource. The color
+// argument can be used to create a duplicated version of the deployment, as in
+// app-blue and app-green.
+func NewDeployment(n *v1alpha1.Nginx, color string) (*appv1.Deployment, error) {
 	n.Spec.Image = valueOrDefault(n.Spec.Image, defaultNginxImage)
 	customSidecarContainerImage, _ := tsuruConfig.GetString("nginx-controller:sidecar:image")
 
@@ -95,14 +104,41 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 		securityContext.RunAsGroup = rootUID
 	}
 
+	affinity := n.Spec.PodTemplate.Affinity
+	deploymentName := n.Name
+	deploymentLabels := map[string]string{
+		LabelInstanceName: n.Name,
+	}
+
+	if color != "" {
+		deploymentName = strings.Join([]string{deploymentName, color}, "-")
+		deploymentLabels[LabelInstanceColor] = color
+		if affinity == nil {
+			affinity = &corev1.Affinity{}
+		}
+		affinity.PodAffinity = &corev1.PodAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+				{
+					TopologyKey: "kubernetes.io/hostname",
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							LabelInstanceName: n.Name,
+						},
+					},
+				},
+			},
+		}
+	}
+
 	deployment := appv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
 			APIVersion: "apps/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      n.Name,
+			Name:      deploymentName,
 			Namespace: n.Namespace,
+			Labels:    deploymentLabels,
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(n, schema.GroupVersionKind{
 					Group:   v1alpha1.SchemeGroupVersion.Group,
@@ -114,7 +150,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 		Spec: appv1.DeploymentSpec{
 			Replicas: n.Spec.Replicas,
 			Selector: &metav1.LabelSelector{
-				MatchLabels: LabelsForNginx(n.Name),
+				MatchLabels: LabelsForNginx(deploymentName),
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -146,7 +182,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 							Resources: healthcheckResources,
 						},
 					},
-					Affinity:                      n.Spec.PodTemplate.Affinity,
+					Affinity:                      affinity,
 					HostNetwork:                   n.Spec.PodTemplate.HostNetwork,
 					TerminationGracePeriodSeconds: n.Spec.PodTemplate.TerminationGracePeriodSeconds,
 				},
