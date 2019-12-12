@@ -25,6 +25,7 @@ require (
 	k8s.io/client-go v11.0.0+incompatible
 	k8s.io/klog v0.3.3 // indirect
 	k8s.io/kube-openapi v0.0.0-20190722073852-5e22f3d471e6 // indirect
+	k8s.io/kubernetes v1.13.4
 	sigs.k8s.io/controller-runtime v0.1.10
 )
 

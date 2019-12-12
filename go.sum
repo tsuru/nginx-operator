@@ -62,6 +62,7 @@ github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/dgrijalva/jwt-go v0.0.0-20160705203006-01aeca54ebda/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
 github.com/docker/distribution v2.6.2+incompatible/go.mod h1:J2gT2udsDAN96Uj4KfcMRqY0/ypR+oyYUYmja8H+y+w=
+github.com/docker/distribution v2.7.0+incompatible h1:neUDAlf3wX6Ml4HdqTrbcOHXtfRN0TFIwt6YFL7N9RU=
 github.com/docker/distribution v2.7.0+incompatible/go.mod h1:J2gT2udsDAN96Uj4KfcMRqY0/ypR+oyYUYmja8H+y+w=
 github.com/docker/docker v0.0.0-20180612054059-a9fbbdc8dd87/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
 github.com/docker/spdystream v0.0.0-20181023171402-6480d4af844c/go.mod h1:Qh8CwZgvJUkLughtfhJv5dyTYa91l1fOUCrgjqmcifM=
@@ -264,6 +265,7 @@ github.com/onsi/ginkgo v1.7.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+W
 github.com/onsi/gomega v1.4.2-0.20180831124310-ae19f1b56d53/go.mod h1:C1qb7wdrVGGVU+Z6iS04AVkA3Q65CEZX59MT0QO5uiA=
 github.com/onsi/gomega v1.4.3 h1:RE1xgDvH7imwFD45h+u2SgIfERHlS2yNG4DObb5BSKU=
 github.com/onsi/gomega v1.4.3/go.mod h1:ex+gbHU/CVuBBDIJjb2X0qEXbFg53c61hWP/1CpauHY=
+github.com/opencontainers/go-digest v1.0.0-rc1 h1:WzifXhOVOEOuFYOJAW6aQqW0TooG2iki3E3Ii+WN7gQ=
 github.com/opencontainers/go-digest v1.0.0-rc1/go.mod h1:cMLVZDEM3+U2I4VmLI6N8jQYUd2OVphdqWwCJHrFt2s=
 github.com/openshift/origin v0.0.0-20160503220234-8f127d736703/go.mod h1:0Rox5r9C8aQn6j1oAOQ0c1uC86mYbUFObzjBRvUKHII=
 github.com/openzipkin/zipkin-go v0.1.1/go.mod h1:NtoC/o8u3JlF1lSlyPNswIbeQH9bJTmOf0Erfk+hxe8=
@@ -534,6 +536,7 @@ gopkg.in/inf.v0 v0.9.1/go.mod h1:cWUDdTG/fYaXco+Dcufb5Vnc6Gp2YChqWtbxRZE0mXw=
 gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3/go.mod h1:l0ndWWf7gzL7RNwBG7wST/UCcT4T24xpD6X8LsfU/+k=
 gopkg.in/natefinch/lumberjack.v2 v2.0.0/go.mod h1:l0ndWWf7gzL7RNwBG7wST/UCcT4T24xpD6X8LsfU/+k=
 gopkg.in/resty.v1 v1.12.0/go.mod h1:mDo4pnntr5jdWRML875a/NmxYqAlA73dVijT2AXvQQo=
+gopkg.in/square/go-jose.v2 v2.3.0 h1:nLzhkFyl5bkblqYBoiWJUt5JkWOzmiaBtCxdJAqJd3U=
 gopkg.in/square/go-jose.v2 v2.3.0/go.mod h1:M9dMgbHiYLoDGQrXy7OpJDJWiKiU//h+vD76mk0e1AI=
 gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 h1:uRGJdciOHaEIrze2W8Q3AKkepLTh2hOroT7a+7czfdQ=
 gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7/go.mod h1:dt/ZhP58zS4L8KSrWDmTeBkI65Dw0HsyUHuEVlX15mw=
@@ -554,6 +557,7 @@ k8s.io/apiextensions-apiserver v0.0.0-20190228180357-d002e88f6236 h1:JfFtjaElBIg
 k8s.io/apiextensions-apiserver v0.0.0-20190228180357-d002e88f6236/go.mod h1:IxkesAMoaCRoLrPJdZNZUQp9NfZnzqaVzLhb2VEQzXE=
 k8s.io/apimachinery v0.0.0-20190221213512-86fb29eff628 h1:UYfHH+KEF88OTg+GojQUwFTNxbxwmoktLwutUzR0GPg=
 k8s.io/apimachinery v0.0.0-20190221213512-86fb29eff628/go.mod h1:ccL7Eh7zubPUSh9A3USN90/OzHNSVN6zxzde07TDCL0=
+k8s.io/apiserver v0.0.0-20190228174905-79427f02047f h1:sk5jIMrNCujg55Nmlu8ACJhY5XyN2NPZC9wrHEHsJbg=
 k8s.io/apiserver v0.0.0-20190228174905-79427f02047f/go.mod h1:6bqaTSOSJavUIXUtfaR9Os9JtTCm8ZqH2SUl2S60C4w=
 k8s.io/cli-runtime v0.0.0-20190228180923-a9e421a79326/go.mod h1:qWnH3/b8sp/l7EvlDh7ulDU3UWA4P4N1NFbEEP791tM=
 k8s.io/client-go v0.0.0-20190228174230-b40b2a5939e4 h1:aE8wOCKuoRs2aU0OP/Rz8SXiAB0FTTku3VtGhhrkSmc=
@@ -574,7 +578,9 @@ k8s.io/kube-aggregator v0.0.0-20190228175259-3e0149950b0e/go.mod h1:8sbzT4QQKDEm
 k8s.io/kube-openapi v0.0.0-20180711000925-0cf8f7e6ed1d h1:mn2F9UzCk6KGa7M/d2ibLyRtBQm7n6QvbCjDe/cDWSg=
 k8s.io/kube-openapi v0.0.0-20180711000925-0cf8f7e6ed1d/go.mod h1:BXM9ceUBTj2QnfH2MK1odQs778ajze1RxcmP6S8RVVc=
 k8s.io/kube-state-metrics v1.6.0/go.mod h1:84+q9aGVQPzXYGgtvyhZr/fSI6BdLsbPWXn37RASc9k=
+k8s.io/kubernetes v1.13.4 h1:gQqFv/pH8hlbznLXQUsi8s5zqYnv0slmUDl/yVA0EWc=
 k8s.io/kubernetes v1.13.4/go.mod h1:ocZa8+6APFNC2tX1DZASIbocyYT5jHzqFVsY5aoB7Jk=
+k8s.io/utils v0.0.0-20190308190857-21c4ce38f2a7 h1:8r+l4bNWjRlsFYlQJnKJ2p7s1YQPj4XyXiJVqDHRx7c=
 k8s.io/utils v0.0.0-20190308190857-21c4ce38f2a7/go.mod h1:8k8uAuAQ0rXslZKaEWd0c3oVhZz7sSzSiPnVZayjIX0=
 rsc.io/binaryregexp v0.2.0/go.mod h1:qTv7/COck+e2FymRvadv62gMdZztPaShugOCi3I+8D8=
 sigs.k8s.io/controller-runtime v0.1.10 h1:amLOmcekVdnsD1uIpmgRqfTbQWJ2qxvQkcdeFhcotn4=
