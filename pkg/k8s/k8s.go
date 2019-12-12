@@ -56,6 +56,10 @@ const (
 
 	// Annotation key used to stored the nginx that created the deployment
 	generatedFromAnnotation = "nginx.tsuru.io/generated-from"
+
+	LabelNginxResourceName    = "nginx.tsuru.io/resource-name"
+	LabelNginxApp             = "nginx.tsuru.io/app"
+	LabelNginxCustomEndpoints = "nginx.tsuru.io/custom-endpoints-controller"
 )
 
 var nginxEntrypoint = []string{
@@ -184,6 +188,7 @@ func NewService(n *v1alpha1.Nginx) *corev1.Service {
 	var lbIP string
 	var externalTrafficPolicy corev1.ServiceExternalTrafficPolicyType
 	labelSelector := LabelsForNginx(n.Name)
+	nginxLabels := LabelsForNginx(n.Name)
 	if n.Spec.Service != nil {
 		labels = n.Spec.Service.Labels
 		annotations = n.Spec.Service.Annotations
@@ -191,8 +196,10 @@ func NewService(n *v1alpha1.Nginx) *corev1.Service {
 		externalTrafficPolicy = n.Spec.Service.ExternalTrafficPolicy
 		if n.Spec.Service.UsePodSelector != nil && !*n.Spec.Service.UsePodSelector {
 			labelSelector = nil
+			nginxLabels[LabelNginxCustomEndpoints] = "true"
 		}
 	}
+
 	service := corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Service",
@@ -208,7 +215,7 @@ func NewService(n *v1alpha1.Nginx) *corev1.Service {
 					Kind:    "Nginx",
 				}),
 			},
-			Labels:      mergeMap(labels, LabelsForNginx(n.Name)),
+			Labels:      mergeMap(labels, nginxLabels),
 			Annotations: annotations,
 		},
 		Spec: corev1.ServiceSpec{
@@ -245,8 +252,8 @@ func nginxService(n *v1alpha1.Nginx) corev1.ServiceType {
 // LabelsForNginx returns the labels for a Nginx CR with the given name
 func LabelsForNginx(name string) map[string]string {
 	return map[string]string{
-		"nginx.tsuru.io/resource-name": name,
-		"nginx.tsuru.io/app":           "nginx",
+		LabelNginxResourceName: name,
+		LabelNginxApp:          "nginx",
 	}
 }
 
@@ -256,7 +263,7 @@ func LabelsForNginxString(name string) string {
 }
 
 func GetNginxNameFromObject(o metav1.Object) string {
-	return o.GetLabels()["nginx.tsuru.io/resource-name"]
+	return o.GetLabels()[LabelNginxResourceName]
 }
 
 // ExtractNginxSpec extracts the nginx used to create the object

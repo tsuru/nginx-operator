@@ -1303,8 +1303,9 @@ func TestNewService(t *testing.T) {
 					Name:      "my-nginx-service",
 					Namespace: "default",
 					Labels: map[string]string{
-						"nginx.tsuru.io/resource-name": "my-nginx",
-						"nginx.tsuru.io/app":           "nginx",
+						"nginx.tsuru.io/resource-name":               "my-nginx",
+						"nginx.tsuru.io/app":                         "nginx",
+						"nginx.tsuru.io/custom-endpoints-controller": "true",
 					},
 				},
 				Spec: corev1.ServiceSpec{
