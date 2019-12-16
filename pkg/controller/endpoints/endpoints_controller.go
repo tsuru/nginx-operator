@@ -19,10 +19,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
@@ -38,7 +38,7 @@ var _ reconcile.Reconciler = &reconcileEndpoints{}
 func Add(mgr manager.Manager) error {
 	r := &reconcileEndpoints{
 		mgr:      mgr,
-		recorder: mgr.GetRecorder("nginx-endpoints-controller"),
+		recorder: mgr.GetEventRecorderFor("nginx-endpoints-controller"),
 	}
 
 	c, err := controller.New("nginx-endpoints-controller", mgr, controller.Options{Reconciler: r})
@@ -177,7 +177,7 @@ func (m *podToServiceMap) doMap(o handler.MapObject) ([]reconcile.Request, error
 	podLabels := o.Meta.GetLabels()
 
 	var svcList corev1.ServiceList
-	err := m.client.List(context.Background(), &client.ListOptions{}, &svcList)
+	err := m.client.List(context.Background(), &svcList, &client.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -238,9 +238,9 @@ func (r *reconcileEndpoints) Reconcile(request reconcile.Request) (reconcile.Res
 
 	log.V(5).Info("About to update endpoints", "service", request.NamespacedName)
 	var podList corev1.PodList
-	err = cli.List(ctx, &client.ListOptions{
+	err = cli.List(ctx, &podList, &client.ListOptions{
 		LabelSelector: selector,
-	}, &podList)
+	})
 	if err != nil {
 		return reconcile.Result{}, err
 	}
