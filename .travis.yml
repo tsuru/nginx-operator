@@ -10,7 +10,7 @@ install:
   - sudo chmod +x /usr/local/bin/operator-sdk
   - cd $TRAVIS_BUILD_DIR
 go:
-  - 1.12.x
+  - 1.13.x
 jobs:
   fast_finish: true
   include:

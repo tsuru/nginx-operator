@@ -21,9 +21,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
@@ -258,7 +258,7 @@ func listPods(ctx context.Context, c client.Client, nginx *nginxv1alpha1.Nginx) 
 	podList := &corev1.PodList{}
 	labelSelector := labels.SelectorFromSet(k8s.LabelsForNginx(nginx.Name))
 	listOps := &client.ListOptions{Namespace: nginx.Namespace, LabelSelector: labelSelector}
-	err := c.List(ctx, listOps, podList)
+	err := c.List(ctx, podList, listOps)
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +292,7 @@ func listServices(ctx context.Context, c client.Client, nginx *nginxv1alpha1.Ngi
 	serviceList := &corev1.ServiceList{}
 	labelSelector := labels.SelectorFromSet(k8s.LabelsForNginx(nginx.Name))
 	listOps := &client.ListOptions{Namespace: nginx.Namespace, LabelSelector: labelSelector}
-	err := c.List(ctx, listOps, serviceList)
+	err := c.List(ctx, serviceList, listOps)
 	if err != nil {
 		return nil, err
 	}
