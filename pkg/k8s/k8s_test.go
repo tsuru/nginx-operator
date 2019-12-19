@@ -20,13 +20,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-var (
-	httpHealthcheckQuery             = "url=http%3A%2F%2Flocalhost%3A8080"
-	httpHostNetworkHealthcheckQuery  = "url=http%3A%2F%2Flocalhost%3A80"
-	httpsHealthcheckQuery            = "url=http%3A%2F%2Flocalhost%3A8080&url=https%3A%2F%2Flocalhost%3A8443"
-	httpsHostNetworkHealthcheckQuery = "url=http%3A%2F%2Flocalhost%3A80&url=https%3A%2F%2Flocalhost%3A443"
-)
-
 func baseNginx() v1alpha1.Nginx {
 	return v1alpha1.Nginx{
 		ObjectMeta: metav1.ObjectMeta{
@@ -109,10 +102,8 @@ func baseDeployment() appv1.Deployment {
 							},
 							ReadinessProbe: &corev1.Probe{
 								Handler: corev1.Handler{
-									HTTPGet: &corev1.HTTPGetAction{
-										Path:   "/healthcheck?" + httpHealthcheckQuery,
-										Port:   intstr.FromInt(healthcheckPort),
-										Scheme: corev1.URISchemeHTTP,
+									Exec: &corev1.ExecAction{
+										Command: []string{"sh", "-c", "curl -m20 -kfsS -o /dev/null http://localhost:8080"},
 									},
 								},
 							},
@@ -121,16 +112,6 @@ func baseDeployment() appv1.Deployment {
 									Exec: &corev1.ExecAction{
 										Command: defaultPostStartCommand,
 									},
-								},
-							},
-						},
-						{
-							Name:  healthcheckSidecarName,
-							Image: defaultSidecarContainerImage,
-							Resources: corev1.ResourceRequirements{
-								Limits: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("50m"),
-									corev1.ResourceMemory: resource.MustParse("30Mi"),
 								},
 							},
 						},
@@ -288,10 +269,8 @@ func Test_NewDeployment(t *testing.T) {
 				}
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 					Handler: corev1.Handler{
-						HTTPGet: &corev1.HTTPGetAction{
-							Path:   "/healthcheck?" + httpsHealthcheckQuery,
-							Port:   intstr.FromInt(healthcheckPort),
-							Scheme: corev1.URISchemeHTTP,
+						Exec: &corev1.ExecAction{
+							Command: []string{"sh", "-c", "curl -m20 -kfsS -o /dev/null http://localhost:8080 && curl -m20 -kfsS -o /dev/null https://localhost:8443"},
 						},
 					},
 				}
@@ -344,10 +323,8 @@ func Test_NewDeployment(t *testing.T) {
 				}
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 					Handler: corev1.Handler{
-						HTTPGet: &corev1.HTTPGetAction{
-							Path:   "/healthcheck?" + httpsHealthcheckQuery,
-							Port:   intstr.FromInt(healthcheckPort),
-							Scheme: corev1.URISchemeHTTP,
+						Exec: &corev1.ExecAction{
+							Command: []string{"sh", "-c", "curl -m20 -kfsS -o /dev/null http://localhost:8080 && curl -m20 -kfsS -o /dev/null https://localhost:8443"},
 						},
 					},
 				}
@@ -404,10 +381,8 @@ func Test_NewDeployment(t *testing.T) {
 				}
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 					Handler: corev1.Handler{
-						HTTPGet: &corev1.HTTPGetAction{
-							Path:   "/healthcheck?" + httpsHealthcheckQuery,
-							Port:   intstr.FromInt(healthcheckPort),
-							Scheme: corev1.URISchemeHTTP,
+						Exec: &corev1.ExecAction{
+							Command: []string{"sh", "-c", "curl -m20 -kfsS -o /dev/null http://localhost:8080 && curl -m20 -kfsS -o /dev/null https://localhost:8443"},
 						},
 					},
 				}
@@ -487,10 +462,8 @@ func Test_NewDeployment(t *testing.T) {
 				}
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 					Handler: corev1.Handler{
-						HTTPGet: &corev1.HTTPGetAction{
-							Path:   "/healthcheck?" + httpHostNetworkHealthcheckQuery,
-							Port:   intstr.FromInt(healthcheckPort),
-							Scheme: corev1.URISchemeHTTP,
+						Exec: &corev1.ExecAction{
+							Command: []string{"sh", "-c", "curl -m20 -kfsS -o /dev/null http://localhost:80"},
 						},
 					},
 				}
@@ -534,10 +507,8 @@ func Test_NewDeployment(t *testing.T) {
 				}
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 					Handler: corev1.Handler{
-						HTTPGet: &corev1.HTTPGetAction{
-							Path:   "/healthcheck?" + httpsHostNetworkHealthcheckQuery,
-							Port:   intstr.FromInt(healthcheckPort),
-							Scheme: corev1.URISchemeHTTP,
+						Exec: &corev1.ExecAction{
+							Command: []string{"sh", "-c", "curl -m20 -kfsS -o /dev/null http://localhost:80 && curl -m20 -kfsS -o /dev/null https://localhost:443"},
 						},
 					},
 				}
@@ -622,10 +593,8 @@ func Test_NewDeployment(t *testing.T) {
 				}
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 					Handler: corev1.Handler{
-						HTTPGet: &corev1.HTTPGetAction{
-							Path:   "/healthcheck?" + httpHostNetworkHealthcheckQuery,
-							Port:   intstr.FromInt(healthcheckPort),
-							Scheme: corev1.URISchemeHTTP,
+						Exec: &corev1.ExecAction{
+							Command: []string{"sh", "-c", "curl -m20 -kfsS -o /dev/null http://localhost:80"},
 						},
 					},
 				}
@@ -721,20 +690,6 @@ func Test_NewDeployment(t *testing.T) {
 					},
 				})
 				return d
-			},
-		},
-		{
-			name: "when NGINX controller is configured to use a custom sidecar container image",
-			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
-				return n
-			},
-			deployFn: func(d appv1.Deployment) appv1.Deployment {
-				tsuruConfig.Set("nginx-controller:sidecar:image", "private.registry.example.com/tsuru/nginx-operator-sidecar")
-				d.Spec.Template.Spec.Containers[1].Image = "private.registry.example.com/tsuru/nginx-operator-sidecar"
-				return d
-			},
-			teardownFn: func() {
-				tsuruConfig.Unset("nginx-controller:sidecar:image")
 			},
 		},
 		{
@@ -1029,6 +984,158 @@ func Test_NewDeployment(t *testing.T) {
 			},
 			deployFn: func(d appv1.Deployment) appv1.Deployment {
 				d.Spec.Template.Spec.TerminationGracePeriodSeconds = func(n int64) *int64 { return &n }(int64(60 * 2))
+				return d
+			},
+		},
+		{
+			name: "with custom ports",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.PodTemplate.Ports = []corev1.ContainerPort{
+					{
+						Name:          "http",
+						ContainerPort: 20001,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          "https",
+						ContainerPort: 20002,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
+					{
+						Name:          defaultHTTPPortName,
+						ContainerPort: 20001,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          defaultHTTPSPortName,
+						ContainerPort: 20002,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				}
+				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+					Handler: corev1.Handler{
+						Exec: &corev1.ExecAction{
+							Command: []string{"sh", "-c", "curl -m20 -kfsS -o /dev/null http://localhost:20001"},
+						},
+					},
+				}
+				return d
+			},
+		},
+		{
+			name: "with host network and custom ports",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.PodTemplate.HostNetwork = true
+				n.Spec.PodTemplate.Ports = []corev1.ContainerPort{
+					{
+						Name:          "http",
+						ContainerPort: 20001,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          "https",
+						ContainerPort: 20002,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.HostNetwork = true
+				d.Spec.Template.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
+					RunAsUser:  rootUID,
+					RunAsGroup: rootUID,
+				}
+				d.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
+					{
+						Name:          defaultHTTPPortName,
+						ContainerPort: 20001,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          defaultHTTPSPortName,
+						ContainerPort: 20002,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				}
+				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+					Handler: corev1.Handler{
+						Exec: &corev1.ExecAction{
+							Command: []string{"sh", "-c", "curl -m20 -kfsS -o /dev/null http://localhost:20001"},
+						},
+					},
+				}
+				return d
+			},
+		},
+		{
+			name: "with tls and custom ports",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.PodTemplate.Ports = []corev1.ContainerPort{
+					{
+						Name:          "http",
+						ContainerPort: 20001,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          "https",
+						ContainerPort: 20002,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				}
+				n.Spec.Certificates = &v1alpha1.TLSSecret{
+					SecretName: "my-secret",
+					Items: []v1alpha1.TLSSecretItem{
+						{
+							CertificateField: "cert.crt",
+							KeyField:         "cert.key",
+						},
+					},
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
+					{
+						Name:          defaultHTTPPortName,
+						ContainerPort: 20001,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          defaultHTTPSPortName,
+						ContainerPort: 20002,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				}
+				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+					Handler: corev1.Handler{
+						Exec: &corev1.ExecAction{
+							Command: []string{"sh", "-c", "curl -m20 -kfsS -o /dev/null http://localhost:20001 && curl -m20 -kfsS -o /dev/null https://localhost:20002"},
+						},
+					},
+				}
+				d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
+					{Name: "nginx-certs", MountPath: "/etc/nginx/certs"},
+				}
+				d.Spec.Template.Spec.Volumes = []corev1.Volume{
+					{
+						Name: "nginx-certs",
+						VolumeSource: corev1.VolumeSource{
+							Secret: &corev1.SecretVolumeSource{
+								SecretName: "my-secret",
+								Items: []corev1.KeyToPath{
+									{Key: "cert.crt", Path: "cert.crt"},
+									{Key: "cert.key", Path: "cert.key"},
+								},
+							},
+						},
+					},
+				}
 				return d
 			},
 		},

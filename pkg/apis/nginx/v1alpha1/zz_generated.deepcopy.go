@@ -152,7 +152,7 @@ func (in *NginxLifecycleHandler) DeepCopy() *NginxLifecycleHandler {
 func (in *NginxList) DeepCopyInto(out *NginxList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]Nginx, len(*in))
@@ -202,6 +202,11 @@ func (in *NginxPodTemplateSpec) DeepCopyInto(out *NginxPodTemplateSpec) {
 		for key, val := range *in {
 			(*out)[key] = val
 		}
+	}
+	if in.Ports != nil {
+		in, out := &in.Ports, &out.Ports
+		*out = make([]v1.ContainerPort, len(*in))
+		copy(*out, *in)
 	}
 	if in.TerminationGracePeriodSeconds != nil {
 		in, out := &in.TerminationGracePeriodSeconds, &out.TerminationGracePeriodSeconds

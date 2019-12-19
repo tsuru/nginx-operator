@@ -7,7 +7,6 @@ package k8s
 import (
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"sort"
 	"strings"
 
@@ -15,7 +14,6 @@ import (
 	"github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8slabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -35,12 +33,7 @@ const (
 	defaultHTTPSHostNetworkPort = int32(443)
 	defaultHTTPSPortName        = "https"
 
-	// Path and port to the healthcheck service
-	healthcheckPort        = 59999
-	healthcheckPath        = "/healthcheck"
-	healthcheckSidecarName = "nginx-healthchecker"
-
-	defaultSidecarContainerImage = "tsuru/nginx-operator-sidecar:latest"
+	curlProbeCommand = "curl -m20 -kfsS -o /dev/null %s"
 
 	// Mount path where nginx.conf will be placed
 	configMountPath = "/etc/nginx"
@@ -70,20 +63,13 @@ var defaultPostStartCommand = []string{
 	"nginx -t && touch /tmp/done",
 }
 
-var healthcheckResources = corev1.ResourceRequirements{
-	Limits: corev1.ResourceList{
-		corev1.ResourceCPU:    resource.MustParse("50m"),
-		corev1.ResourceMemory: resource.MustParse("30Mi"),
-	},
-}
-
 // User ID to root
 var rootUID *int64 = new(int64)
 
 // NewDeployment creates a deployment for a given Nginx resource.
 func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 	n.Spec.Image = valueOrDefault(n.Spec.Image, defaultNginxImage)
-	customSidecarContainerImage, _ := tsuruConfig.GetString("nginx-controller:sidecar:image")
+	setDefaultPorts(&n.Spec.PodTemplate)
 
 	securityContext := n.Spec.SecurityContext
 	if n.Spec.PodTemplate.HostNetwork {
@@ -130,20 +116,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 							Command:         nginxEntrypoint,
 							Resources:       n.Spec.Resources,
 							SecurityContext: securityContext,
-							ReadinessProbe: &corev1.Probe{
-								Handler: corev1.Handler{
-									HTTPGet: &corev1.HTTPGetAction{
-										Path:   buildHealthcheckPath(n.Spec),
-										Port:   intstr.FromInt(healthcheckPort),
-										Scheme: corev1.URISchemeHTTP,
-									},
-								},
-							},
-						},
-						{
-							Name:      healthcheckSidecarName,
-							Image:     valueOrDefault(customSidecarContainerImage, defaultSidecarContainerImage),
-							Resources: healthcheckResources,
+							Ports:           n.Spec.PodTemplate.Ports,
 						},
 					},
 					Affinity:                      n.Spec.PodTemplate.Affinity,
@@ -153,7 +126,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 			},
 		},
 	}
-	setupPorts(n.Spec.PodTemplate, &deployment)
+	setupProbes(n.Spec, &deployment)
 	setupConfig(n.Spec.Config, &deployment)
 	setupTLS(n.Spec.Certificates, &deployment)
 	setupExtraFiles(n.Spec.ExtraFiles, &deployment)
@@ -283,47 +256,6 @@ func SetNginxSpec(o *metav1.ObjectMeta, spec v1alpha1.NginxSpec) error {
 	}
 	o.Annotations[generatedFromAnnotation] = string(origSpec)
 	return nil
-}
-
-func buildHealthcheckPath(spec v1alpha1.NginxSpec) string {
-	httpPort, httpsPort := nginxPorts(spec.PodTemplate)
-	httpURL := fmt.Sprintf("http://localhost:%d%s", httpPort, spec.HealthcheckPath)
-
-	query := url.Values{}
-	query.Add("url", httpURL)
-
-	if spec.Certificates != nil {
-		httpsURL := fmt.Sprintf("https://localhost:%d%s", httpsPort, spec.HealthcheckPath)
-		query.Add("url", httpsURL)
-	}
-
-	return fmt.Sprintf("%s?%s", healthcheckPath, query.Encode())
-}
-
-func setupPorts(podSpec v1alpha1.NginxPodTemplateSpec, dep *appv1.Deployment) {
-	httpPort, httpsPort := nginxPorts(podSpec)
-	dep.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
-		{
-			Name:          defaultHTTPPortName,
-			ContainerPort: httpPort,
-			Protocol:      corev1.ProtocolTCP,
-		},
-		{
-			Name:          defaultHTTPSPortName,
-			ContainerPort: httpsPort,
-			Protocol:      corev1.ProtocolTCP,
-		},
-	}
-}
-
-func nginxPorts(podSpec v1alpha1.NginxPodTemplateSpec) (int32, int32) {
-	httpPort := defaultHTTPPort
-	httpsPort := defaultHTTPSPort
-	if podSpec.HostNetwork {
-		httpPort = defaultHTTPHostNetworkPort
-		httpsPort = defaultHTTPSHostNetworkPort
-	}
-	return httpPort, httpsPort
 }
 
 func setupConfig(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {
@@ -541,5 +473,69 @@ func setupLifecycle(lifecycle *v1alpha1.NginxLifecycle, dep *appv1.Deployment) {
 			postStartCommand = defaultPostStartCommand
 		}
 		dep.Spec.Template.Spec.Containers[0].Lifecycle.PostStart.Exec.Command = postStartCommand
+	}
+}
+
+func portByName(ports []corev1.ContainerPort, name string) *corev1.ContainerPort {
+	for i, port := range ports {
+		if port.Name == name {
+			return &ports[i]
+		}
+	}
+	return nil
+}
+
+func setDefaultPorts(podSpec *v1alpha1.NginxPodTemplateSpec) {
+	if portByName(podSpec.Ports, defaultHTTPPortName) == nil {
+		httpPort := defaultHTTPPort
+		if podSpec.HostNetwork {
+			httpPort = defaultHTTPHostNetworkPort
+		}
+		podSpec.Ports = append(podSpec.Ports, corev1.ContainerPort{
+			Name:          defaultHTTPPortName,
+			ContainerPort: httpPort,
+			Protocol:      corev1.ProtocolTCP,
+		})
+	}
+
+	if portByName(podSpec.Ports, defaultHTTPSPortName) == nil {
+		httpsPort := defaultHTTPSPort
+		if podSpec.HostNetwork {
+			httpsPort = defaultHTTPSHostNetworkPort
+		}
+		podSpec.Ports = append(podSpec.Ports, corev1.ContainerPort{
+			Name:          defaultHTTPSPortName,
+			ContainerPort: httpsPort,
+			Protocol:      corev1.ProtocolTCP,
+		})
+	}
+}
+
+func setupProbes(nginxSpec v1alpha1.NginxSpec, dep *appv1.Deployment) {
+	httpPort := portByName(nginxSpec.PodTemplate.Ports, defaultHTTPPortName)
+
+	var commands []string
+	if httpPort != nil {
+		httpURL := fmt.Sprintf("http://localhost:%d%s", httpPort.ContainerPort, nginxSpec.HealthcheckPath)
+		commands = append(commands, fmt.Sprintf(curlProbeCommand, httpURL))
+	}
+
+	if nginxSpec.Certificates != nil {
+		httpsPort := portByName(nginxSpec.PodTemplate.Ports, defaultHTTPSPortName)
+		if httpsPort != nil {
+			httpsURL := fmt.Sprintf("https://localhost:%d%s", httpsPort.ContainerPort, nginxSpec.HealthcheckPath)
+			commands = append(commands, fmt.Sprintf(curlProbeCommand, httpsURL))
+		}
+	}
+
+	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+		Handler: corev1.Handler{
+			Exec: &corev1.ExecAction{
+				Command: []string{
+					"sh", "-c",
+					strings.Join(commands, " && "),
+				},
+			},
+		},
 	}
 }
