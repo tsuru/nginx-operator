@@ -89,6 +89,9 @@ type NginxPodTemplateSpec struct {
 	// HostNetwork enabled causes the pod to use the host's network namespace.
 	// +optional
 	HostNetwork bool `json:"hostNetwork,omitempty"`
+	// Ports is the list of ports used by nginx.
+	// +optional
+	Ports []corev1.ContainerPort `json:"ports,omitempty"`
 	// TerminationGracePeriodSeconds defines the max duration seconds which the
 	// pod needs to terminate gracefully. Defaults to pod's
 	// terminationGracePeriodSeconds default value.

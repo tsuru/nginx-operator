@@ -15,7 +15,7 @@ JSONPATH='{range .items[*]}{@.metadata.name}:{range @.status.conditions[*]}{@.ty
 make build
 kubectl create namespace nginx-operator-integration
 sed -ie 's/imagePullPolicy: Always/imagePullPolicy: Never/g' deploy/operator.yaml
-kubectl apply -f deploy/crds/*_crd.yaml
+ls deploy/crds/*_crd.yaml | xargs -I{} kubectl apply -f {}
 kubectl apply -f deploy/ --namespace nginx-operator-integration
 sleep 30s
 kubectl get deployment --all-namespaces
