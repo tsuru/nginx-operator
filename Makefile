@@ -1,6 +1,5 @@
 TAG=latest
 IMAGE=tsuru/nginx-operator
-SIDECAR_IMAGE=tsuru/nginx-operator-sidecar
 
 git_tag    := $(shell git describe --tags --abbrev=0 2>/dev/null || echo 'untagged')
 git_commit := $(shell git rev-parse HEAD 2>/dev/null | cut -c1-7)
@@ -33,9 +32,5 @@ generate:
 build:
 	operator-sdk build $(IMAGE):$(TAG) --go-build-args "-ldflags $(GO_LDFLAGS)"
 
-build-sidecar:
-	docker build -t $(SIDECAR_IMAGE):$(TAG) ./nginx-sidecar/
-
-push: build build-sidecar
+push: build
 	docker push $(IMAGE):$(TAG)
-	docker push $(SIDECAR_IMAGE):$(TAG)
