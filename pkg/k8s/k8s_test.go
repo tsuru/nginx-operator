@@ -20,6 +20,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+var (
+	one int32 = 1
+)
+
 func baseNginx() v1alpha1.Nginx {
 	return v1alpha1.Nginx{
 		ObjectMeta: metav1.ObjectMeta{
@@ -67,6 +71,14 @@ func baseDeployment() appv1.Deployment {
 			Annotations: make(map[string]string),
 		},
 		Spec: appv1.DeploymentSpec{
+			Strategy: appv1.DeploymentStrategy{
+				Type: appv1.RollingUpdateDeploymentStrategyType,
+				RollingUpdate: &appv1.RollingUpdateDeployment{
+					MaxUnavailable: func() *intstr.IntOrString { v := intstr.FromInt(1); return &v }(),
+					MaxSurge:       func() *intstr.IntOrString { v := intstr.FromInt(1); return &v }(),
+				},
+			},
+			Replicas: &one,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"nginx.tsuru.io/resource-name": "my-nginx",
