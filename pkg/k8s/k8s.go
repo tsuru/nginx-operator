@@ -7,6 +7,7 @@ package k8s
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 
@@ -81,6 +82,17 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 		securityContext.RunAsGroup = rootUID
 	}
 
+	if n.Spec.Replicas == nil {
+		var one int32 = 1
+		n.Spec.Replicas = &one
+	}
+
+	// Round up instead of down as is the default behavior for maxUnvailable,
+	// this is useful because we must allow at least one pod down for
+	// hostNetwork deployments.
+	maxUnavailable := intstr.FromInt(int(math.Ceil(float64(*n.Spec.Replicas) * 0.25)))
+	maxSurge := maxUnavailable
+
 	deployment := appv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
@@ -98,6 +110,13 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 			},
 		},
 		Spec: appv1.DeploymentSpec{
+			Strategy: appv1.DeploymentStrategy{
+				Type: appv1.RollingUpdateDeploymentStrategyType,
+				RollingUpdate: &appv1.RollingUpdateDeployment{
+					MaxUnavailable: &maxUnavailable,
+					MaxSurge:       &maxSurge,
+				},
+			},
 			Replicas: n.Spec.Replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: LabelsForNginx(n.Name),
