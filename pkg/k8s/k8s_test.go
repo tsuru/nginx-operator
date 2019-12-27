@@ -72,11 +72,8 @@ func baseDeployment() appv1.Deployment {
 		},
 		Spec: appv1.DeploymentSpec{
 			Strategy: appv1.DeploymentStrategy{
-				Type: appv1.RollingUpdateDeploymentStrategyType,
-				RollingUpdate: &appv1.RollingUpdateDeployment{
-					MaxUnavailable: func() *intstr.IntOrString { v := intstr.FromInt(1); return &v }(),
-					MaxSurge:       func() *intstr.IntOrString { v := intstr.FromInt(1); return &v }(),
-				},
+				Type:          appv1.RollingUpdateDeploymentStrategyType,
+				RollingUpdate: &appv1.RollingUpdateDeployment{},
 			},
 			Replicas: &one,
 			Selector: &metav1.LabelSelector{
@@ -113,9 +110,10 @@ func baseDeployment() appv1.Deployment {
 								},
 							},
 							ReadinessProbe: &corev1.Probe{
+								TimeoutSeconds: int32(1),
 								Handler: corev1.Handler{
 									Exec: &corev1.ExecAction{
-										Command: []string{"sh", "-c", "curl -m20 -kfsS -o /dev/null http://localhost:8080"},
+										Command: []string{"sh", "-c", "curl -m1 -kfsS -o /dev/null http://localhost:8080"},
 									},
 								},
 							},
@@ -280,9 +278,10 @@ func Test_NewDeployment(t *testing.T) {
 					{Name: "nginx-certs", MountPath: "/etc/nginx/certs"},
 				}
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+					TimeoutSeconds: int32(2),
 					Handler: corev1.Handler{
 						Exec: &corev1.ExecAction{
-							Command: []string{"sh", "-c", "curl -m20 -kfsS -o /dev/null http://localhost:8080 && curl -m20 -kfsS -o /dev/null https://localhost:8443"},
+							Command: []string{"sh", "-c", "curl -m1 -kfsS -o /dev/null http://localhost:8080 && curl -m1 -kfsS -o /dev/null https://localhost:8443"},
 						},
 					},
 				}
@@ -334,9 +333,10 @@ func Test_NewDeployment(t *testing.T) {
 					{Name: "nginx-certs", MountPath: "/etc/nginx/certs"},
 				}
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+					TimeoutSeconds: int32(2),
 					Handler: corev1.Handler{
 						Exec: &corev1.ExecAction{
-							Command: []string{"sh", "-c", "curl -m20 -kfsS -o /dev/null http://localhost:8080 && curl -m20 -kfsS -o /dev/null https://localhost:8443"},
+							Command: []string{"sh", "-c", "curl -m1 -kfsS -o /dev/null http://localhost:8080 && curl -m1 -kfsS -o /dev/null https://localhost:8443"},
 						},
 					},
 				}
@@ -392,9 +392,10 @@ func Test_NewDeployment(t *testing.T) {
 					{Name: "nginx-certs", MountPath: "/etc/nginx/certs"},
 				}
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+					TimeoutSeconds: int32(2),
 					Handler: corev1.Handler{
 						Exec: &corev1.ExecAction{
-							Command: []string{"sh", "-c", "curl -m20 -kfsS -o /dev/null http://localhost:8080 && curl -m20 -kfsS -o /dev/null https://localhost:8443"},
+							Command: []string{"sh", "-c", "curl -m1 -kfsS -o /dev/null http://localhost:8080 && curl -m1 -kfsS -o /dev/null https://localhost:8443"},
 						},
 					},
 				}
@@ -472,10 +473,14 @@ func Test_NewDeployment(t *testing.T) {
 						Protocol:      corev1.ProtocolTCP,
 					},
 				}
+				one := intstr.FromInt(1)
+				d.Spec.Strategy.RollingUpdate.MaxUnavailable = &one
+				d.Spec.Strategy.RollingUpdate.MaxSurge = &one
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+					TimeoutSeconds: int32(1),
 					Handler: corev1.Handler{
 						Exec: &corev1.ExecAction{
-							Command: []string{"sh", "-c", "curl -m20 -kfsS -o /dev/null http://localhost:80"},
+							Command: []string{"sh", "-c", "curl -m1 -kfsS -o /dev/null http://localhost:80"},
 						},
 					},
 				}
@@ -517,10 +522,14 @@ func Test_NewDeployment(t *testing.T) {
 						Protocol:      corev1.ProtocolTCP,
 					},
 				}
+				one := intstr.FromInt(1)
+				d.Spec.Strategy.RollingUpdate.MaxUnavailable = &one
+				d.Spec.Strategy.RollingUpdate.MaxSurge = &one
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+					TimeoutSeconds: int32(2),
 					Handler: corev1.Handler{
 						Exec: &corev1.ExecAction{
-							Command: []string{"sh", "-c", "curl -m20 -kfsS -o /dev/null http://localhost:80 && curl -m20 -kfsS -o /dev/null https://localhost:443"},
+							Command: []string{"sh", "-c", "curl -m1 -kfsS -o /dev/null http://localhost:80 && curl -m1 -kfsS -o /dev/null https://localhost:443"},
 						},
 					},
 				}
@@ -591,6 +600,9 @@ func Test_NewDeployment(t *testing.T) {
 					RunAsUser:  rootUID,
 					RunAsGroup: rootUID,
 				}
+				one := intstr.FromInt(1)
+				d.Spec.Strategy.RollingUpdate.MaxUnavailable = &one
+				d.Spec.Strategy.RollingUpdate.MaxSurge = &one
 				d.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
 					{
 						Name:          defaultHTTPPortName,
@@ -604,9 +616,10 @@ func Test_NewDeployment(t *testing.T) {
 					},
 				}
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+					TimeoutSeconds: int32(1),
 					Handler: corev1.Handler{
 						Exec: &corev1.ExecAction{
-							Command: []string{"sh", "-c", "curl -m20 -kfsS -o /dev/null http://localhost:80"},
+							Command: []string{"sh", "-c", "curl -m1 -kfsS -o /dev/null http://localhost:80"},
 						},
 					},
 				}
@@ -1030,9 +1043,10 @@ func Test_NewDeployment(t *testing.T) {
 					},
 				}
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+					TimeoutSeconds: int32(1),
 					Handler: corev1.Handler{
 						Exec: &corev1.ExecAction{
-							Command: []string{"sh", "-c", "curl -m20 -kfsS -o /dev/null http://localhost:20001"},
+							Command: []string{"sh", "-c", "curl -m1 -kfsS -o /dev/null http://localhost:20001"},
 						},
 					},
 				}
@@ -1075,10 +1089,14 @@ func Test_NewDeployment(t *testing.T) {
 						Protocol:      corev1.ProtocolTCP,
 					},
 				}
+				one := intstr.FromInt(1)
+				d.Spec.Strategy.RollingUpdate.MaxUnavailable = &one
+				d.Spec.Strategy.RollingUpdate.MaxSurge = &one
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+					TimeoutSeconds: int32(1),
 					Handler: corev1.Handler{
 						Exec: &corev1.ExecAction{
-							Command: []string{"sh", "-c", "curl -m20 -kfsS -o /dev/null http://localhost:20001"},
+							Command: []string{"sh", "-c", "curl -m1 -kfsS -o /dev/null http://localhost:20001"},
 						},
 					},
 				}
@@ -1125,9 +1143,10 @@ func Test_NewDeployment(t *testing.T) {
 					},
 				}
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+					TimeoutSeconds: int32(2),
 					Handler: corev1.Handler{
 						Exec: &corev1.ExecAction{
-							Command: []string{"sh", "-c", "curl -m20 -kfsS -o /dev/null http://localhost:20001 && curl -m20 -kfsS -o /dev/null https://localhost:20002"},
+							Command: []string{"sh", "-c", "curl -m1 -kfsS -o /dev/null http://localhost:20001 && curl -m1 -kfsS -o /dev/null https://localhost:20002"},
 						},
 					},
 				}

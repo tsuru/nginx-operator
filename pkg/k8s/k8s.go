@@ -34,7 +34,7 @@ const (
 	defaultHTTPSHostNetworkPort = int32(443)
 	defaultHTTPSPortName        = "https"
 
-	curlProbeCommand = "curl -m20 -kfsS -o /dev/null %s"
+	curlProbeCommand = "curl -m%d -kfsS -o /dev/null %s"
 
 	// Mount path where nginx.conf will be placed
 	configMountPath = "/etc/nginx"
@@ -87,11 +87,15 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 		n.Spec.Replicas = &one
 	}
 
-	// Round up instead of down as is the default behavior for maxUnvailable,
-	// this is useful because we must allow at least one pod down for
-	// hostNetwork deployments.
-	maxUnavailable := intstr.FromInt(int(math.Ceil(float64(*n.Spec.Replicas) * 0.25)))
-	maxSurge := maxUnavailable
+	var maxSurge, maxUnavailable *intstr.IntOrString
+	if n.Spec.PodTemplate.HostNetwork {
+		// Round up instead of down as is the default behavior for maxUnvailable,
+		// this is useful because we must allow at least one pod down for
+		// hostNetwork deployments.
+		adjustedValue := intstr.FromInt(int(math.Ceil(float64(*n.Spec.Replicas) * 0.25)))
+		maxUnavailable = &adjustedValue
+		maxSurge = &adjustedValue
+	}
 
 	deployment := appv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -113,8 +117,8 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 			Strategy: appv1.DeploymentStrategy{
 				Type: appv1.RollingUpdateDeploymentStrategyType,
 				RollingUpdate: &appv1.RollingUpdateDeployment{
-					MaxUnavailable: &maxUnavailable,
-					MaxSurge:       &maxSurge,
+					MaxUnavailable: maxUnavailable,
+					MaxSurge:       maxSurge,
 				},
 			},
 			Replicas: n.Spec.Replicas,
@@ -532,22 +536,28 @@ func setDefaultPorts(podSpec *v1alpha1.NginxPodTemplateSpec) {
 
 func setupProbes(nginxSpec v1alpha1.NginxSpec, dep *appv1.Deployment) {
 	httpPort := portByName(nginxSpec.PodTemplate.Ports, defaultHTTPPortName)
+	cmdTimeoutSec := int32(1)
 
 	var commands []string
 	if httpPort != nil {
 		httpURL := fmt.Sprintf("http://localhost:%d%s", httpPort.ContainerPort, nginxSpec.HealthcheckPath)
-		commands = append(commands, fmt.Sprintf(curlProbeCommand, httpURL))
+		commands = append(commands, fmt.Sprintf(curlProbeCommand, cmdTimeoutSec, httpURL))
 	}
 
 	if nginxSpec.Certificates != nil {
 		httpsPort := portByName(nginxSpec.PodTemplate.Ports, defaultHTTPSPortName)
 		if httpsPort != nil {
 			httpsURL := fmt.Sprintf("https://localhost:%d%s", httpsPort.ContainerPort, nginxSpec.HealthcheckPath)
-			commands = append(commands, fmt.Sprintf(curlProbeCommand, httpsURL))
+			commands = append(commands, fmt.Sprintf(curlProbeCommand, cmdTimeoutSec, httpsURL))
 		}
 	}
 
+	if len(commands) == 0 {
+		return
+	}
+
 	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+		TimeoutSeconds: cmdTimeoutSec * int32(len(commands)),
 		Handler: corev1.Handler{
 			Exec: &corev1.ExecAction{
 				Command: []string{
