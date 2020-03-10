@@ -213,6 +213,11 @@ func (in *NginxPodTemplateSpec) DeepCopyInto(out *NginxPodTemplateSpec) {
 		*out = new(int64)
 		**out = **in
 	}
+	if in.SecurityContext != nil {
+		in, out := &in.SecurityContext, &out.SecurityContext
+		*out = new(v1.SecurityContext)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
@@ -292,11 +297,6 @@ func (in *NginxSpec) DeepCopyInto(out *NginxSpec) {
 	}
 	in.Resources.DeepCopyInto(&out.Resources)
 	in.Cache.DeepCopyInto(&out.Cache)
-	if in.SecurityContext != nil {
-		in, out := &in.SecurityContext, &out.SecurityContext
-		*out = new(v1.SecurityContext)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.Lifecycle != nil {
 		in, out := &in.Lifecycle, &out.Lifecycle
 		*out = new(NginxLifecycle)

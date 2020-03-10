@@ -48,9 +48,6 @@ type NginxSpec struct {
 	// Cache allows configuring a cache volume for nginx to use.
 	// +optional
 	Cache NginxCacheSpec `json:"cache,omitempty"`
-	// SecurityContext configures security attributes for the nginx container.
-	// +optional
-	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 	// Lifecycle describes actions that should be executed when
 	// some event happens to nginx container.
 	// +optional
@@ -97,6 +94,9 @@ type NginxPodTemplateSpec struct {
 	// terminationGracePeriodSeconds default value.
 	// +optional
 	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
+	// SecurityContext configures security attributes for the nginx pod.
+	// +optional
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 }
 
 // NginxStatus defines the observed state of Nginx

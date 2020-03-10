@@ -458,8 +458,11 @@ func Test_NewDeployment(t *testing.T) {
 			deployFn: func(d appv1.Deployment) appv1.Deployment {
 				d.Spec.Template.Spec.HostNetwork = true
 				d.Spec.Template.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
-					RunAsUser:  rootUID,
-					RunAsGroup: rootUID,
+					Capabilities: &corev1.Capabilities{
+						Add: []corev1.Capability{
+							"NET_BIND_SERVICE",
+						},
+					},
 				}
 				d.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
 					{
@@ -507,8 +510,11 @@ func Test_NewDeployment(t *testing.T) {
 			deployFn: func(d appv1.Deployment) appv1.Deployment {
 				d.Spec.Template.Spec.HostNetwork = true
 				d.Spec.Template.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
-					RunAsUser:  rootUID,
-					RunAsGroup: rootUID,
+					Capabilities: &corev1.Capabilities{
+						Add: []corev1.Capability{
+							"NET_BIND_SERVICE",
+						},
+					},
 				}
 				d.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
 					{
@@ -556,7 +562,7 @@ func Test_NewDeployment(t *testing.T) {
 		{
 			name: "with-security-context",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
-				n.Spec.SecurityContext = &corev1.SecurityContext{
+				n.Spec.PodTemplate.SecurityContext = &corev1.SecurityContext{
 					RunAsUser:  new(int64),
 					RunAsGroup: new(int64),
 				}
@@ -576,10 +582,10 @@ func Test_NewDeployment(t *testing.T) {
 				n.Spec.PodTemplate = v1alpha1.NginxPodTemplateSpec{
 					HostNetwork: true,
 				}
-				n.Spec.SecurityContext = &corev1.SecurityContext{
+				n.Spec.PodTemplate.SecurityContext = &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
 						Drop: []corev1.Capability{corev1.Capability("all")},
-						Add:  []corev1.Capability{corev1.Capability("NET_BIND_SERVICE")},
+						Add:  []corev1.Capability{corev1.Capability("NET_ADMIN")},
 					},
 					RunAsUser:  func(n int64) *int64 { return &n }(int64(100)),
 					RunAsGroup: func(n int64) *int64 { return &n }(int64(100)),
@@ -594,11 +600,12 @@ func Test_NewDeployment(t *testing.T) {
 							"all",
 						},
 						Add: []corev1.Capability{
+							"NET_ADMIN",
 							"NET_BIND_SERVICE",
 						},
 					},
-					RunAsUser:  rootUID,
-					RunAsGroup: rootUID,
+					RunAsUser:  func(n int64) *int64 { return &n }(int64(100)),
+					RunAsGroup: func(n int64) *int64 { return &n }(int64(100)),
 				}
 				one := intstr.FromInt(1)
 				d.Spec.Strategy.RollingUpdate.MaxUnavailable = &one
@@ -1054,6 +1061,59 @@ func Test_NewDeployment(t *testing.T) {
 			},
 		},
 		{
+			name: "with low port",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.PodTemplate.HostNetwork = true
+				n.Spec.PodTemplate.Ports = []corev1.ContainerPort{
+					{
+						Name:          "http",
+						ContainerPort: 80,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          "https",
+						ContainerPort: 443,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.HostNetwork = true
+				d.Spec.Template.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
+					Capabilities: &corev1.Capabilities{
+						Add: []corev1.Capability{
+							"NET_BIND_SERVICE",
+						},
+					},
+				}
+				d.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
+					{
+						Name:          defaultHTTPPortName,
+						ContainerPort: 80,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          defaultHTTPSPortName,
+						ContainerPort: 443,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				}
+				one := intstr.FromInt(1)
+				d.Spec.Strategy.RollingUpdate.MaxUnavailable = &one
+				d.Spec.Strategy.RollingUpdate.MaxSurge = &one
+				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+					TimeoutSeconds: int32(1),
+					Handler: corev1.Handler{
+						Exec: &corev1.ExecAction{
+							Command: []string{"sh", "-c", "curl -m1 -kfsS -o /dev/null http://localhost:80"},
+						},
+					},
+				}
+				return d
+			},
+		},
+		{
 			name: "with host network and custom ports",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
 				n.Spec.PodTemplate.HostNetwork = true
@@ -1073,10 +1133,6 @@ func Test_NewDeployment(t *testing.T) {
 			},
 			deployFn: func(d appv1.Deployment) appv1.Deployment {
 				d.Spec.Template.Spec.HostNetwork = true
-				d.Spec.Template.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
-					RunAsUser:  rootUID,
-					RunAsGroup: rootUID,
-				}
 				d.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
 					{
 						Name:          defaultHTTPPortName,

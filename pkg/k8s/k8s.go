@@ -64,27 +64,26 @@ var defaultPostStartCommand = []string{
 	"nginx -t && touch /tmp/done",
 }
 
-// User ID to root
-var rootUID *int64 = new(int64)
-
 // NewDeployment creates a deployment for a given Nginx resource.
 func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 	n.Spec.Image = valueOrDefault(n.Spec.Image, defaultNginxImage)
 	setDefaultPorts(&n.Spec.PodTemplate)
 
-	securityContext := n.Spec.SecurityContext
-	if n.Spec.PodTemplate.HostNetwork {
-		if securityContext == nil {
-			securityContext = &corev1.SecurityContext{}
-		}
-
-		securityContext.RunAsUser = rootUID
-		securityContext.RunAsGroup = rootUID
-	}
-
 	if n.Spec.Replicas == nil {
 		var one int32 = 1
 		n.Spec.Replicas = &one
+	}
+
+	securityContext := n.Spec.PodTemplate.SecurityContext
+
+	if hasLowPort(n.Spec.PodTemplate.Ports) {
+		if securityContext == nil {
+			securityContext = &corev1.SecurityContext{}
+		}
+		if securityContext.Capabilities == nil {
+			securityContext.Capabilities = &corev1.Capabilities{}
+		}
+		securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "NET_BIND_SERVICE")
 	}
 
 	var maxSurge, maxUnavailable *intstr.IntOrString
@@ -567,4 +566,13 @@ func setupProbes(nginxSpec v1alpha1.NginxSpec, dep *appv1.Deployment) {
 			},
 		},
 	}
+}
+
+func hasLowPort(ports []corev1.ContainerPort) bool {
+	for _, port := range ports {
+		if port.ContainerPort < 1024 {
+			return true
+		}
+	}
+	return false
 }
