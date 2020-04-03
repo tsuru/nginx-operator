@@ -139,6 +139,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 							Resources:       n.Spec.Resources,
 							SecurityContext: securityContext,
 							Ports:           n.Spec.PodTemplate.Ports,
+							VolumeMounts:    n.Spec.PodTemplate.VolumeMounts,
 						},
 					},
 					Affinity:                      n.Spec.PodTemplate.Affinity,

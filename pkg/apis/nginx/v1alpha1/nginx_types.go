@@ -100,6 +100,10 @@ type NginxPodTemplateSpec struct {
 	// Volumes that will attach to nginx instances
 	// +optional
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
+
+	// VolumeMounts will mount volume declared above in directories
+	// +optional
+	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
 }
 
 // NginxStatus defines the observed state of Nginx

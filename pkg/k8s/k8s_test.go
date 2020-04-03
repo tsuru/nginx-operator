@@ -1239,10 +1239,20 @@ func Test_NewDeployment(t *testing.T) {
 						},
 					},
 				}
+				n.Spec.PodTemplate.VolumeMounts = []corev1.VolumeMount{
+					{
+						Name:      "test",
+						MountPath: "/tmp/test",
+					},
+				}
 
 				return n
 			},
 			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.Containers[0].VolumeMounts = append(d.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
+					Name:      "test",
+					MountPath: "/tmp/test",
+				})
 				d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, corev1.Volume{
 					Name: "test",
 					VolumeSource: corev1.VolumeSource{
