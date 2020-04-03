@@ -144,6 +144,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 					Affinity:                      n.Spec.PodTemplate.Affinity,
 					HostNetwork:                   n.Spec.PodTemplate.HostNetwork,
 					TerminationGracePeriodSeconds: n.Spec.PodTemplate.TerminationGracePeriodSeconds,
+					Volumes: n.Spec.PodTemplate.Volumes,
 				},
 			},
 		},

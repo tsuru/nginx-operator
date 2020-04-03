@@ -1226,6 +1226,34 @@ func Test_NewDeployment(t *testing.T) {
 				return d
 			},
 		},
+		{
+			name: "with volumes",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.PodTemplate.Volumes = []corev1.Volume{
+					{
+						Name: "test",
+						VolumeSource: corev1.VolumeSource{
+							PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+								ClaimName: "my-test-claim",
+							},
+						},
+					},
+				}
+
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, corev1.Volume{
+					Name: "test",
+					VolumeSource: corev1.VolumeSource{
+						PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: "my-test-claim",
+						},
+					},
+				})
+				return d
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
