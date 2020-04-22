@@ -104,6 +104,10 @@ type NginxPodTemplateSpec struct {
 	// VolumeMounts will mount volume declared above in directories
 	// +optional
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+
+	// InitContainers are executed in order prior to containers being started
+	// More info: https://kubernetes.io/docs/concepts/workloads/pods/init-containers/
+	InitContainers []corev1.Container `json:"initContainers,omitempty"`
 }
 
 // NginxStatus defines the observed state of Nginx
