@@ -1264,6 +1264,28 @@ func Test_NewDeployment(t *testing.T) {
 				return d
 			},
 		},
+		{
+			name: "with initContainers",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.PodTemplate.InitContainers = []corev1.Container{
+					{
+						Name:  "preheat-cache",
+						Image: "tsuru/preheat-cache:3321",
+						Args:  []string{"-c", "rsync /tmp /blah"},
+					},
+				}
+
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.InitContainers = append(d.Spec.Template.Spec.InitContainers, corev1.Container{
+					Name:  "preheat-cache",
+					Image: "tsuru/preheat-cache:3321",
+					Args:  []string{"-c", "rsync /tmp /blah"},
+				})
+				return d
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
