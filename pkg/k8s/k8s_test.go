@@ -883,14 +883,13 @@ func Test_NewDeployment(t *testing.T) {
 					Name:      "cache-vol",
 					MountPath: "/var/cache",
 				})
-				q, err := resource.ParseQuantity("10Mi")
-				require.NoError(t, err)
+				q := resource.NewQuantity(int64(11010048), resource.BinarySI)
 				d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, corev1.Volume{
 					Name: "cache-vol",
 					VolumeSource: corev1.VolumeSource{
 						EmptyDir: &corev1.EmptyDirVolumeSource{
 							Medium:    "Memory",
-							SizeLimit: &q,
+							SizeLimit: q,
 						},
 					},
 				})

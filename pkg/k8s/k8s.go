@@ -15,6 +15,7 @@ import (
 	"github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8slabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -33,6 +34,8 @@ const (
 	defaultHTTPSPort            = int32(8443)
 	defaultHTTPSHostNetworkPort = int32(443)
 	defaultHTTPSPortName        = "https"
+
+	defaultCacheVolumeExtraSize = float64(1.05)
 
 	curlProbeCommand = "curl -m%d -kfsS -o /dev/null %s"
 
@@ -452,15 +455,23 @@ func setupCacheVolume(cache v1alpha1.NginxCacheSpec, dep *appv1.Deployment) {
 	if cache.InMemory {
 		medium = corev1.StorageMediumMemory
 	}
-	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, corev1.Volume{
+	cacheVolume := corev1.Volume{
 		Name: cacheVolName,
 		VolumeSource: corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{
-				Medium:    medium,
-				SizeLimit: cache.Size,
+				Medium: medium,
 			},
 		},
-	})
+	}
+	if cache.Size != nil {
+		// Nginx cache manager allows the cache size to temporarily exceeds
+		// the limit configured with the max_size directive. Here we are adding
+		// extra 5% of space to the cache volume to avoid pod evictions.
+		// https://docs.nginx.com/nginx/admin-guide/content-cache/content-caching/#nginx-processes-involved-in-caching
+		cacheLimit := math.Ceil(float64(cache.Size.Value()) * defaultCacheVolumeExtraSize)
+		cacheVolume.VolumeSource.EmptyDir.SizeLimit = resource.NewQuantity(int64(cacheLimit), resource.BinarySI)
+	}
+	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, cacheVolume)
 	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
 		Name:      cacheVolName,
 		MountPath: cache.Path,
