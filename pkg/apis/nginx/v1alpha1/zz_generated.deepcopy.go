@@ -189,6 +189,13 @@ func (in *NginxPodTemplateSpec) DeepCopyInto(out *NginxPodTemplateSpec) {
 		*out = new(v1.Affinity)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.NodeSelector != nil {
+		in, out := &in.NodeSelector, &out.NodeSelector
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.Annotations != nil {
 		in, out := &in.Annotations, &out.Annotations
 		*out = make(map[string]string, len(*in))
@@ -217,6 +224,27 @@ func (in *NginxPodTemplateSpec) DeepCopyInto(out *NginxPodTemplateSpec) {
 		in, out := &in.SecurityContext, &out.SecurityContext
 		*out = new(v1.SecurityContext)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.Volumes != nil {
+		in, out := &in.Volumes, &out.Volumes
+		*out = make([]v1.Volume, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.VolumeMounts != nil {
+		in, out := &in.VolumeMounts, &out.VolumeMounts
+		*out = make([]v1.VolumeMount, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.InitContainers != nil {
+		in, out := &in.InitContainers, &out.InitContainers
+		*out = make([]v1.Container, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
 	}
 	return
 }

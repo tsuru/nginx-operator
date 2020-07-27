@@ -77,6 +77,9 @@ type NginxPodTemplateSpec struct {
 	// Affinity to be set on the nginx pod.
 	// +optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
+	// NodeSelector to be set on the nginx pod.
+	// +optional
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 	// Annotations are custom annotations to be set into Pod.
 	// +optional
 	Annotations map[string]string `json:"annotations,omitempty"`

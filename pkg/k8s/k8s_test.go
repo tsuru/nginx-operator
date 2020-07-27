@@ -450,6 +450,21 @@ func Test_NewDeployment(t *testing.T) {
 			},
 		},
 		{
+			name: "with-node-selector",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.PodTemplate.NodeSelector = map[string]string{
+					"diskType": "ssd",
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.NodeSelector = map[string]string{
+					"diskType": "ssd",
+				}
+				return d
+			},
+		},
+		{
 			name: "with-host-network",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
 				n.Spec.PodTemplate.HostNetwork = true
