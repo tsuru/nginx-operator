@@ -13,6 +13,7 @@ import (
 	"github.com/tsuru/nginx-operator/pkg/apis"
 	"github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -241,6 +242,161 @@ func TestReconcileNginx_reconcileService(t *testing.T) {
 			serviceName := types.NamespacedName{Name: tt.nginx.Name + "-service", Namespace: tt.nginx.Namespace}
 			require.NoError(t, reconciler.client.Get(context.Background(), serviceName, gotService))
 			tt.assertion(t, err, gotService)
+		})
+	}
+}
+
+func TestReconcileNginx_reconcilePDB(t *testing.T) {
+	scheme := runtime.NewScheme()
+	corev1.AddToScheme(scheme)
+	apis.AddToScheme(scheme)
+	policyv1beta1.AddToScheme(scheme)
+
+	ten := intstr.FromString("10%")
+	hundred := intstr.FromString("100%")
+
+	tests := []struct {
+		name      string
+		nginx     *v1alpha1.Nginx
+		resources []runtime.Object
+		assert    func(t *testing.T, err error, got *policyv1beta1.PodDisruptionBudget)
+	}{
+		{
+			name: "when nginx is nil",
+			assert: func(t *testing.T, err error, got *policyv1beta1.PodDisruptionBudget) {
+				assert.EqualError(t, err, "nginx cannot be nil")
+			},
+		},
+		{
+			name: "when max unavailable is set and an old pdb resource does not exist",
+			nginx: &v1alpha1.Nginx{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-instance",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.NginxSpec{
+					DisruptionBudget: &v1alpha1.NginxDisruptionBudget{
+						MaxUnavailable: &intstr.IntOrString{Type: intstr.String, StrVal: "10%"},
+					},
+				},
+			},
+			assert: func(t *testing.T, err error, got *policyv1beta1.PodDisruptionBudget) {
+				require.NoError(t, err)
+				assert.NotNil(t, got)
+
+				expected := policyv1beta1.PodDisruptionBudgetSpec{
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"nginx.tsuru.io/app":           "nginx",
+							"nginx.tsuru.io/resource-name": "my-instance",
+						},
+					},
+					MaxUnavailable: &ten,
+				}
+				assert.Equal(t, got.Spec, expected)
+			},
+		},
+		{
+			name: "when the pdb resource exists but spec has changed",
+			nginx: &v1alpha1.Nginx{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-instance",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.NginxSpec{
+					DisruptionBudget: &v1alpha1.NginxDisruptionBudget{
+						MinAvailable: &hundred,
+					},
+				},
+			},
+			resources: []runtime.Object{
+				&policyv1beta1.PodDisruptionBudget{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "v1beta1",
+						Kind:       "PodDisruptionBudget",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "my-instance",
+						Namespace: "default",
+					},
+					Spec: policyv1beta1.PodDisruptionBudgetSpec{
+						Selector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"nginx.tsuru.io/app":           "nginx",
+								"nginx.tsuru.io/resource-name": "my-instance",
+							},
+						},
+						MaxUnavailable: &ten,
+					},
+				},
+			},
+			assert: func(t *testing.T, err error, got *policyv1beta1.PodDisruptionBudget) {
+				require.NoError(t, err)
+				assert.NotNil(t, got)
+
+				expected := policyv1beta1.PodDisruptionBudgetSpec{
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"nginx.tsuru.io/app":           "nginx",
+							"nginx.tsuru.io/resource-name": "my-instance",
+						},
+					},
+					MinAvailable: &hundred,
+				}
+				assert.Equal(t, got.Spec, expected)
+			},
+		},
+		{
+			name: "when pdb exists but disruptionbudget on nginx is nil",
+			nginx: &v1alpha1.Nginx{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-instance",
+					Namespace: "default",
+				},
+			},
+			resources: []runtime.Object{
+				&policyv1beta1.PodDisruptionBudget{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "v1beta1",
+						Kind:       "PodDisruptionBudget",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "my-instance",
+						Namespace: "default",
+					},
+					Spec: policyv1beta1.PodDisruptionBudgetSpec{
+						Selector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"nginx.tsuru.io/app":           "nginx",
+								"nginx.tsuru.io/resource-name": "my-instance",
+							},
+						},
+						MaxUnavailable: &ten,
+					},
+				},
+			},
+			assert: func(t *testing.T, err error, got *policyv1beta1.PodDisruptionBudget) {
+				require.NoError(t, err)
+				assert.Nil(t, got)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.NotNil(t, tt.assert)
+			r := ReconcileNginx{client: fake.NewFakeClientWithScheme(scheme, tt.resources...)}
+			err := r.reconcilePDB(context.TODO(), tt.nginx)
+			var got *policyv1beta1.PodDisruptionBudget
+			if tt.nginx != nil {
+				got = new(policyv1beta1.PodDisruptionBudget)
+				key := types.NamespacedName{Name: got.Name, Namespace: got.Namespace}
+				nerr := r.client.Get(context.TODO(), key, got)
+				if nerr != nil {
+					got = nil
+				}
+			}
+			tt.assert(t, err, got)
 		})
 	}
 }

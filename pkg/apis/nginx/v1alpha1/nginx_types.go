@@ -8,6 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // NginxSpec defines the desired state of Nginx
@@ -52,6 +53,21 @@ type NginxSpec struct {
 	// some event happens to nginx container.
 	// +optional
 	Lifecycle *NginxLifecycle `json:"lifecycle,omitempty"`
+	// DisruptionBudget configures the max disruption that can be caused to pods
+	// on this Nginx resource.
+	// +optional
+	DisruptionBudget *NginxDisruptionBudget `json:"disruptionBudget,omitempty"`
+}
+
+type NginxDisruptionBudget struct {
+	// MinAvailable sets the min available to pdb.spec.minAvailable selecting
+	// the pods of this Nginx resource.
+	// +optional
+	MinAvailable *intstr.IntOrString `json:"minAvailable,omitempty"`
+	// MaxUnavailable sets the max unavailable on pbd.spec.maxUnavailable selecting
+	// the pods of this Nginx resource.
+	// +optional
+	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
 }
 
 type NginxCacheSpec struct {

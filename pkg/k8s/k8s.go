@@ -15,6 +15,7 @@ import (
 	"github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/api/policy/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8slabels "k8s.io/apimachinery/pkg/labels"
@@ -242,6 +243,40 @@ func nginxService(n *v1alpha1.Nginx) corev1.ServiceType {
 		return corev1.ServiceTypeClusterIP
 	}
 	return corev1.ServiceType(n.Spec.Service.Type)
+}
+
+// NewPDB creates a PodDisruptionBudget for a given Nginx resource.
+func NewPDB(n *v1alpha1.Nginx) *v1beta1.PodDisruptionBudget {
+	var minAvailable, maxUnavailable *intstr.IntOrString
+	if n.Spec.DisruptionBudget != nil {
+		minAvailable = n.Spec.DisruptionBudget.MinAvailable
+		maxUnavailable = n.Spec.DisruptionBudget.MaxUnavailable
+	}
+
+	return &v1beta1.PodDisruptionBudget{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1beta1",
+			Kind:       "PodDisruptionBudget",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      n.Name,
+			Namespace: n.Namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(n, schema.GroupVersionKind{
+					Group:   v1alpha1.SchemeGroupVersion.Group,
+					Version: v1alpha1.SchemeGroupVersion.Version,
+					Kind:    "Nginx",
+				}),
+			},
+		},
+		Spec: v1beta1.PodDisruptionBudgetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: LabelsForNginx(n.Name),
+			},
+			MinAvailable:   minAvailable,
+			MaxUnavailable: maxUnavailable,
+		},
+	}
 }
 
 // LabelsForNginx returns the labels for a Nginx CR with the given name

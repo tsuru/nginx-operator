@@ -14,6 +14,7 @@ import (
 	"github.com/tsuru/nginx-operator/pkg/k8s"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -112,6 +113,11 @@ func (r *ReconcileNginx) Reconcile(request reconcile.Request) (reconcile.Result,
 
 	if err := r.reconcileNginx(ctx, instance); err != nil {
 		reqLogger.Error(err, "Fail to reconcile")
+		return reconcile.Result{}, err
+	}
+
+	if err := r.reconcilePDB(ctx, instance); err != nil {
+		reqLogger.Error(err, "Failed to reconcile PodDisruptionBudget")
 		return reconcile.Result{}, err
 	}
 
@@ -218,6 +224,35 @@ func (r *ReconcileNginx) reconcileService(ctx context.Context, nginx *nginxv1alp
 	logger.WithValues("ServiceResource", newService).V(4).Info("Updating Service resource")
 
 	return r.client.Update(ctx, newService)
+}
+
+func (r *ReconcileNginx) reconcilePDB(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
+	if nginx == nil {
+		return fmt.Errorf("nginx cannot be nil")
+	}
+
+	newPDB := k8s.NewPDB(nginx)
+
+	var current policyv1beta1.PodDisruptionBudget
+	err := r.client.Get(ctx, types.NamespacedName{Name: newPDB.Name, Namespace: newPDB.Namespace}, &current)
+	if errors.IsNotFound(err) {
+		if nginx.Spec.DisruptionBudget == nil {
+			return nil
+		}
+
+		return r.client.Create(ctx, newPDB)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if nginx.Spec.DisruptionBudget == nil {
+		return r.client.Delete(ctx, &current)
+	}
+
+	newPDB.ResourceVersion = current.ResourceVersion
+	return r.client.Update(ctx, newPDB)
 }
 
 func (r *ReconcileNginx) refreshStatus(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
