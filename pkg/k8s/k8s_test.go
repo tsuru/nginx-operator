@@ -941,7 +941,7 @@ func Test_NewDeployment(t *testing.T) {
 							Command: []string{
 								"/bin/sh",
 								"-c",
-								"nginx -t && touch /tmp/done",
+								"nginx -t | tee /tmp/error && touch /tmp/done",
 							},
 						},
 					},
@@ -987,7 +987,7 @@ func Test_NewDeployment(t *testing.T) {
 							Command: []string{
 								"/bin/sh",
 								"-c",
-								"nginx -t && touch /tmp/done && echo hello world",
+								"nginx -t | tee /tmp/error && touch /tmp/done && echo hello world",
 							},
 						},
 					},
@@ -1014,7 +1014,7 @@ func Test_NewDeployment(t *testing.T) {
 							Command: []string{
 								"/bin/sh",
 								"-c",
-								"nginx -t && touch /tmp/done",
+								"nginx -t | tee /tmp/error && touch /tmp/done",
 							},
 						},
 					},

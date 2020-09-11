@@ -58,13 +58,13 @@ const (
 var nginxEntrypoint = []string{
 	"/bin/sh",
 	"-c",
-	"while ! [ -f /tmp/done ]; do sleep 0.5; done && exec nginx -g 'daemon off;'",
+	"while ! [ -f /tmp/done ]; do [ -f /tmp/error ] && cat /tmp/error >&2; sleep 0.5; done && exec nginx -g 'daemon off;'",
 }
 
 var defaultPostStartCommand = []string{
 	"/bin/sh",
 	"-c",
-	"nginx -t && touch /tmp/done",
+	"nginx -t | tee /tmp/error && touch /tmp/done",
 }
 
 // NewDeployment creates a deployment for a given Nginx resource.
