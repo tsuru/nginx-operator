@@ -10,14 +10,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	tsuruConfig "github.com/tsuru/config"
-	"github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
+
+	tsuruConfig "github.com/tsuru/config"
+	"github.com/tsuru/nginx-operator/api/v1alpha1"
 )
 
 var (
@@ -1307,8 +1308,8 @@ func Test_NewDeployment(t *testing.T) {
 			want := tt.deployFn(baseDeployment())
 			want.OwnerReferences = []metav1.OwnerReference{
 				*metav1.NewControllerRef(&nginx, schema.GroupVersionKind{
-					Group:   v1alpha1.SchemeGroupVersion.Group,
-					Version: v1alpha1.SchemeGroupVersion.Version,
+					Group:   v1alpha1.GroupVersion.Group,
+					Version: v1alpha1.GroupVersion.Version,
 					Kind:    "Nginx",
 				}),
 			}
@@ -1599,8 +1600,8 @@ func TestNewService(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.want.OwnerReferences = []metav1.OwnerReference{
 				*metav1.NewControllerRef(&tt.nginx, schema.GroupVersionKind{
-					Group:   v1alpha1.SchemeGroupVersion.Group,
-					Version: v1alpha1.SchemeGroupVersion.Version,
+					Group:   v1alpha1.GroupVersion.Group,
+					Version: v1alpha1.GroupVersion.Version,
 					Kind:    "Nginx",
 				}),
 			}

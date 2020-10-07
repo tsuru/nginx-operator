@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	tsuruConfig "github.com/tsuru/config"
-	"github.com/tsuru/nginx-operator/pkg/apis/nginx/v1alpha1"
+	"github.com/tsuru/nginx-operator/api/v1alpha1"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -109,8 +109,8 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 			Namespace: n.Namespace,
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(n, schema.GroupVersionKind{
-					Group:   v1alpha1.SchemeGroupVersion.Group,
-					Version: v1alpha1.SchemeGroupVersion.Version,
+					Group:   v1alpha1.GroupVersion.Group,
+					Version: v1alpha1.GroupVersion.Version,
 					Kind:    "Nginx",
 				}),
 			},
@@ -205,8 +205,8 @@ func NewService(n *v1alpha1.Nginx) *corev1.Service {
 			Namespace: n.Namespace,
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(n, schema.GroupVersionKind{
-					Group:   v1alpha1.SchemeGroupVersion.Group,
-					Version: v1alpha1.SchemeGroupVersion.Version,
+					Group:   v1alpha1.GroupVersion.Group,
+					Version: v1alpha1.GroupVersion.Version,
 					Kind:    "Nginx",
 				}),
 			},
