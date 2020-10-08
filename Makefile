@@ -19,7 +19,7 @@ endif
 
 .PHONY: test
 test: generate
-	go test -race -cover --timeout 30s ./...
+	go test -race -cover ./...
 
 .PHONY: lint
 lint: golangci-lint
