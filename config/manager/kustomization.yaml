@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: tsuru/nginx-operator
-  newTag: dev
+  newTag: integration
