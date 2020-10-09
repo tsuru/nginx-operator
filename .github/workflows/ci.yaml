@@ -3,15 +3,6 @@ name: CI
 on: [push, pull_request]
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - uses: actions-contrib/golangci-lint@v1
-      with:
-        golangci_lint_version: v1.23
-        args: run --config ./.golangci.yml ./...
-
   test:
     runs-on: ubuntu-latest
     steps:
@@ -19,7 +10,35 @@ jobs:
     - uses: actions/setup-go@v1
       with:
         go-version: 1.13.x
+    - uses: actions/cache@v2
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: ${{ runner.os }}-gorace-${{ hashFiles('**/go.sum') }}-${{ github.run_id }}
+        restore-keys: |
+          ${{ runner.os }}-gorace-${{ hashFiles('**/go.sum') }}-
+          ${{ runner.os }}-gorace-
+    # This magic line is to restore the timestamps (mtime) for each file based
+    # on the its last commit. This allows Go test cache to reuse results for
+    # tests that depend on fixture files.
+    - run: git ls-tree -r -t --full-name --name-only HEAD | grep -v vendor | xargs -I{} -P4 sh -c 'touch -d $(git log --pretty=format:%cI -1 HEAD -- "{}") "{}"'
     - run: make test
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/cache@v2
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+    - uses: actions-contrib/golangci-lint@v1
+      with:
+        golangci_lint_version: v1.23
+        args: run --config ./.golangci.yml ./...
 
   integration:
     runs-on: ubuntu-latest
@@ -32,6 +51,16 @@ jobs:
     - uses: actions/setup-go@v1
       with:
         go-version: 1.13.x
+    - uses: actions/cache@v2
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: ${{ runner.os }}-goleak-${{ hashFiles('**/go.sum') }}-${{ github.run_id }}
+        restore-keys: |
+          ${{ runner.os }}-goleak-${{ hashFiles('**/go.sum') }}-
+          ${{ runner.os }}-goleak-
+    - run: git ls-tree -r -t --full-name --name-only HEAD | grep -v vendor | xargs -I{} -P4 sh -c 'touch -d $(git log --pretty=format:%cI -1 HEAD -- "{}") "{}"'
     - name: Setup
       run: |
         make install docker-build
