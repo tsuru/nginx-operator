@@ -8,6 +8,16 @@ metadata:
   creationTimestamp: null
   name: nginxes.nginx.tsuru.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.currentReplicas
+    name: Current
+    type: integer
+  - JSONPath: .spec.replicas
+    name: Desired
+    type: integer
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
   group: nginx.tsuru.io
   names:
     kind: Nginx

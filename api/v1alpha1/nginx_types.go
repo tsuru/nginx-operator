@@ -13,6 +13,9 @@ import (
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.currentReplicas,selectorpath=.status.podSelector
+// +kubebuilder:printcolumn:name="Current",type=integer,JSONPath=`.status.currentReplicas`
+// +kubebuilder:printcolumn:name="Desired",type=integer,JSONPath=`.spec.replicas`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // Nginx is the Schema for the nginxes API
 type Nginx struct {
