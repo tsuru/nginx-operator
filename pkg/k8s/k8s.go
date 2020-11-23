@@ -90,11 +90,12 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 	}
 
 	var maxSurge, maxUnavailable *intstr.IntOrString
-	if n.Spec.PodTemplate.HostNetwork {
+	replicas := *n.Spec.Replicas
+	if n.Spec.PodTemplate.HostNetwork && replicas > 0 {
 		// Round up instead of down as is the default behavior for maxUnvailable,
 		// this is useful because we must allow at least one pod down for
 		// hostNetwork deployments.
-		adjustedValue := intstr.FromInt(int(math.Ceil(float64(*n.Spec.Replicas) * 0.25)))
+		adjustedValue := intstr.FromInt(int(math.Ceil(float64(replicas) * 0.25)))
 		maxUnavailable = &adjustedValue
 		maxSurge = &adjustedValue
 	}

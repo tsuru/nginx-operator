@@ -163,6 +163,19 @@ func Test_NewDeployment(t *testing.T) {
 			},
 		},
 		{
+			name: "zero-replicas",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				v := int32(0)
+				n.Spec.Replicas = &v
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				v := int32(0)
+				d.Spec.Replicas = &v
+				return d
+			},
+		},
+		{
 			name: "custom-image",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
 				n.Spec.Image = "tsuru/nginx:latest"
@@ -495,6 +508,48 @@ func Test_NewDeployment(t *testing.T) {
 				one := intstr.FromInt(1)
 				d.Spec.Strategy.RollingUpdate.MaxUnavailable = &one
 				d.Spec.Strategy.RollingUpdate.MaxSurge = &one
+				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+					TimeoutSeconds: int32(1),
+					Handler: corev1.Handler{
+						Exec: &corev1.ExecAction{
+							Command: []string{"sh", "-c", "curl -m1 -kfsS -o /dev/null http://localhost:80"},
+						},
+					},
+				}
+				return d
+			},
+		},
+		{
+			name: "with-host-network-zero-replicas",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				zero := int32(0)
+				n.Spec.Replicas = &zero
+				n.Spec.PodTemplate.HostNetwork = true
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				zero := int32(0)
+				d.Spec.Replicas = &zero
+				d.Spec.Template.Spec.HostNetwork = true
+				d.Spec.Template.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
+					Capabilities: &corev1.Capabilities{
+						Add: []corev1.Capability{
+							"NET_BIND_SERVICE",
+						},
+					},
+				}
+				d.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
+					{
+						Name:          defaultHTTPPortName,
+						ContainerPort: defaultHTTPHostNetworkPort,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          defaultHTTPSPortName,
+						ContainerPort: defaultHTTPSHostNetworkPort,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				}
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 					TimeoutSeconds: int32(1),
 					Handler: corev1.Handler{
