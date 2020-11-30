@@ -30,7 +30,7 @@ build: manager
 
 .PHONY: manager
 manager: generate
-	go build -o bin/manager main.go
+	go build -o bin/nginx-operator main.go
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 .PHONY: run

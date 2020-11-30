@@ -28,7 +28,7 @@ var (
 
 	metricsAddr = flag.String("metrics-addr", ":8080", "The address the metric endpoint binds to.")
 
-	enableLeaderElection    = flag.Bool("enable-leader-election", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
+	enableLeaderElection    = flag.Bool("enable-leader-election", true, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	leaderElectionNamespace = flag.String("leader-election-namespace", "", "Namespace where the leader election object will be created.")
 
 	syncPeriod = flag.Duration("reconcile-sync", time.Minute, "Resync frequency of Nginx resources.")
