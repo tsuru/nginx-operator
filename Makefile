@@ -66,7 +66,7 @@ docker-push:
 # Generate manifests e.g. CRD, RBAC etc.
 .PHONY: manifests
 manifests: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=nginx-operator webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 # Generate code (zz_generated.deepcopy.go files)
 .PHONY: manifests
