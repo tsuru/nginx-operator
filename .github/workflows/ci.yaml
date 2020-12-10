@@ -47,7 +47,7 @@ jobs:
     - uses: engineerd/setup-kind@v0.5.0
       with:
         version: "v0.9.0"
-        image: kindest/node:v1.14.10
+        image: 'kindest/node:v1.17.11'
     - uses: actions/setup-go@v1
       with:
         go-version: 1.13.x
@@ -63,6 +63,7 @@ jobs:
     - run: git ls-tree -r -t --full-name --name-only HEAD | grep -v vendor | xargs -I{} -P4 sh -c 'touch -d $(git log --pretty=format:%cI -1 HEAD -- "{}") "{}"'
     - name: Setup
       run: |
+        kubectl create namespace nginx-operator-system
         make install docker-build
         kind load docker-image ${IMAGE}:${TAG}
         (cd ./config/manager && kustomize edit set image controller=${IMAGE}:${TAG})
