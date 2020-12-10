@@ -2,6 +2,7 @@ resources:
 - manager.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+namespace: nginx-operator-system
 images:
 - name: controller
   newName: tsuru/nginx-operator
