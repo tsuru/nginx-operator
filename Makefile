@@ -35,7 +35,7 @@ manager: generate
 # Run against the configured Kubernetes cluster in ~/.kube/config
 .PHONY: run
 run: generate manifests
-	go run ./main.go
+	go run ./main.go --enable-leader-election=false
 
 # Install CRDs into a cluster
 .PHONY: install
