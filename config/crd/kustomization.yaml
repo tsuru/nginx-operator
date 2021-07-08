@@ -15,7 +15,7 @@ patches:
     name: .*
   patch: |-
     - op: remove
-      path: /spec/validation/openAPIV3Schema/properties/spec/properties/certificates
+      path: /spec/validation
 
 patchesStrategicMerge:
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix.
