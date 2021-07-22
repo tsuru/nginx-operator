@@ -70,13 +70,6 @@ jobs:
         (cd ./config/manager && kustomize edit set image controller=${IMAGE}:${TAG})
         kind load docker-image ${IMAGE}:${TAG}
         make deploy
-
-        # NOTE: workaround to disable OpenAPI validation since it doesn't work
-        # with field named as `items` on Kubernetes lesser than v1.16.0.
-        # See more at:
-        # - https://github.com/kubernetes/kubernetes/issues/68466
-        # - https://github.com/kubernetes/kubernetes/pull/76124/files
-        kubectl patch crds nginxes.nginx.tsuru.io --type=json --patch='[{"op": "replace", "path": "/spec/validation", "value": {}}]'
       env:
         IMAGE: tsuru/nginx-operator
         TAG: integration
