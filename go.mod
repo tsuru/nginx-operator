@@ -1,6 +1,6 @@
 module github.com/tsuru/nginx-operator
 
-go 1.13
+go 1.16
 
 require (
 	github.com/go-logr/logr v0.4.0
