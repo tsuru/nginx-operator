@@ -20,6 +20,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	nginxv1alpha1 "github.com/tsuru/nginx-operator/api/v1alpha1"
@@ -42,24 +43,21 @@ type NginxReconciler struct {
 func (r *NginxReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&nginxv1alpha1.Nginx{}).
-		Watches(&source.Kind{Type: new(corev1.Pod)}, &handler.EnqueueRequestsFromMapFunc{
+		Watches(&source.Kind{Type: new(corev1.Pod)}, handler.EnqueueRequestsFromMapFunc(func(o client.Object) []reconcile.Request {
 			// HACK(nettoclaudio): We're watching the pods in order to update
 			// the Nginx status subresource with as fresh as possible
 			// information.
-			ToRequests: handler.ToRequestsFunc(func(o handler.MapObject) []ctrl.Request {
-				name := k8s.GetNginxNameFromObject(o.Meta)
-				if name == "" {
-					return nil
-				}
+			name := k8s.GetNginxNameFromObject(o)
+			if name == "" {
+				return nil
+			}
 
-				return []ctrl.Request{{NamespacedName: types.NamespacedName{Name: name, Namespace: o.Meta.GetNamespace()}}}
-			}),
-		}).
+			return []ctrl.Request{{NamespacedName: types.NamespacedName{Name: name, Namespace: o.GetNamespace()}}}
+		})).
 		Complete(r)
 }
 
-func (r *NginxReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *NginxReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("nginx", req.NamespacedName)
 
 	var instance nginxv1alpha1.Nginx

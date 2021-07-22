@@ -233,8 +233,14 @@ func TestNginxReconciler_reconcileService(t *testing.T) {
 			if tt.service != nil {
 				resources = append(resources, tt.service)
 			}
+
+			client := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithRuntimeObjects(resources...).
+				Build()
+
 			r := &NginxReconciler{
-				Client: fake.NewFakeClientWithScheme(scheme, resources...),
+				Client: client,
 				Scheme: scheme,
 				Log:    ctrl.Log.WithName("test"),
 			}

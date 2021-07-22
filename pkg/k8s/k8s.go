@@ -20,6 +20,7 @@ import (
 	k8slabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -258,7 +259,7 @@ func LabelsForNginxString(name string) string {
 	return k8slabels.FormatLabels(LabelsForNginx(name))
 }
 
-func GetNginxNameFromObject(o metav1.Object) string {
+func GetNginxNameFromObject(o client.Object) string {
 	return o.GetLabels()["nginx.tsuru.io/resource-name"]
 }
 
