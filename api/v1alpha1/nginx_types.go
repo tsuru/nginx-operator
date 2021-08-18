@@ -6,6 +6,7 @@ package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -58,6 +59,9 @@ type NginxSpec struct {
 	// Service to expose the nginx pod
 	// +optional
 	Service *NginxService `json:"service,omitempty"`
+	// Ingress defines a convenient way to expose the Nginx service.
+	// +optional
+	Ingress *NginxIngress `json:"ingress,omitempty"`
 	// ExtraFiles references to additional files into a object in the cluster.
 	// These additional files will be mounted on `/etc/nginx/extra_files`.
 	// +optional
@@ -89,6 +93,16 @@ type NginxTLS struct {
 	// wildcard of hosts: "*".
 	// +optional
 	Hosts []string `json:"hosts,omitempty"`
+}
+
+type NginxIngress struct {
+	networkingv1.IngressSpec `json:",inline"`
+	// Annotations are extra annotations for the Ingress resource.
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
+	// Labels are extra labels for the Ingress resource.
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 type NginxService struct {

@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -1535,6 +1536,160 @@ func TestExtractNginxSpec(t *testing.T) {
 			if tt.wantedErr != "" {
 				assert.EqualError(t, err, tt.wantedErr)
 			}
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestNewIngress(t *testing.T) {
+	tests := map[string]struct {
+		nginx func() v1alpha1.Nginx
+		want  *networkingv1.Ingress
+	}{
+		"nginx resource without ingress spec": {
+			nginx: func() v1alpha1.Nginx {
+				return baseNginx()
+			},
+			want: &networkingv1.Ingress{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "v1",
+					Kind:       "Ingress",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-nginx",
+					Namespace: "default",
+					Labels: map[string]string{
+						"nginx.tsuru.io/app":           "nginx",
+						"nginx.tsuru.io/resource-name": "my-nginx",
+					},
+				},
+			},
+		},
+
+		"with custom annotations and labels": {
+			nginx: func() v1alpha1.Nginx {
+				n := baseNginx()
+				n.Spec.Ingress = &v1alpha1.NginxIngress{
+					Annotations: map[string]string{
+						"custom.annotations.example.com/key": "value",
+					},
+					Labels: map[string]string{
+						"nginx.tsuru.io/app":            "ignored",
+						"custom.labels.example.com/key": "value",
+					},
+				}
+				return n
+			},
+			want: &networkingv1.Ingress{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "v1",
+					Kind:       "Ingress",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-nginx",
+					Namespace: "default",
+					Annotations: map[string]string{
+						"custom.annotations.example.com/key": "value",
+					},
+					Labels: map[string]string{
+						"nginx.tsuru.io/app":            "nginx",
+						"nginx.tsuru.io/resource-name":  "my-nginx",
+						"custom.labels.example.com/key": "value",
+					},
+				},
+			},
+		},
+
+		"with ingress settings": {
+			nginx: func() v1alpha1.Nginx {
+				n := baseNginx()
+				n.Spec.Ingress = &v1alpha1.NginxIngress{
+					IngressSpec: networkingv1.IngressSpec{
+						IngressClassName: func(s string) *string { return &s }("custom-class"),
+						TLS: []networkingv1.IngressTLS{
+							{
+								SecretName: "my-nginx-certificate",
+								Hosts:      []string{"my-nginx.example.com", "my-nginx.test"},
+							},
+						},
+						Rules: []networkingv1.IngressRule{
+							{
+								Host: "my-nginx.example.com",
+								IngressRuleValue: networkingv1.IngressRuleValue{
+									HTTP: &networkingv1.HTTPIngressRuleValue{
+										Paths: []networkingv1.HTTPIngressPath{
+											{
+												Path: "/foo/bar/",
+												Backend: networkingv1.IngressBackend{
+													Service: &networkingv1.IngressServiceBackend{
+														Name: "my-nginx-service",
+														Port: networkingv1.ServiceBackendPort{
+															Name: "http",
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				}
+				return n
+			},
+			want: &networkingv1.Ingress{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "v1",
+					Kind:       "Ingress",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-nginx",
+					Namespace: "default",
+					Labels: map[string]string{
+						"nginx.tsuru.io/app":           "nginx",
+						"nginx.tsuru.io/resource-name": "my-nginx",
+					},
+				},
+				Spec: networkingv1.IngressSpec{
+					IngressClassName: func(s string) *string { return &s }("custom-class"),
+					TLS: []networkingv1.IngressTLS{
+						{
+							SecretName: "my-nginx-certificate",
+							Hosts:      []string{"my-nginx.example.com", "my-nginx.test"},
+						},
+					},
+					Rules: []networkingv1.IngressRule{
+						{
+							Host: "my-nginx.example.com",
+							IngressRuleValue: networkingv1.IngressRuleValue{
+								HTTP: &networkingv1.HTTPIngressRuleValue{
+									Paths: []networkingv1.HTTPIngressPath{
+										{
+											Path: "/foo/bar/",
+											Backend: networkingv1.IngressBackend{
+												Service: &networkingv1.IngressServiceBackend{
+													Name: "my-nginx-service",
+													Port: networkingv1.ServiceBackendPort{
+														Name: "http",
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			nginx := tt.nginx()
+			got := NewIngress(&nginx)
 			assert.Equal(t, tt.want, got)
 		})
 	}

@@ -13,6 +13,7 @@ import (
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,6 +38,7 @@ type NginxReconciler struct {
 // +kubebuilder:rbac:groups=nginx.tsuru.io,resources=nginxes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=nginx.tsuru.io,resources=nginxes/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups=networking,resources=ingresses,verbs=get;ĺist;watch;create;update
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
@@ -91,6 +93,10 @@ func (r *NginxReconciler) reconcileNginx(ctx context.Context, nginx *nginxv1alph
 	}
 
 	if err := r.reconcileService(ctx, nginx); err != nil {
+		return err
+	}
+
+	if err := r.reconcileIngress(ctx, nginx); err != nil {
 		return err
 	}
 
@@ -182,6 +188,50 @@ func (r *NginxReconciler) reconcileService(ctx context.Context, nginx *nginxv1al
 	logger.WithValues("ServiceResource", newService).V(4).Info("Updating Service resource")
 
 	return r.Client.Update(ctx, newService)
+}
+
+func (r *NginxReconciler) reconcileIngress(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
+	if nginx == nil {
+		return fmt.Errorf("nginx cannot be nil")
+	}
+
+	new := k8s.NewIngress(nginx)
+
+	var current networkingv1.Ingress
+	err := r.Client.Get(ctx, types.NamespacedName{Name: new.Name, Namespace: new.Namespace}, &current)
+	if errors.IsNotFound(err) {
+		if nginx.Spec.Ingress == nil {
+			return nil
+		}
+
+		return r.Client.Create(ctx, new)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if nginx.Spec.Ingress == nil {
+		return r.Client.Delete(ctx, &current)
+	}
+
+	if !shouldUpdateIngress(&current, new) {
+		return nil
+	}
+
+	new.ResourceVersion = current.ResourceVersion
+
+	return r.Client.Update(ctx, new)
+}
+
+func shouldUpdateIngress(current, new *networkingv1.Ingress) bool {
+	if current == nil || new == nil {
+		return false
+	}
+
+	return !reflect.DeepEqual(current.Annotations, new.Annotations) ||
+		!reflect.DeepEqual(current.Labels, new.Labels) ||
+		!reflect.DeepEqual(current.Spec, new.Spec)
 }
 
 func (r *NginxReconciler) refreshStatus(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {

@@ -15,6 +15,7 @@ import (
 	"github.com/tsuru/nginx-operator/api/v1alpha1"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8slabels "k8s.io/apimachinery/pkg/labels"
@@ -291,6 +292,37 @@ func SetNginxSpec(o *metav1.ObjectMeta, spec v1alpha1.NginxSpec) error {
 	}
 	o.Annotations[generatedFromAnnotation] = string(origSpec)
 	return nil
+}
+
+func NewIngress(nginx *v1alpha1.Nginx) *networkingv1.Ingress {
+	labels := LabelsForNginx(nginx.Name)
+	if nginx.Spec.Ingress != nil {
+		labels = mergeMap(nginx.Spec.Ingress.Labels, labels)
+	}
+
+	var annotations map[string]string
+	if nginx.Spec.Ingress != nil {
+		annotations = mergeMap(nginx.Spec.Ingress.Annotations, annotations)
+	}
+
+	var spec networkingv1.IngressSpec
+	if nginx.Spec.Ingress != nil {
+		spec = nginx.Spec.Ingress.IngressSpec
+	}
+
+	return &networkingv1.Ingress{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Ingress",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        nginx.Name,
+			Namespace:   nginx.Namespace,
+			Annotations: annotations,
+			Labels:      labels,
+		},
+		Spec: spec,
+	}
 }
 
 func setupConfig(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {
