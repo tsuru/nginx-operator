@@ -233,6 +233,7 @@ type NginxStatus struct {
 	PodSelector string          `json:"podSelector,omitempty"`
 	Pods        []PodStatus     `json:"pods,omitempty"`
 	Services    []ServiceStatus `json:"services,omitempty"`
+	Ingresses   []IngressStatus `json:"ingresses,omitempty"`
 }
 
 type PodStatus struct {
@@ -246,6 +247,11 @@ type PodStatus struct {
 
 type ServiceStatus struct {
 	// Name is the name of the Service created by nginx
+	Name string `json:"name"`
+}
+
+type IngressStatus struct {
+	// Name is the name of the Ingress created by nginx
 	Name string `json:"name"`
 }
 

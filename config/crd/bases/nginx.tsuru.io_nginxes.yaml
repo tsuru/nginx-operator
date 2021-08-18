@@ -4193,6 +4193,16 @@ spec:
                 object.
               format: int32
               type: integer
+            ingresses:
+              items:
+                properties:
+                  name:
+                    description: Name is the name of the Ingress created by nginx
+                    type: string
+                required:
+                - name
+                type: object
+              type: array
             podSelector:
               description: PodSelector is the NGINX's pod label selector.
               type: string

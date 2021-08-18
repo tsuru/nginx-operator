@@ -538,6 +538,95 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 	}
 }
 
+func TestNginxReconciler_reconcileStatus(t *testing.T) {
+	nginx := v1alpha1.Nginx{ObjectMeta: metav1.ObjectMeta{Name: "my-nginx", Namespace: "default"}}
+
+	resources := []runtime.Object{
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nginx-abc-123",
+				Namespace: "default",
+				Labels: map[string]string{
+					"nginx.tsuru.io/app":           "nginx",
+					"nginx.tsuru.io/resource-name": "my-nginx",
+				},
+			},
+			Status: corev1.PodStatus{
+				PodIP:  "10.10.10.10",
+				HostIP: "169.254.100.10",
+			},
+		},
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nginx-abc-345",
+				Namespace: "default",
+				Labels: map[string]string{
+					"nginx.tsuru.io/app":           "nginx",
+					"nginx.tsuru.io/resource-name": "my-nginx",
+				},
+			},
+			Status: corev1.PodStatus{
+				PodIP:  "10.10.10.11",
+				HostIP: "169.254.100.11",
+			},
+		},
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nginx-abc-678",
+				Namespace: "default",
+				Labels: map[string]string{
+					"nginx.tsuru.io/app":           "nginx",
+					"nginx.tsuru.io/resource-name": "my-nginx",
+				},
+			},
+		},
+		&corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nginx-service",
+				Namespace: "default",
+				Labels: map[string]string{
+					"nginx.tsuru.io/app":           "nginx",
+					"nginx.tsuru.io/resource-name": "my-nginx",
+				},
+			},
+		},
+		&networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nginx",
+				Namespace: "default",
+				Labels: map[string]string{
+					"nginx.tsuru.io/app":           "nginx",
+					"nginx.tsuru.io/resource-name": "my-nginx",
+				},
+			},
+		},
+		&nginx,
+	}
+
+	client := fake.NewClientBuilder().
+		WithScheme(newScheme()).
+		WithRuntimeObjects(resources...).
+		Build()
+
+	r := &NginxReconciler{Client: client}
+	assert.NoError(t, r.refreshStatus(context.TODO(), &nginx))
+
+	var got v1alpha1.Nginx
+	err := client.Get(context.TODO(), types.NamespacedName{Name: "my-nginx", Namespace: "default"}, &got)
+	require.NoError(t, err)
+	assert.Equal(t, v1alpha1.NginxStatus{
+		CurrentReplicas: int32(3),
+		PodSelector:     "nginx.tsuru.io/app=nginx,nginx.tsuru.io/resource-name=my-nginx",
+		Pods: []v1alpha1.PodStatus{
+			{Name: "my-nginx-abc-123", PodIP: "10.10.10.10", HostIP: "169.254.100.10"},
+			{Name: "my-nginx-abc-345", PodIP: "10.10.10.11", HostIP: "169.254.100.11"},
+			{Name: "my-nginx-abc-678", PodIP: "<pending>", HostIP: "<pending>"},
+		},
+		Services:  []v1alpha1.ServiceStatus{{Name: "my-nginx-service"}},
+		Ingresses: []v1alpha1.IngressStatus{{Name: "my-nginx"}},
+	}, got.Status)
+}
+
 func newScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
 	clientgoscheme.AddToScheme(scheme)
