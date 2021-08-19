@@ -6,7 +6,6 @@ package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -96,13 +95,15 @@ type NginxTLS struct {
 }
 
 type NginxIngress struct {
-	networkingv1.IngressSpec `json:",inline"`
 	// Annotations are extra annotations for the Ingress resource.
 	// +optional
 	Annotations map[string]string `json:"annotations,omitempty"`
 	// Labels are extra labels for the Ingress resource.
 	// +optional
 	Labels map[string]string `json:"labels,omitempty"`
+	// IngressClassName is the class to be set on Ingress.
+	// +optional
+	IngressClassName *string `json:"ingressClassName,omitempty"`
 }
 
 type NginxService struct {

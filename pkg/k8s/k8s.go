@@ -305,14 +305,14 @@ func NewIngress(nginx *v1alpha1.Nginx) *networkingv1.Ingress {
 		annotations = mergeMap(nginx.Spec.Ingress.Annotations, annotations)
 	}
 
-	var spec networkingv1.IngressSpec
+	var ingressClass *string
 	if nginx.Spec.Ingress != nil {
-		spec = nginx.Spec.Ingress.IngressSpec
+		ingressClass = nginx.Spec.Ingress.IngressClassName
 	}
 
 	return &networkingv1.Ingress{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
+			APIVersion: "networking.k8s.io/v1",
 			Kind:       "Ingress",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -320,8 +320,25 @@ func NewIngress(nginx *v1alpha1.Nginx) *networkingv1.Ingress {
 			Namespace:   nginx.Namespace,
 			Annotations: annotations,
 			Labels:      labels,
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(nginx, schema.GroupVersionKind{
+					Group:   v1alpha1.GroupVersion.Group,
+					Version: v1alpha1.GroupVersion.Version,
+					Kind:    "Nginx",
+				}),
+			},
 		},
-		Spec: spec,
+		Spec: networkingv1.IngressSpec{
+			IngressClassName: ingressClass,
+			DefaultBackend: &networkingv1.IngressBackend{
+				Service: &networkingv1.IngressServiceBackend{
+					Name: fmt.Sprintf("%s-service", nginx.Name),
+					Port: networkingv1.ServiceBackendPort{
+						Name: defaultHTTPPortName,
+					},
+				},
+			},
+		},
 	}
 }
 

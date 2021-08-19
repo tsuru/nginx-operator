@@ -1542,6 +1542,8 @@ func TestExtractNginxSpec(t *testing.T) {
 }
 
 func TestNewIngress(t *testing.T) {
+	nginx := baseNginx()
+
 	tests := map[string]struct {
 		nginx func() v1alpha1.Nginx
 		want  *networkingv1.Ingress
@@ -1552,7 +1554,7 @@ func TestNewIngress(t *testing.T) {
 			},
 			want: &networkingv1.Ingress{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "v1",
+					APIVersion: "networking.k8s.io/v1",
 					Kind:       "Ingress",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -1561,6 +1563,21 @@ func TestNewIngress(t *testing.T) {
 					Labels: map[string]string{
 						"nginx.tsuru.io/app":           "nginx",
 						"nginx.tsuru.io/resource-name": "my-nginx",
+					},
+					OwnerReferences: []metav1.OwnerReference{
+						*metav1.NewControllerRef(&nginx, schema.GroupVersionKind{
+							Group:   v1alpha1.GroupVersion.Group,
+							Version: v1alpha1.GroupVersion.Version,
+							Kind:    "Nginx",
+						}),
+					},
+				},
+				Spec: networkingv1.IngressSpec{
+					DefaultBackend: &networkingv1.IngressBackend{
+						Service: &networkingv1.IngressServiceBackend{
+							Name: "my-nginx-service",
+							Port: networkingv1.ServiceBackendPort{Name: "http"},
+						},
 					},
 				},
 			},
@@ -1582,7 +1599,7 @@ func TestNewIngress(t *testing.T) {
 			},
 			want: &networkingv1.Ingress{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "v1",
+					APIVersion: "networking.k8s.io/v1",
 					Kind:       "Ingress",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -1596,6 +1613,21 @@ func TestNewIngress(t *testing.T) {
 						"nginx.tsuru.io/resource-name":  "my-nginx",
 						"custom.labels.example.com/key": "value",
 					},
+					OwnerReferences: []metav1.OwnerReference{
+						*metav1.NewControllerRef(&nginx, schema.GroupVersionKind{
+							Group:   v1alpha1.GroupVersion.Group,
+							Version: v1alpha1.GroupVersion.Version,
+							Kind:    "Nginx",
+						}),
+					},
+				},
+				Spec: networkingv1.IngressSpec{
+					DefaultBackend: &networkingv1.IngressBackend{
+						Service: &networkingv1.IngressServiceBackend{
+							Name: "my-nginx-service",
+							Port: networkingv1.ServiceBackendPort{Name: "http"},
+						},
+					},
 				},
 			},
 		},
@@ -1604,43 +1636,13 @@ func TestNewIngress(t *testing.T) {
 			nginx: func() v1alpha1.Nginx {
 				n := baseNginx()
 				n.Spec.Ingress = &v1alpha1.NginxIngress{
-					IngressSpec: networkingv1.IngressSpec{
-						IngressClassName: func(s string) *string { return &s }("custom-class"),
-						TLS: []networkingv1.IngressTLS{
-							{
-								SecretName: "my-nginx-certificate",
-								Hosts:      []string{"my-nginx.example.com", "my-nginx.test"},
-							},
-						},
-						Rules: []networkingv1.IngressRule{
-							{
-								Host: "my-nginx.example.com",
-								IngressRuleValue: networkingv1.IngressRuleValue{
-									HTTP: &networkingv1.HTTPIngressRuleValue{
-										Paths: []networkingv1.HTTPIngressPath{
-											{
-												Path: "/foo/bar/",
-												Backend: networkingv1.IngressBackend{
-													Service: &networkingv1.IngressServiceBackend{
-														Name: "my-nginx-service",
-														Port: networkingv1.ServiceBackendPort{
-															Name: "http",
-														},
-													},
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
+					IngressClassName: func(s string) *string { return &s }("custom-class"),
 				}
 				return n
 			},
 			want: &networkingv1.Ingress{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "v1",
+					APIVersion: "networking.k8s.io/v1",
 					Kind:       "Ingress",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -1650,35 +1652,20 @@ func TestNewIngress(t *testing.T) {
 						"nginx.tsuru.io/app":           "nginx",
 						"nginx.tsuru.io/resource-name": "my-nginx",
 					},
+					OwnerReferences: []metav1.OwnerReference{
+						*metav1.NewControllerRef(&nginx, schema.GroupVersionKind{
+							Group:   v1alpha1.GroupVersion.Group,
+							Version: v1alpha1.GroupVersion.Version,
+							Kind:    "Nginx",
+						}),
+					},
 				},
 				Spec: networkingv1.IngressSpec{
 					IngressClassName: func(s string) *string { return &s }("custom-class"),
-					TLS: []networkingv1.IngressTLS{
-						{
-							SecretName: "my-nginx-certificate",
-							Hosts:      []string{"my-nginx.example.com", "my-nginx.test"},
-						},
-					},
-					Rules: []networkingv1.IngressRule{
-						{
-							Host: "my-nginx.example.com",
-							IngressRuleValue: networkingv1.IngressRuleValue{
-								HTTP: &networkingv1.HTTPIngressRuleValue{
-									Paths: []networkingv1.HTTPIngressPath{
-										{
-											Path: "/foo/bar/",
-											Backend: networkingv1.IngressBackend{
-												Service: &networkingv1.IngressServiceBackend{
-													Name: "my-nginx-service",
-													Port: networkingv1.ServiceBackendPort{
-														Name: "http",
-													},
-												},
-											},
-										},
-									},
-								},
-							},
+					DefaultBackend: &networkingv1.IngressBackend{
+						Service: &networkingv1.IngressServiceBackend{
+							Name: "my-nginx-service",
+							Port: networkingv1.ServiceBackendPort{Name: "http"},
 						},
 					},
 				},

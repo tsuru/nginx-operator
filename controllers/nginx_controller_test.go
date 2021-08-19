@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -373,7 +374,7 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 	tests := map[string]struct {
 		nginx         *nginxv1alpha1.Nginx
 		expectedError string
-		assert        func(t *testing.T, c client.Client)
+		assert        func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx)
 	}{
 		"when nginx is nil, should return expected error": {
 			expectedError: "nginx cannot be nil",
@@ -388,33 +389,11 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 				},
 				Spec: nginxv1alpha1.NginxSpec{
 					Ingress: &nginxv1alpha1.NginxIngress{
-						IngressSpec: networkingv1.IngressSpec{
-							IngressClassName: func(s string) *string { return &s }("custom-class"),
-							Rules: []networkingv1.IngressRule{
-								{
-									Host: "my-nginx-2.example.com",
-									IngressRuleValue: networkingv1.IngressRuleValue{
-										HTTP: &networkingv1.HTTPIngressRuleValue{
-											Paths: []networkingv1.HTTPIngressPath{
-												{
-													Path: "/",
-													Backend: networkingv1.IngressBackend{
-														Service: &networkingv1.IngressServiceBackend{
-															Name: "my-nginx-2-service",
-															Port: networkingv1.ServiceBackendPort{Name: "http"},
-														},
-													},
-												},
-											},
-										},
-									},
-								},
-							},
-						},
+						IngressClassName: func(s string) *string { return &s }("custom-class"),
 					},
 				},
 			},
-			assert: func(t *testing.T, c client.Client) {
+			assert: func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx) {
 				var got networkingv1.Ingress
 				err := c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-2", Namespace: "default"}, &got)
 				require.NoError(t, err)
@@ -432,27 +411,20 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 							"nginx.tsuru.io/app":           "nginx",
 							"nginx.tsuru.io/resource-name": "my-nginx-2",
 						},
+						OwnerReferences: []metav1.OwnerReference{
+							*metav1.NewControllerRef(nginx, schema.GroupVersionKind{
+								Group:   v1alpha1.GroupVersion.Group,
+								Version: v1alpha1.GroupVersion.Version,
+								Kind:    "Nginx",
+							}),
+						},
 					},
 					Spec: networkingv1.IngressSpec{
 						IngressClassName: func(s string) *string { return &s }("custom-class"),
-						Rules: []networkingv1.IngressRule{
-							{
-								Host: "my-nginx-2.example.com",
-								IngressRuleValue: networkingv1.IngressRuleValue{
-									HTTP: &networkingv1.HTTPIngressRuleValue{
-										Paths: []networkingv1.HTTPIngressPath{
-											{
-												Path: "/",
-												Backend: networkingv1.IngressBackend{
-													Service: &networkingv1.IngressServiceBackend{
-														Name: "my-nginx-2-service",
-														Port: networkingv1.ServiceBackendPort{Name: "http"},
-													},
-												},
-											},
-										},
-									},
-								},
+						DefaultBackend: &networkingv1.IngressBackend{
+							Service: &networkingv1.IngressServiceBackend{
+								Name: "my-nginx-2-service",
+								Port: networkingv1.ServiceBackendPort{Name: "http"},
 							},
 						},
 					},
@@ -464,7 +436,7 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 			nginx: &v1alpha1.Nginx{
 				ObjectMeta: metav1.ObjectMeta{Name: "my-nginx-1", Namespace: "default"},
 			},
-			assert: func(t *testing.T, c client.Client) {
+			assert: func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx) {
 				var got networkingv1.Ingress
 				err := c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-1", Namespace: "default"}, &got)
 				assert.Error(t, err)
@@ -482,18 +454,10 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 					Ingress: &v1alpha1.NginxIngress{
 						Annotations: map[string]string{"custom.nginx.tsuru.io/foo": "bar"},
 						Labels:      map[string]string{"custom.nginx.tsuru.io": "key1"},
-						IngressSpec: networkingv1.IngressSpec{
-							DefaultBackend: &networkingv1.IngressBackend{
-								Service: &networkingv1.IngressServiceBackend{
-									Name: "custom-service",
-									Port: networkingv1.ServiceBackendPort{Name: "https"},
-								},
-							},
-						},
 					},
 				},
 			},
-			assert: func(t *testing.T, c client.Client) {
+			assert: func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx) {
 				var got networkingv1.Ingress
 				err := c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-1", Namespace: "default"}, &got)
 				require.NoError(t, err)
@@ -507,8 +471,8 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 				assert.Equal(t, networkingv1.IngressSpec{
 					DefaultBackend: &networkingv1.IngressBackend{
 						Service: &networkingv1.IngressServiceBackend{
-							Name: "custom-service",
-							Port: networkingv1.ServiceBackendPort{Name: "https"},
+							Name: "my-nginx-1-service",
+							Port: networkingv1.ServiceBackendPort{Name: "http"},
 						},
 					},
 				}, got.Spec)
@@ -532,7 +496,7 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 
 			assert.NoError(t, err)
 			if tt.assert != nil {
-				tt.assert(t, client)
+				tt.assert(t, client, tt.nginx)
 			}
 		})
 	}
