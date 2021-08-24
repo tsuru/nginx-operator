@@ -81,6 +81,9 @@ func TestNginxReconciler_reconcileService(t *testing.T) {
 				},
 				Spec: v1alpha1.NginxSpec{
 					Certificates: &v1alpha1.TLSSecret{},
+					Service: &v1alpha1.NginxService{
+						Type: corev1.ServiceTypeNodePort,
+					},
 				},
 				Status: v1alpha1.NginxStatus{},
 			},
@@ -94,6 +97,7 @@ func TestNginxReconciler_reconcileService(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: corev1.ServiceSpec{
+					Type: corev1.ServiceTypeNodePort,
 					Ports: []corev1.ServicePort{
 						{
 							Name:       "https",
@@ -223,6 +227,80 @@ func TestNginxReconciler_reconcileService(t *testing.T) {
 					"nginx.tsuru.io/new-label":     "v1",
 				})
 				assert.Equal(t, got.Annotations, map[string]string{"nginx.tsuru.io/new-annotation": "v1"})
+			},
+		},
+		{
+			name: "when updating the nginx service type, should discard nodeports when new service is clusterIP",
+			nginx: &v1alpha1.Nginx{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "extensions.tsuru.io/v1alpha1",
+					Kind:       "Nginx",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-nginx",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.NginxSpec{
+					Service: &v1alpha1.NginxService{
+						Type: corev1.ServiceTypeClusterIP,
+					},
+					Certificates: &v1alpha1.TLSSecret{},
+				},
+			},
+			service: &corev1.Service{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "v1",
+					Kind:       "Service",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "my-nginx-service",
+					Namespace:   "default",
+					Annotations: map[string]string{},
+					Labels:      map[string]string{},
+				},
+				Spec: corev1.ServiceSpec{
+					Type:                corev1.ServiceTypeLoadBalancer,
+					ClusterIP:           "10.1.1.10",
+					HealthCheckNodePort: int32(43123),
+					Ports: []corev1.ServicePort{
+						{
+							Name:       "https",
+							TargetPort: intstr.FromString("https"),
+							Protocol:   corev1.ProtocolTCP,
+							Port:       int32(443),
+							NodePort:   int32(30667),
+						},
+						{
+							Name:       "http",
+							Protocol:   corev1.ProtocolTCP,
+							TargetPort: intstr.FromString("http"),
+							Port:       int32(80),
+							NodePort:   int32(30666),
+						},
+					},
+				},
+			},
+			assertion: func(t *testing.T, err error, got *corev1.Service) {
+				assert.NoError(t, err)
+				assert.NotNil(t, got)
+				assert.Equal(t, got.Spec.ClusterIP, "10.1.1.10")
+				assert.Equal(t, got.Spec.Type, corev1.ServiceTypeClusterIP)
+				assert.Equal(t, got.Spec.HealthCheckNodePort, int32(43123))
+				expectedPorts := []corev1.ServicePort{
+					{
+						Name:       "http",
+						TargetPort: intstr.FromString("http"),
+						Protocol:   corev1.ProtocolTCP,
+						Port:       int32(80),
+					},
+					{
+						Name:       "https",
+						TargetPort: intstr.FromString("https"),
+						Protocol:   corev1.ProtocolTCP,
+						Port:       int32(443),
+					},
+				}
+				assert.Equal(t, expectedPorts, got.Spec.Ports)
 			},
 		},
 	}

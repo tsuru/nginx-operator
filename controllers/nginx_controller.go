@@ -168,11 +168,13 @@ func (r *NginxReconciler) reconcileService(ctx context.Context, nginx *nginxv1al
 	newService.Spec.ClusterIP = currentService.Spec.ClusterIP
 	newService.Spec.HealthCheckNodePort = currentService.Spec.HealthCheckNodePort
 
-	// avoid nodeport reallocation preserving the current ones
-	for _, currentPort := range currentService.Spec.Ports {
-		for index, newPort := range newService.Spec.Ports {
-			if currentPort.Port == newPort.Port {
-				newService.Spec.Ports[index].NodePort = currentPort.NodePort
+	if newService.Spec.Type == corev1.ServiceTypeNodePort || newService.Spec.Type == corev1.ServiceTypeLoadBalancer {
+		// avoid nodeport reallocation preserving the current ones
+		for _, currentPort := range currentService.Spec.Ports {
+			for index, newPort := range newService.Spec.Ports {
+				if currentPort.Port == newPort.Port {
+					newService.Spec.Ports[index].NodePort = currentPort.NodePort
+				}
 			}
 		}
 	}
