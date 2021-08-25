@@ -259,9 +259,10 @@ func TestNginxReconciler_reconcileService(t *testing.T) {
 					Labels:      map[string]string{},
 				},
 				Spec: corev1.ServiceSpec{
-					Type:                corev1.ServiceTypeLoadBalancer,
-					ClusterIP:           "10.1.1.10",
-					HealthCheckNodePort: int32(43123),
+					Type:                  corev1.ServiceTypeLoadBalancer,
+					ExternalTrafficPolicy: corev1.ServiceExternalTrafficPolicyTypeCluster,
+					ClusterIP:             "10.1.1.10",
+					HealthCheckNodePort:   int32(43123),
 					Ports: []corev1.ServicePort{
 						{
 							Name:       "https",
@@ -285,6 +286,7 @@ func TestNginxReconciler_reconcileService(t *testing.T) {
 				assert.NotNil(t, got)
 				assert.Equal(t, got.Spec.ClusterIP, "10.1.1.10")
 				assert.Equal(t, got.Spec.Type, corev1.ServiceTypeClusterIP)
+				assert.Equal(t, got.Spec.ExternalTrafficPolicy, corev1.ServiceExternalTrafficPolicyType(""))
 				assert.Equal(t, got.Spec.HealthCheckNodePort, int32(43123))
 				expectedPorts := []corev1.ServicePort{
 					{
