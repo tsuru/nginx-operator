@@ -236,6 +236,10 @@ func NewService(n *v1alpha1.Nginx) *corev1.Service {
 			ExternalTrafficPolicy: externalTrafficPolicy,
 		},
 	}
+
+	if service.Spec.Type == corev1.ServiceTypeClusterIP {
+		service.Spec.ExternalTrafficPolicy = ""
+	}
 	return &service
 }
 

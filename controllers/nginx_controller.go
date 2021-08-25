@@ -168,10 +168,6 @@ func (r *NginxReconciler) reconcileService(ctx context.Context, nginx *nginxv1al
 	newService.Spec.ClusterIP = currentService.Spec.ClusterIP
 	newService.Spec.HealthCheckNodePort = currentService.Spec.HealthCheckNodePort
 
-	if newService.Spec.Type == corev1.ServiceTypeClusterIP {
-		newService.Spec.ExternalTrafficPolicy = ""
-	}
-
 	if newService.Spec.Type == corev1.ServiceTypeNodePort || newService.Spec.Type == corev1.ServiceTypeLoadBalancer {
 		// avoid nodeport reallocation preserving the current ones
 		for _, currentPort := range currentService.Spec.Ports {
