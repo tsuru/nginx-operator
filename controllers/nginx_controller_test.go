@@ -80,7 +80,7 @@ func TestNginxReconciler_reconcileService(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: v1alpha1.NginxSpec{
-					Certificates: &v1alpha1.TLSSecret{},
+					TLS: []v1alpha1.NginxTLS{{SecretName: "my-secret"}},
 					Service: &v1alpha1.NginxService{
 						Type: corev1.ServiceTypeNodePort,
 					},
@@ -159,7 +159,7 @@ func TestNginxReconciler_reconcileService(t *testing.T) {
 							"nginx.tsuru.io/new-label": "v1",
 						},
 					},
-					Certificates: &v1alpha1.TLSSecret{},
+					TLS: []v1alpha1.NginxTLS{{SecretName: "my-secret"}},
 				},
 			},
 			service: &corev1.Service{
@@ -244,7 +244,7 @@ func TestNginxReconciler_reconcileService(t *testing.T) {
 					Service: &v1alpha1.NginxService{
 						Type: corev1.ServiceTypeClusterIP,
 					},
-					Certificates: &v1alpha1.TLSSecret{},
+					TLS: []v1alpha1.NginxTLS{{SecretName: "my-secret"}},
 				},
 			},
 			service: &corev1.Service{

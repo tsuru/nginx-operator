@@ -34,7 +34,7 @@ func TestMain(m *testing.M) {
 func Test_Operator(t *testing.T) {
 	cleanup, outErr := createNamespace(testingNamespace)
 	if outErr != nil {
-		t.Fatal(outErr)
+		require.NoError(t, outErr)
 	}
 	defer cleanup()
 
@@ -54,15 +54,16 @@ func Test_Operator(t *testing.T) {
 		err := apply("testdata/with-certificates.yaml", testingNamespace)
 		require.NoError(t, err)
 
-		nginx, err := getReadyNginx("my-secured-nginx", 1, 1)
-		require.NoError(t, err)
-		require.NotNil(t, nginx)
-		assert.Equal(t, "nginx:alpine", nginx.Spec.Image)
-
 		defer func() {
 			err = delete("testdata/with-certificates.yaml", testingNamespace)
 			require.NoError(t, err)
 		}()
+
+		nginx, err := getReadyNginx("my-secured-nginx", 1, 1)
+		require.NoError(t, err)
+		require.NotNil(t, nginx)
+		assert.Equal(t, "nginx:stable-alpine", nginx.Spec.Image)
+		assert.Equal(t, "/healthz", nginx.Spec.HealthcheckPath)
 
 		nginxService := corev1.Service{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Service"}}
 		err = get(&nginxService, "my-secured-nginx-service", nginx.Namespace)
@@ -80,20 +81,20 @@ func Test_Operator(t *testing.T) {
 			expectedSha256 string
 		}{
 			{
-				filename:       "/etc/nginx/certs/rsa.crt",
-				expectedSha256: "f50457089e715bbc9d5a31a16cf53cc2f13a68333df71559bb5d06be2d2b8a63",
+				filename:       "/etc/nginx/certs/rsa/tls.crt",
+				expectedSha256: "6a95f3b95972f4beae4b54918498817d95f3d8cfb766c053cae656839e392430",
 			},
 			{
-				filename:       "/etc/nginx/certs/rsa.key",
-				expectedSha256: "18580c25b2807b4c95502dd7051d414299e40d8d14024ad5d69c9915ec41e66e",
+				filename:       "/etc/nginx/certs/rsa/tls.key",
+				expectedSha256: "f8a6da5db392519513597345931237dbb1a0a28fb89b7ce3b41562f988f9ef67",
 			},
 			{
-				filename:       "/etc/nginx/certs/custom_dir/custom_name.crt",
-				expectedSha256: "159af275ab3b22d9737617e51daca64efafb48287ecb3650661d2116cb4ef0c9",
+				filename:       "/etc/nginx/certs/ecdsa/tls.crt",
+				expectedSha256: "358687f51dc536333a5c6746fca484838e465aa9d23c872d5a6cffc2767ef089",
 			},
 			{
-				filename:       "/etc/nginx/certs/custom_dir/custom_name.key",
-				expectedSha256: "253b9795dcd80c493dcfade6b3dc5506fac1a38850abaa4e639fada5ea3dad5e",
+				filename:       "/etc/nginx/certs/ecdsa/tls.key",
+				expectedSha256: "251024281967b22081c2e62cdf9b858cc46a7e8320ede8b19a288499612f0688",
 			},
 		}
 
@@ -126,10 +127,9 @@ func getReadyNginx(name string, expectedPods int, expectedSvcs int) (*v1alpha1.N
 
 func waitPodBeAvailable(name, namespace string) error {
 	timeout := time.After(5 * time.Minute)
-	pingMessage := "PING"
 	for {
-		output, err := kubectl("exec", name, "-n", namespace, "-c", "nginx", "--", "echo", "-n", pingMessage)
-		if err == nil && string(output) == pingMessage {
+		output, err := kubectl("wait", "-n", namespace, "pod", name, "--for", "condition=Ready=true")
+		if err == nil {
 			return nil
 		}
 		select {

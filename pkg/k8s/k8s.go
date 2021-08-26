@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -159,7 +160,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 	}
 	setupProbes(n.Spec, &deployment)
 	setupConfig(n.Spec.Config, &deployment)
-	setupTLS(n.Spec.Certificates, &deployment)
+	setupTLS(n.Spec.TLS, &deployment)
 	setupExtraFiles(n.Spec.ExtraFiles, &deployment)
 	setupCacheVolume(n.Spec.Cache, &deployment)
 	setupLifecycle(n.Spec.Lifecycle, &deployment)
@@ -335,36 +336,26 @@ func setupConfig(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {
 }
 
 // setupTLS appends an https port if TLS secrets are specified
-func setupTLS(secret *v1alpha1.TLSSecret, dep *appv1.Deployment) {
-	if secret == nil {
-		return
-	}
+func setupTLS(tls []v1alpha1.NginxTLS, dep *appv1.Deployment) {
+	for _, t := range tls {
+		volumeName := fmt.Sprintf("nginx-certs-%s", t.Name)
 
-	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
-		Name:      "nginx-certs",
-		MountPath: certMountPath,
-	})
+		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, corev1.Volume{
+			Name: volumeName,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: t.SecretName,
+					Optional:   func(b bool) *bool { return &b }(false),
+				},
+			},
+		})
 
-	var items []corev1.KeyToPath
-	for _, item := range secret.Items {
-		items = append(items, corev1.KeyToPath{
-			Key:  item.CertificateField,
-			Path: valueOrDefault(item.CertificatePath, item.CertificateField),
-		}, corev1.KeyToPath{
-			Key:  item.KeyField,
-			Path: valueOrDefault(item.KeyPath, item.KeyField),
+		dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
+			Name:      volumeName,
+			MountPath: filepath.Join(certMountPath, t.Name),
+			ReadOnly:  true,
 		})
 	}
-
-	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, corev1.Volume{
-		Name: "nginx-certs",
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: secret.SecretName,
-				Items:      items,
-			},
-		},
-	})
 }
 
 // setupExtraFiles configures the volume source and mount into Deployment resource.
@@ -560,7 +551,7 @@ func setupProbes(nginxSpec v1alpha1.NginxSpec, dep *appv1.Deployment) {
 		commands = append(commands, fmt.Sprintf(curlProbeCommand, cmdTimeoutSec, httpURL))
 	}
 
-	if nginxSpec.Certificates != nil {
+	if len(nginxSpec.TLS) > 0 {
 		httpsPort := portByName(nginxSpec.PodTemplate.Ports, defaultHTTPSPortName)
 		if httpsPort != nil {
 			httpsURL := fmt.Sprintf("https://localhost:%d%s", httpsPort.ContainerPort, nginxSpec.HealthcheckPath)

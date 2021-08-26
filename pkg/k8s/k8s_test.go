@@ -46,15 +46,10 @@ func nginxWithService() v1alpha1.Nginx {
 
 func nginxWithCertificate() v1alpha1.Nginx {
 	n := baseNginx()
-	n.Spec.Certificates = &v1alpha1.TLSSecret{
-		SecretName: "my-secret",
-		Items: []v1alpha1.TLSSecretItem{
-			{
-				KeyField:         "key-field",
-				KeyPath:          "key-path",
-				CertificateField: "cert-field",
-				CertificatePath:  "cert-path",
-			},
+	n.Spec.TLS = []v1alpha1.NginxTLS{
+		{
+			Name:       "my-certificate",
+			SecretName: "my-secret",
 		},
 	}
 	return n
@@ -262,15 +257,10 @@ func Test_NewDeployment(t *testing.T) {
 		{
 			name: "with-tls",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
-				n.Spec.Certificates = &v1alpha1.TLSSecret{
-					SecretName: "my-secret",
-					Items: []v1alpha1.TLSSecretItem{
-						{
-							CertificateField: "cert-field",
-							CertificatePath:  "cert-path",
-							KeyField:         "key-field",
-							KeyPath:          "key-path",
-						},
+				n.Spec.TLS = []v1alpha1.NginxTLS{
+					{
+						Name:       "my-certificate",
+						SecretName: "my-secret",
 					},
 				}
 				return n
@@ -289,7 +279,11 @@ func Test_NewDeployment(t *testing.T) {
 					},
 				}
 				d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
-					{Name: "nginx-certs", MountPath: "/etc/nginx/certs"},
+					{
+						Name:      "nginx-certs-my-certificate",
+						MountPath: "/etc/nginx/certs/my-certificate",
+						ReadOnly:  true,
+					},
 				}
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 					TimeoutSeconds: int32(2),
@@ -301,69 +295,11 @@ func Test_NewDeployment(t *testing.T) {
 				}
 				d.Spec.Template.Spec.Volumes = []corev1.Volume{
 					{
-						Name: "nginx-certs",
+						Name: "nginx-certs-my-certificate",
 						VolumeSource: corev1.VolumeSource{
 							Secret: &corev1.SecretVolumeSource{
 								SecretName: "my-secret",
-								Items: []corev1.KeyToPath{
-									{Key: "cert-field", Path: "cert-path"},
-									{Key: "key-field", Path: "key-path"},
-								},
-							},
-						},
-					},
-				}
-				return d
-			},
-		},
-		{
-			name: "with-tls-default-values",
-			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
-				n.Spec.Certificates = &v1alpha1.TLSSecret{
-					SecretName: "my-secret",
-					Items: []v1alpha1.TLSSecretItem{
-						{
-							CertificateField: "cert.crt",
-							KeyField:         "cert.key",
-						},
-					},
-				}
-				return n
-			},
-			deployFn: func(d appv1.Deployment) appv1.Deployment {
-				d.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
-					{
-						Name:          defaultHTTPPortName,
-						ContainerPort: defaultHTTPPort,
-						Protocol:      corev1.ProtocolTCP,
-					},
-					{
-						Name:          defaultHTTPSPortName,
-						ContainerPort: defaultHTTPSPort,
-						Protocol:      corev1.ProtocolTCP,
-					},
-				}
-				d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
-					{Name: "nginx-certs", MountPath: "/etc/nginx/certs"},
-				}
-				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
-					TimeoutSeconds: int32(2),
-					Handler: corev1.Handler{
-						Exec: &corev1.ExecAction{
-							Command: []string{"sh", "-c", "curl -m1 -kfsS -o /dev/null http://localhost:8080 && curl -m1 -kfsS -o /dev/null https://localhost:8443"},
-						},
-					},
-				}
-				d.Spec.Template.Spec.Volumes = []corev1.Volume{
-					{
-						Name: "nginx-certs",
-						VolumeSource: corev1.VolumeSource{
-							Secret: &corev1.SecretVolumeSource{
-								SecretName: "my-secret",
-								Items: []corev1.KeyToPath{
-									{Key: "cert.crt", Path: "cert.crt"},
-									{Key: "cert.key", Path: "cert.key"},
-								},
+								Optional:   func(b bool) *bool { return &b }(false),
 							},
 						},
 					},
@@ -374,18 +310,9 @@ func Test_NewDeployment(t *testing.T) {
 		{
 			name: "with-two-certificates",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
-				n.Spec.Certificates = &v1alpha1.TLSSecret{
-					SecretName: "my-secret",
-					Items: []v1alpha1.TLSSecretItem{
-						{
-							CertificateField: "rsa.crt.pem",
-							KeyField:         "rsa.key.pem",
-						},
-						{
-							CertificateField: "ecdsa.crt.pem",
-							KeyField:         "ecdsa.key.pem",
-						},
-					},
+				n.Spec.TLS = []v1alpha1.NginxTLS{
+					{Name: "my-rsa-certificate", SecretName: "rsa-cert"},
+					{Name: "my-ecdsa-certificate", SecretName: "ecdsa-cert"},
 				}
 				return n
 			},
@@ -403,7 +330,16 @@ func Test_NewDeployment(t *testing.T) {
 					},
 				}
 				d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
-					{Name: "nginx-certs", MountPath: "/etc/nginx/certs"},
+					{
+						Name:      "nginx-certs-my-rsa-certificate",
+						MountPath: "/etc/nginx/certs/my-rsa-certificate",
+						ReadOnly:  true,
+					},
+					{
+						Name:      "nginx-certs-my-ecdsa-certificate",
+						MountPath: "/etc/nginx/certs/my-ecdsa-certificate",
+						ReadOnly:  true,
+					},
 				}
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 					TimeoutSeconds: int32(2),
@@ -415,16 +351,20 @@ func Test_NewDeployment(t *testing.T) {
 				}
 				d.Spec.Template.Spec.Volumes = []corev1.Volume{
 					{
-						Name: "nginx-certs",
+						Name: "nginx-certs-my-rsa-certificate",
 						VolumeSource: corev1.VolumeSource{
 							Secret: &corev1.SecretVolumeSource{
-								SecretName: "my-secret",
-								Items: []corev1.KeyToPath{
-									{Key: "rsa.crt.pem", Path: "rsa.crt.pem"},
-									{Key: "rsa.key.pem", Path: "rsa.key.pem"},
-									{Key: "ecdsa.crt.pem", Path: "ecdsa.crt.pem"},
-									{Key: "ecdsa.key.pem", Path: "ecdsa.key.pem"},
-								},
+								SecretName: "rsa-cert",
+								Optional:   func(b bool) *bool { return &b }(false),
+							},
+						},
+					},
+					{
+						Name: "nginx-certs-my-ecdsa-certificate",
+						VolumeSource: corev1.VolumeSource{
+							Secret: &corev1.SecretVolumeSource{
+								SecretName: "ecdsa-cert",
+								Optional:   func(b bool) *bool { return &b }(false),
 							},
 						},
 					},
@@ -565,15 +505,10 @@ func Test_NewDeployment(t *testing.T) {
 			name: "with-tls-and-host-network",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
 				n.Spec.PodTemplate.HostNetwork = true
-				n.Spec.Certificates = &v1alpha1.TLSSecret{
-					SecretName: "my-secret",
-					Items: []v1alpha1.TLSSecretItem{
-						{
-							CertificateField: "cert-field",
-							CertificatePath:  "cert-path",
-							KeyField:         "key-field",
-							KeyPath:          "key-path",
-						},
+				n.Spec.TLS = []v1alpha1.NginxTLS{
+					{
+						Name:       "www.example.com",
+						SecretName: "my-secret",
 					},
 				}
 				return n
@@ -611,18 +546,19 @@ func Test_NewDeployment(t *testing.T) {
 					},
 				}
 				d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
-					{Name: "nginx-certs", MountPath: "/etc/nginx/certs"},
+					{
+						Name:      "nginx-certs-www.example.com",
+						MountPath: "/etc/nginx/certs/www.example.com",
+						ReadOnly:  true,
+					},
 				}
 				d.Spec.Template.Spec.Volumes = []corev1.Volume{
 					{
-						Name: "nginx-certs",
+						Name: "nginx-certs-www.example.com",
 						VolumeSource: corev1.VolumeSource{
 							Secret: &corev1.SecretVolumeSource{
 								SecretName: "my-secret",
-								Items: []corev1.KeyToPath{
-									{Key: "cert-field", Path: "cert-path"},
-									{Key: "key-field", Path: "key-path"},
-								},
+								Optional:   func(b bool) *bool { return &b }(false),
 							},
 						},
 					},
@@ -1244,13 +1180,10 @@ func Test_NewDeployment(t *testing.T) {
 						Protocol:      corev1.ProtocolTCP,
 					},
 				}
-				n.Spec.Certificates = &v1alpha1.TLSSecret{
-					SecretName: "my-secret",
-					Items: []v1alpha1.TLSSecretItem{
-						{
-							CertificateField: "cert.crt",
-							KeyField:         "cert.key",
-						},
+				n.Spec.TLS = []v1alpha1.NginxTLS{
+					{
+						Name:       "www.example.com",
+						SecretName: "my-secret",
 					},
 				}
 				return n
@@ -1277,18 +1210,19 @@ func Test_NewDeployment(t *testing.T) {
 					},
 				}
 				d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
-					{Name: "nginx-certs", MountPath: "/etc/nginx/certs"},
+					{
+						Name:      "nginx-certs-www.example.com",
+						MountPath: "/etc/nginx/certs/www.example.com",
+						ReadOnly:  true,
+					},
 				}
 				d.Spec.Template.Spec.Volumes = []corev1.Volume{
 					{
-						Name: "nginx-certs",
+						Name: "nginx-certs-www.example.com",
 						VolumeSource: corev1.VolumeSource{
 							Secret: &corev1.SecretVolumeSource{
 								SecretName: "my-secret",
-								Items: []corev1.KeyToPath{
-									{Key: "cert.crt", Path: "cert.crt"},
-									{Key: "cert.key", Path: "cert.key"},
-								},
+								Optional:   func(b bool) *bool { return &b }(false),
 							},
 						},
 					},

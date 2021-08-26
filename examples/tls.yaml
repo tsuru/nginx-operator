@@ -1,0 +1,121 @@
+apiVersion: nginx.tsuru.io/v1alpha1
+kind: Nginx
+metadata:
+  name: my-secured-nginx
+spec:
+  image: nginx:stable-alpine # if unspecified, defaults to "nginx:latest"
+  healthcheckPath: /healthz  # if unspecified, doesn't set readiness probes on nginx pods
+  tls:
+  - name: ecdsa               # certificate's identifier: used as directory name to mount the TLS certs within "/etc/nginx/certs".
+    secretName: my-ecdsa-cert # TLS secret name (defined below)
+  - name: rsa
+    secretName: my-rsa-cert
+  config:
+    name: nginx-config
+    kind: Inline
+    value: |-
+      events {}
+
+      http {
+        default_type text/plain;
+
+        server {
+          listen 8080 default_server;
+          listen 8443 ssl http2 default_server;
+
+          if ($https != 'on') {
+            return 301 'https://${host}${request_uri}';
+          }
+
+          ssl_certificate     ./certs/ecdsa/tls.crt;
+          ssl_certificate_key ./certs/ecdsa/tls.key;
+
+          ssl_certificate     ./certs/rsa/tls.crt;
+          ssl_certificate_key ./certs/rsa/tls.key;
+
+          location / {
+            return 302 '/greeting?name=world';
+          }
+
+          location = /greeting {
+            set $name ${arg_name};
+
+            if ($name = '') {
+              set $name 'anonymous';
+            }
+
+            return 200 'Hello, ${name}!\n';
+          }
+
+          location = /healthz {
+            access_log off;
+            return 200 'WORKING\n';
+          }
+        }
+      }
+---
+# TLS certificate generated with:
+#   go run $(go env GOROOT)/src/crypto/tls/generate_cert.go -start-date 'Jan 1 00:00:00 2021' -duration 87600h -host www.example.com -ecdsa-curve P256
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-ecdsa-cert
+type: kubernetes.io/tls
+stringData:
+  tls.crt: |-
+    -----BEGIN CERTIFICATE-----
+    MIIBdDCCARqgAwIBAgIRAMHWSrfn5ZB6ezDs87DIXJkwCgYIKoZIzj0EAwIwEjEQ
+    MA4GA1UEChMHQWNtZSBDbzAeFw0yMTAxMDEwMDAwMDBaFw0zMDEyMzAwMDAwMDBa
+    MBIxEDAOBgNVBAoTB0FjbWUgQ28wWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAS/
+    0vzn2c34c45YoksxMSAJjfpQyStu9BkmC1t7jxWkP1b98Od5oGrbGbo/4puuG4IG
+    mluIXBspPEanQTaQsXvHo1EwTzAOBgNVHQ8BAf8EBAMCB4AwEwYDVR0lBAwwCgYI
+    KwYBBQUHAwEwDAYDVR0TAQH/BAIwADAaBgNVHREEEzARgg93d3cuZXhhbXBsZS5j
+    b20wCgYIKoZIzj0EAwIDSAAwRQIgBHJQU40Fid69Hm+52QTa5v0mfVriSDiR++EW
+    LtCbRs4CIQDLImCMhliyIFSjd8NEVaY/r0/yng9yxWe6Hu5VHWdpow==
+    -----END CERTIFICATE-----
+  tls.key: |-
+    -----BEGIN PRIVATE KEY-----
+    MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgTQOe2XRJecfGGbNH
+    45lYAKZXpKMw1P5iGHDW+0P30+GhRANCAAS/0vzn2c34c45YoksxMSAJjfpQyStu
+    9BkmC1t7jxWkP1b98Od5oGrbGbo/4puuG4IGmluIXBspPEanQTaQsXvH
+    -----END PRIVATE KEY-----
+---
+# TLS certificate generated with:
+#   go run $(go env GOROOT)/src/crypto/tls/generate_cert.go -start-date 'Jan 1 00:00:00 2021' -duration 87600h -host www.example.com -rsa-bits 1024
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-rsa-cert
+type: kubernetes.io/tls
+stringData:
+  tls.crt: |-
+    -----BEGIN CERTIFICATE-----
+    MIIB+jCCAWOgAwIBAgIQRLwc7m5PNh3qNWW9jbWIPzANBgkqhkiG9w0BAQsFADAS
+    MRAwDgYDVQQKEwdBY21lIENvMB4XDTIxMDEwMTAwMDAwMFoXDTMwMTIzMDAwMDAw
+    MFowEjEQMA4GA1UEChMHQWNtZSBDbzCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkC
+    gYEAuZKXvIBthYPiXh1hBY8hJI8/uOLjushGDklmjI25Qfzs8TH6kPw647JXMMtr
+    5afvgg9oMpJYeoVkBXL21iFe/yba/scyVb6Q9gsPtxppXv1m3SsqVqPu7SQtnvxP
+    ikBKiz76M7bl35do/M5j9iaKqzY0qhhcQBtGWkppN/JamvUCAwEAAaNRME8wDgYD
+    VR0PAQH/BAQDAgWgMBMGA1UdJQQMMAoGCCsGAQUFBwMBMAwGA1UdEwEB/wQCMAAw
+    GgYDVR0RBBMwEYIPd3d3LmV4YW1wbGUuY29tMA0GCSqGSIb3DQEBCwUAA4GBAFpJ
+    HTqOKzhBBYeJsssorvRI09Vxm5iwVciCdUchyGT2VNZmkcuAlk40u9xTbfHz5iPX
+    Q6FcCxtr8C4sm9z5vLLDzzYVugQNosWoKMEOaw68PTG5OkNQUWOOCy0kSl9EG2wi
+    K0PSs3CqiW8q1wSgRYAQwZ+jRvl3QLiCdDQAYEPN
+    -----END CERTIFICATE-----
+  tls.key: |-
+    -----BEGIN PRIVATE KEY-----
+    MIICeQIBADANBgkqhkiG9w0BAQEFAASCAmMwggJfAgEAAoGBALmSl7yAbYWD4l4d
+    YQWPISSPP7ji47rIRg5JZoyNuUH87PEx+pD8OuOyVzDLa+Wn74IPaDKSWHqFZAVy
+    9tYhXv8m2v7HMlW+kPYLD7caaV79Zt0rKlaj7u0kLZ78T4pASos++jO25d+XaPzO
+    Y/Ymiqs2NKoYXEAbRlpKaTfyWpr1AgMBAAECgYEAnSbzsQLhvQvvC9y9aUPIwXk+
+    cYhTar5n9XlbivQKS0OyNKAqndW82U8SX5Qlj5skTXRWvV0J6NhF2Ad/2d7w3pn0
+    eWYZ0APeVKmIfqFytjVZEKx9kcjE//ADOF96I9Q4xkZF0E+PTS4eBpGdukVUqC+w
+    kEYwlaPzrVvS5fgjg4ECQQDUfSzORg8BKt6darM2dD5yIeYwEWqhxS+M2wb3Wy9s
+    J9ATm2n4fxX+ebu+YHs2tEcSEiCjZmGZC6I4wHCPsje9AkEA35JxoXP4ObUFJP/0
+    6w4Es7dUbNo8OGBG4FEGFRGQp/sf/LCyNo15hBIfUX4tHgFkZdoZw3tJAJJtKZad
+    hpenmQJBAKsTTKuWRCZQeYKLkVXaKRyCpm002ID93Nau0OD9jSSquR/QFHV4/CAx
+    qjIQQ6M7aazm41gq6ZDqiOTgKr/GYJECQQC25CmoliH9syPePLSyhOk7y0F5Op4A
+    0GGqpx1+prvbbwefwzxGfD1n2RtdowZtgV4MI/rnezchDKfYWanLrMwhAkEAvosv
+    mbPtM41dl2mf6vxnop4PxA4nOX+DM0A2sWtokEKfZiG4t87WzbrkA0uvYgBJahNI
+    2gDRg0Q++7eWC3uDqA==
+    -----END PRIVATE KEY-----
