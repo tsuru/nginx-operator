@@ -190,6 +190,7 @@ func Test_NewDeployment(t *testing.T) {
 						Name:      "nginx-config",
 						MountPath: "/etc/nginx/nginx.conf",
 						SubPath:   "nginx.conf",
+						ReadOnly:  true,
 					},
 				}
 				d.Spec.Template.Spec.Volumes = []corev1.Volume{
@@ -200,6 +201,7 @@ func Test_NewDeployment(t *testing.T) {
 								LocalObjectReference: corev1.LocalObjectReference{
 									Name: "config-map-xpto",
 								},
+								Optional: func(b bool) *bool { return &b }(false),
 							},
 						},
 					},
@@ -212,7 +214,6 @@ func Test_NewDeployment(t *testing.T) {
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
 				n.Spec.Config = &v1alpha1.ConfigRef{
 					Kind:  v1alpha1.ConfigKindInline,
-					Name:  "config-inline",
 					Value: "server {}",
 				}
 				return n
@@ -223,10 +224,11 @@ func Test_NewDeployment(t *testing.T) {
 						Name:      "nginx-config",
 						MountPath: "/etc/nginx/nginx.conf",
 						SubPath:   "nginx.conf",
+						ReadOnly:  true,
 					},
 				}
 				d.Spec.Template.Annotations = map[string]string{
-					"config-inline": "server {}",
+					"nginx.tsuru.io/custom-nginx-config": "server {}",
 				}
 				d.Spec.Template.Spec.Volumes = []corev1.Volume{
 					{
@@ -237,7 +239,7 @@ func Test_NewDeployment(t *testing.T) {
 									{
 										Path: "nginx.conf",
 										FieldRef: &corev1.ObjectFieldSelector{
-											FieldPath: "metadata.annotations['config-inline']",
+											FieldPath: "metadata.annotations['nginx.tsuru.io/custom-nginx-config']",
 										},
 									},
 								},

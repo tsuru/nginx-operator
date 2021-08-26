@@ -117,13 +117,17 @@ type NginxService struct {
 
 // ConfigRef is a reference to a config object.
 type ConfigRef struct {
-	// Name of the config object. Required when Kind is ConfigKindConfigMap.
+	// Kind of the config object. Defaults to "ConfigMap".
+	Kind ConfigKind `json:"kind"`
+	// Name of the ConfigMap object with "nginx.conf" key inside. It must reside
+	// in the same Namespace as the Nginx resource. Required when Kind is "ConfigMap".
+	//
+	// It's mutually exclusive with Value field.
 	// +optional
 	Name string `json:"name,omitempty"`
-	// Kind of the config object. Defaults to ConfigKindConfigMap.
-	// +optional
-	Kind ConfigKind `json:"kind,omitempty"`
-	// Value is a inline configuration content. Required when Kind is ConfigKindInline.
+	// Value is the raw Nginx configuration. Required when Kind is "Inline".
+	//
+	// It's mutually exclusive with Name field.
 	// +optional
 	Value string `json:"value,omitempty"`
 }

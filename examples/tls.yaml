@@ -9,7 +9,6 @@ spec:
   - secretName: my-ecdsa-cert # TLS secret name (defined below)
   - secretName: my-rsa-cert   # another TLS secret
   config:
-    name: nginx-config
     kind: Inline
     value: |-
       events {}

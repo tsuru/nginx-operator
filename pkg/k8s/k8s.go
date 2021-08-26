@@ -297,38 +297,47 @@ func setupConfig(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {
 	if conf == nil {
 		return
 	}
+
+	volumeName := "nginx-config"
+
 	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
-		Name:      "nginx-config",
+		Name:      volumeName,
 		MountPath: fmt.Sprintf("%s/%s", configMountPath, configFileName),
 		SubPath:   configFileName,
+		ReadOnly:  true,
 	})
+
 	switch conf.Kind {
 	case v1alpha1.ConfigKindConfigMap:
 		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, corev1.Volume{
-			Name: "nginx-config",
+			Name: volumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: conf.Name,
 					},
+					Optional: func(b bool) *bool { return &b }(false),
 				},
 			},
 		})
+
 	case v1alpha1.ConfigKindInline:
-		// FIXME: inline content is being written out of order
 		if dep.Spec.Template.Annotations == nil {
 			dep.Spec.Template.Annotations = make(map[string]string)
 		}
-		dep.Spec.Template.Annotations[conf.Name] = conf.Value
+
+		key := "nginx.tsuru.io/custom-nginx-config"
+		dep.Spec.Template.Annotations[key] = conf.Value
+
 		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, corev1.Volume{
-			Name: "nginx-config",
+			Name: volumeName,
 			VolumeSource: corev1.VolumeSource{
 				DownwardAPI: &corev1.DownwardAPIVolumeSource{
 					Items: []corev1.DownwardAPIVolumeFile{
 						{
 							Path: "nginx.conf",
 							FieldRef: &corev1.ObjectFieldSelector{
-								FieldPath: fmt.Sprintf("metadata.annotations['%s']", conf.Name),
+								FieldPath: fmt.Sprintf("metadata.annotations['%s']", key),
 							},
 						},
 					},
