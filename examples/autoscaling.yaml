@@ -1,0 +1,58 @@
+apiVersion: nginx.tsuru.io/v1alpha1
+kind: Nginx
+metadata:
+  name: my-autoscaled-nginx
+spec:
+  image: nginx:stable-alpine # if unspecified, defaults to "nginx:latest"
+  healthcheckPath: /healthz  # if unspecified, doesn't set readiness probes on nginx pods
+  resources:                 # if unspecified, defaults to unlimited
+    limits:
+      cpu: 100m
+      memory: 32Mi
+    requests:
+      cpu: 100m
+      memory: 32Mi
+  config:
+    kind: Inline
+    value: |-
+      events {}
+
+      http {
+        default_type text/plain;
+
+        server {
+          listen 8080 default_server;
+
+          location / {
+            return 302 '/greeting?name=world';
+          }
+
+          location = /greeting {
+            set $name ${arg_name};
+
+            if ($name = '') {
+              set $name 'anonymous';
+            }
+
+            return 200 'Hello, ${name}!\n';
+          }
+
+          location = /healthz {
+            access_log off;
+            return 200 'WORKING\n';
+          }
+        }
+      }
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: my-autoscaled-nginx
+spec:
+  maxReplicas: 10
+  minReplicas: 2
+  targetCPUUtilizationPercentage: 85
+  scaleTargetRef:
+    apiVersion: nginx.tsuru.io/v1alpha1
+    kind: Nginx
+    name: my-autoscaled-nginx

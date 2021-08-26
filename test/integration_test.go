@@ -104,6 +104,26 @@ func Test_Operator(t *testing.T) {
 			assert.Contains(t, string(output), tt.expectedSha256)
 		}
 	})
+
+	t.Run("testdata/with-autoscaling.yaml", func(t *testing.T) {
+		err := apply("testdata/with-autoscaling.yaml", testingNamespace)
+		require.NoError(t, err)
+
+		defer func() {
+			err = delete("testdata/with-autoscaling.yaml", testingNamespace)
+			require.NoError(t, err)
+		}()
+
+		nginx, err := getReadyNginx("my-autoscaled-nginx", 1, 1)
+		require.NoError(t, err)
+		require.NotNil(t, nginx)
+
+		_, err = kubectl("scale", "nginx", "my-autoscaled-nginx", "-n", testingNamespace, "--replicas", "5")
+		assert.NoError(t, err)
+
+		_, err = getReadyNginx("my-autoscaled-nginx", 5, 1)
+		require.NoError(t, err)
+	})
 }
 
 func getReadyNginx(name string, expectedPods int, expectedSvcs int) (*v1alpha1.Nginx, error) {
