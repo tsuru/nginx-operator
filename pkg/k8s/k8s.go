@@ -335,10 +335,10 @@ func setupConfig(conf *v1alpha1.ConfigRef, dep *appv1.Deployment) {
 	}
 }
 
-// setupTLS appends an https port if TLS secrets are specified
+// setupTLS configures the Secret volumes and attaches them in the nginx container.
 func setupTLS(tls []v1alpha1.NginxTLS, dep *appv1.Deployment) {
-	for _, t := range tls {
-		volumeName := fmt.Sprintf("nginx-certs-%s", t.Name)
+	for index, t := range tls {
+		volumeName := fmt.Sprintf("nginx-certs-%d", index)
 
 		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, corev1.Volume{
 			Name: volumeName,
@@ -352,7 +352,7 @@ func setupTLS(tls []v1alpha1.NginxTLS, dep *appv1.Deployment) {
 
 		dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
 			Name:      volumeName,
-			MountPath: filepath.Join(certMountPath, t.Name),
+			MountPath: filepath.Join(certMountPath, t.SecretName),
 			ReadOnly:  true,
 		})
 	}

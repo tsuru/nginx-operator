@@ -3906,11 +3906,6 @@ spec:
                     items:
                       type: string
                     type: array
-                  name:
-                    description: "Name is the identifier of the current TLS certificate.
-                      \n NOTE: It's used to mount the Secret into an exclusive directory
-                      on the Nginx container filesystem, e.g. \"/etc/nginx/certs/<name>/tls.{crt,key}\"."
-                    type: string
                   secretName:
                     description: "SecretName is the name of the Secret which contains
                       the certificate-key pair. It must reside in the same Namespace
@@ -3918,7 +3913,6 @@ spec:
                       Kubernetes TLS secrets type. More info: https://kubernetes.io/docs/concepts/configuration/secret/#tls-secrets."
                     type: string
                 required:
-                - name
                 - secretName
                 type: object
               type: array

@@ -6,10 +6,8 @@ spec:
   image: nginx:stable-alpine # if unspecified, defaults to "nginx:latest"
   healthcheckPath: /healthz  # if unspecified, doesn't set readiness probes on nginx pods
   tls:
-  - name: ecdsa               # certificate's identifier: used as directory name to mount the TLS certs within "/etc/nginx/certs".
-    secretName: my-ecdsa-cert # TLS secret name (defined below)
-  - name: rsa
-    secretName: my-rsa-cert
+  - secretName: my-ecdsa-cert # TLS secret name (defined below)
+  - secretName: my-rsa-cert   # another TLS secret
   config:
     name: nginx-config
     kind: Inline
@@ -27,11 +25,11 @@ spec:
             return 301 'https://${host}${request_uri}';
           }
 
-          ssl_certificate     ./certs/ecdsa/tls.crt;
-          ssl_certificate_key ./certs/ecdsa/tls.key;
+          ssl_certificate     ./certs/my-ecdsa-cert/tls.crt;
+          ssl_certificate_key ./certs/my-ecdsa-cert/tls.key;
 
-          ssl_certificate     ./certs/rsa/tls.crt;
-          ssl_certificate_key ./certs/rsa/tls.key;
+          ssl_certificate     ./certs/my-rsa-cert/tls.crt;
+          ssl_certificate_key ./certs/my-rsa-cert/tls.key;
 
           location / {
             return 302 '/greeting?name=world';

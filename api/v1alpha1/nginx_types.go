@@ -79,11 +79,6 @@ type NginxSpec struct {
 }
 
 type NginxTLS struct {
-	// Name is the identifier of the current TLS certificate.
-	//
-	// NOTE: It's used to mount the Secret into an exclusive directory on the
-	// Nginx container filesystem, e.g. "/etc/nginx/certs/<name>/tls.{crt,key}".
-	Name string `json:"name"`
 	// SecretName is the name of the Secret which contains the certificate-key
 	// pair. It must reside in the same Namespace as the Nginx resource.
 	//

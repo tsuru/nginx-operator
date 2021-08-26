@@ -46,12 +46,7 @@ func nginxWithService() v1alpha1.Nginx {
 
 func nginxWithCertificate() v1alpha1.Nginx {
 	n := baseNginx()
-	n.Spec.TLS = []v1alpha1.NginxTLS{
-		{
-			Name:       "my-certificate",
-			SecretName: "my-secret",
-		},
-	}
+	n.Spec.TLS = []v1alpha1.NginxTLS{{SecretName: "my-secret"}}
 	return n
 }
 
@@ -257,12 +252,7 @@ func Test_NewDeployment(t *testing.T) {
 		{
 			name: "with-tls",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
-				n.Spec.TLS = []v1alpha1.NginxTLS{
-					{
-						Name:       "my-certificate",
-						SecretName: "my-secret",
-					},
-				}
+				n.Spec.TLS = []v1alpha1.NginxTLS{{SecretName: "my-secret"}}
 				return n
 			},
 			deployFn: func(d appv1.Deployment) appv1.Deployment {
@@ -280,8 +270,8 @@ func Test_NewDeployment(t *testing.T) {
 				}
 				d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
 					{
-						Name:      "nginx-certs-my-certificate",
-						MountPath: "/etc/nginx/certs/my-certificate",
+						Name:      "nginx-certs-0",
+						MountPath: "/etc/nginx/certs/my-secret",
 						ReadOnly:  true,
 					},
 				}
@@ -295,7 +285,7 @@ func Test_NewDeployment(t *testing.T) {
 				}
 				d.Spec.Template.Spec.Volumes = []corev1.Volume{
 					{
-						Name: "nginx-certs-my-certificate",
+						Name: "nginx-certs-0",
 						VolumeSource: corev1.VolumeSource{
 							Secret: &corev1.SecretVolumeSource{
 								SecretName: "my-secret",
@@ -311,8 +301,8 @@ func Test_NewDeployment(t *testing.T) {
 			name: "with-two-certificates",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
 				n.Spec.TLS = []v1alpha1.NginxTLS{
-					{Name: "my-rsa-certificate", SecretName: "rsa-cert"},
-					{Name: "my-ecdsa-certificate", SecretName: "ecdsa-cert"},
+					{SecretName: "rsa-cert"},
+					{SecretName: "ecdsa-cert"},
 				}
 				return n
 			},
@@ -331,13 +321,13 @@ func Test_NewDeployment(t *testing.T) {
 				}
 				d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
 					{
-						Name:      "nginx-certs-my-rsa-certificate",
-						MountPath: "/etc/nginx/certs/my-rsa-certificate",
+						Name:      "nginx-certs-0",
+						MountPath: "/etc/nginx/certs/rsa-cert",
 						ReadOnly:  true,
 					},
 					{
-						Name:      "nginx-certs-my-ecdsa-certificate",
-						MountPath: "/etc/nginx/certs/my-ecdsa-certificate",
+						Name:      "nginx-certs-1",
+						MountPath: "/etc/nginx/certs/ecdsa-cert",
 						ReadOnly:  true,
 					},
 				}
@@ -351,7 +341,7 @@ func Test_NewDeployment(t *testing.T) {
 				}
 				d.Spec.Template.Spec.Volumes = []corev1.Volume{
 					{
-						Name: "nginx-certs-my-rsa-certificate",
+						Name: "nginx-certs-0",
 						VolumeSource: corev1.VolumeSource{
 							Secret: &corev1.SecretVolumeSource{
 								SecretName: "rsa-cert",
@@ -360,7 +350,7 @@ func Test_NewDeployment(t *testing.T) {
 						},
 					},
 					{
-						Name: "nginx-certs-my-ecdsa-certificate",
+						Name: "nginx-certs-1",
 						VolumeSource: corev1.VolumeSource{
 							Secret: &corev1.SecretVolumeSource{
 								SecretName: "ecdsa-cert",
@@ -506,10 +496,7 @@ func Test_NewDeployment(t *testing.T) {
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
 				n.Spec.PodTemplate.HostNetwork = true
 				n.Spec.TLS = []v1alpha1.NginxTLS{
-					{
-						Name:       "www.example.com",
-						SecretName: "my-secret",
-					},
+					{SecretName: "my-secret"},
 				}
 				return n
 			},
@@ -547,14 +534,14 @@ func Test_NewDeployment(t *testing.T) {
 				}
 				d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
 					{
-						Name:      "nginx-certs-www.example.com",
-						MountPath: "/etc/nginx/certs/www.example.com",
+						Name:      "nginx-certs-0",
+						MountPath: "/etc/nginx/certs/my-secret",
 						ReadOnly:  true,
 					},
 				}
 				d.Spec.Template.Spec.Volumes = []corev1.Volume{
 					{
-						Name: "nginx-certs-www.example.com",
+						Name: "nginx-certs-0",
 						VolumeSource: corev1.VolumeSource{
 							Secret: &corev1.SecretVolumeSource{
 								SecretName: "my-secret",
@@ -1181,10 +1168,7 @@ func Test_NewDeployment(t *testing.T) {
 					},
 				}
 				n.Spec.TLS = []v1alpha1.NginxTLS{
-					{
-						Name:       "www.example.com",
-						SecretName: "my-secret",
-					},
+					{SecretName: "my-secret"},
 				}
 				return n
 			},
@@ -1211,14 +1195,14 @@ func Test_NewDeployment(t *testing.T) {
 				}
 				d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
 					{
-						Name:      "nginx-certs-www.example.com",
-						MountPath: "/etc/nginx/certs/www.example.com",
+						Name:      "nginx-certs-0",
+						MountPath: "/etc/nginx/certs/my-secret",
 						ReadOnly:  true,
 					},
 				}
 				d.Spec.Template.Spec.Volumes = []corev1.Volume{
 					{
-						Name: "nginx-certs-www.example.com",
+						Name: "nginx-certs-0",
 						VolumeSource: corev1.VolumeSource{
 							Secret: &corev1.SecretVolumeSource{
 								SecretName: "my-secret",
