@@ -5,7 +5,6 @@ go 1.16
 require (
 	github.com/go-logr/logr v0.4.0
 	github.com/stretchr/testify v1.6.1
-	github.com/tsuru/config v0.0.0-20200717192526-2a9a0efe5f28
 	k8s.io/api v0.21.0
 	k8s.io/apimachinery v0.21.0
 	k8s.io/client-go v0.21.0

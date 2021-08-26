@@ -6,11 +6,9 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"time"
 
-	tsuruConfig "github.com/tsuru/config"
 	nginxv1alpha1 "github.com/tsuru/nginx-operator/api/v1alpha1"
 	"github.com/tsuru/nginx-operator/controllers"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -42,22 +40,7 @@ func init() {
 }
 
 func main() {
-	var configFile string
-	flag.StringVar(&configFile, "config", "", "Path to configuration file")
-	flag.StringVar(&configFile, "c", "", "Path to configuration file")
-
 	flag.Parse()
-
-	if configFile != "" {
-		setupLog.Info(fmt.Sprintf("Attempting to load configuration file at %q", configFile))
-
-		if err := tsuruConfig.ReadConfigFile(configFile); err != nil {
-			setupLog.Error(err, "Could not read the configuration file")
-			os.Exit(1)
-		}
-
-		setupLog.Info("Configuration file successfully loaded")
-	}
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
