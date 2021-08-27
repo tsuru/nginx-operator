@@ -12,6 +12,7 @@ import (
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -36,6 +37,7 @@ var (
 	logFormat               = flag.String("log-format", "json", "Set the format of logging (options: json, console)")
 	logLevel                = zap.LevelFlag("log-level", zapcore.InfoLevel, "Set the level of logging (options: debug, info, warn, error, dpanic, panic, fatal)")
 	namespace               = flag.String("namespace", "", "Limit the observed Nginxes to a specific namespace (empty means all namespaces)")
+	annotationFilter        = flag.String("annotation-filter", "", "Filter Nginx resources via annotation using label selector semantics (default: all Nginx resources)")
 )
 
 func init() {
@@ -76,10 +78,23 @@ func main() {
 	// NOTE: registering a dummy checker just to activate the /healthz endpoint
 	mgr.AddHealthzCheck("", func(_ *http.Request) error { return nil })
 
+	ls, err := metav1.ParseToLabelSelector(*annotationFilter)
+	if err != nil {
+		setupLog.Error(err, "unable to convert annotation filter to label selector")
+		os.Exit(1)
+	}
+
+	annotationSelector, err := metav1.LabelSelectorAsSelector(ls)
+	if err != nil {
+		setupLog.Error(err, "unable to convert annotation filter to selector")
+		os.Exit(1)
+	}
+
 	r := &controllers.NginxReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Nginx"),
-		Scheme: mgr.GetScheme(),
+		Client:           mgr.GetClient(),
+		Log:              ctrl.Log.WithName("controllers").WithName("Nginx"),
+		Scheme:           mgr.GetScheme(),
+		AnnotationFilter: annotationSelector,
 	}
 	if err = r.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Nginx")

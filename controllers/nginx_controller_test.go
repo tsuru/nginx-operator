@@ -14,6 +14,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -589,6 +590,64 @@ func TestNginxReconciler_reconcileStatus(t *testing.T) {
 		Services:  []v1alpha1.ServiceStatus{{Name: "my-nginx-service"}},
 		Ingresses: []v1alpha1.IngressStatus{{Name: "my-nginx"}},
 	}, got.Status)
+}
+
+func TestNginxReconciler_shouldManageNginx(t *testing.T) {
+	tests := []struct {
+		nginx            *v1alpha1.Nginx
+		annotationFilter func() labels.Selector
+		expected         bool
+	}{
+		{
+			nginx: &v1alpha1.Nginx{},
+			annotationFilter: func() labels.Selector {
+				return nil
+			},
+			expected: true,
+		},
+		{
+			nginx: &v1alpha1.Nginx{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"custom.annotation":  "foo",
+						"another.annotation": "bar",
+					},
+				},
+			},
+			annotationFilter: func() labels.Selector {
+				ls, err := metav1.ParseToLabelSelector("custom.annotation==foo,another.annotation")
+				require.NoError(t, err)
+				sel, err := metav1.LabelSelectorAsSelector(ls)
+				require.NoError(t, err)
+				return sel
+			},
+			expected: true,
+		},
+		{
+			nginx: &v1alpha1.Nginx{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"my.custom.annotation/skip": "true",
+					},
+				},
+			},
+			annotationFilter: func() labels.Selector {
+				ls, err := metav1.ParseToLabelSelector("!my.custom.annotation/skip")
+				require.NoError(t, err)
+				sel, err := metav1.LabelSelectorAsSelector(ls)
+				require.NoError(t, err)
+				return sel
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run("", func(t *testing.T) {
+			r := &NginxReconciler{AnnotationFilter: tt.annotationFilter()}
+			got := r.shouldManageNginx(tt.nginx)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
 }
 
 func newScheme() *runtime.Scheme {

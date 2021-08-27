@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"time"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -24,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/tsuru/nginx-operator/api/v1alpha1"
 	nginxv1alpha1 "github.com/tsuru/nginx-operator/api/v1alpha1"
 	"github.com/tsuru/nginx-operator/pkg/k8s"
 )
@@ -31,8 +33,9 @@ import (
 // NginxReconciler reconciles a Nginx object
 type NginxReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	Log              logr.Logger
+	Scheme           *runtime.Scheme
+	AnnotationFilter labels.Selector
 }
 
 // +kubebuilder:rbac:groups=nginx.tsuru.io,resources=nginxes,verbs=get;list;watch;create;update;patch;delete
@@ -72,6 +75,11 @@ func (r *NginxReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 		log.Error(err, "Unable to get Nginx resource")
 		return ctrl.Result{}, err
+	}
+
+	if !r.shouldManageNginx(&instance) {
+		log.V(1).Info("Nginx resource doesn't match annotations filters, skipping it")
+		return ctrl.Result{Requeue: true, RequeueAfter: 5 * time.Minute}, nil
 	}
 
 	if err := r.reconcileNginx(ctx, &instance); err != nil {
@@ -357,4 +365,13 @@ func listIngresses(ctx context.Context, c client.Client, nginx *nginxv1alpha1.Ng
 	})
 
 	return ingresses, nil
+}
+
+func (r *NginxReconciler) shouldManageNginx(nginx *v1alpha1.Nginx) bool {
+	// empty filter matches all resources
+	if r.AnnotationFilter == nil || r.AnnotationFilter.Empty() {
+		return true
+	}
+
+	return r.AnnotationFilter.Matches(labels.Set(nginx.Annotations))
 }
