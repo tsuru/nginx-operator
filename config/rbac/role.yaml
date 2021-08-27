@@ -42,6 +42,7 @@ rules:
   - ingresses
   verbs:
   - create
+  - delete
   - get
   - list
   - update
