@@ -6,6 +6,7 @@ package main
 
 import (
 	"flag"
+	"net/http"
 	"os"
 	"time"
 
@@ -27,7 +28,8 @@ var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 
-	metricsAddr             = flag.String("metrics-addr", ":8080", "The address the metric endpoint binds to.")
+	metricsAddr             = flag.String("metrics-addr", ":8080", "The TCP address that controller should bind to for serving Prometheus metrics. It can be set to \"0\" to disable the metrics serving.")
+	healthAddr              = flag.String("health-addr", ":8081", "The TCP address that controller should bind to for serving health probes.")
 	enableLeaderElection    = flag.Bool("enable-leader-election", true, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	leaderElectionNamespace = flag.String("leader-election-namespace", "", "Namespace where the leader election object will be created.")
 	syncPeriod              = flag.Duration("reconcile-sync", time.Minute, "Resync frequency of Nginx resources.")
@@ -62,11 +64,15 @@ func main() {
 		LeaderElectionID:        "nginx-operator-lock",
 		LeaderElectionNamespace: *leaderElectionNamespace,
 		SyncPeriod:              syncPeriod,
+		HealthProbeBindAddress:  *healthAddr,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
+
+	// NOTE: registering a dummy checker just to activate the /healthz endpoint
+	mgr.AddHealthzCheck("", func(_ *http.Request) error { return nil })
 
 	r := &controllers.NginxReconciler{
 		Client: mgr.GetClient(),
