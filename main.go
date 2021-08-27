@@ -30,7 +30,7 @@ var (
 
 	metricsAddr             = flag.String("metrics-addr", ":8080", "The TCP address that controller should bind to for serving Prometheus metrics. It can be set to \"0\" to disable the metrics serving.")
 	healthAddr              = flag.String("health-addr", ":8081", "The TCP address that controller should bind to for serving health probes.")
-	enableLeaderElection    = flag.Bool("enable-leader-election", true, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
+	enableLeaderElection    = flag.Bool("enable-leader-election", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	leaderElectionNamespace = flag.String("leader-election-namespace", "", "Namespace where the leader election object will be created.")
 	syncPeriod              = flag.Duration("reconcile-sync", time.Minute, "Resync frequency of Nginx resources.")
 	logFormat               = flag.String("log-format", "json", "Set the format of logging (options: json, console)")
