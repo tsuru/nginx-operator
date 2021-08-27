@@ -6,6 +6,7 @@ package k8s
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -1632,11 +1633,15 @@ func TestNewIngress(t *testing.T) {
 			},
 		},
 
-		"with ingress settings": {
+		"when there are TLS configs on the Nginx, should create the ingress with TLS configs too": {
 			nginx: func() v1alpha1.Nginx {
 				n := baseNginx()
 				n.Spec.Ingress = &v1alpha1.NginxIngress{
 					IngressClassName: func(s string) *string { return &s }("custom-class"),
+				}
+				n.Spec.TLS = []v1alpha1.NginxTLS{
+					{SecretName: "specific-domains-cert", Hosts: []string{"www.example.com", "blog.example.com", "id.example.com"}},
+					{SecretName: "wildcard-cert"},
 				}
 				return n
 			},
@@ -1662,6 +1667,100 @@ func TestNewIngress(t *testing.T) {
 				},
 				Spec: networkingv1.IngressSpec{
 					IngressClassName: func(s string) *string { return &s }("custom-class"),
+					Rules: []networkingv1.IngressRule{
+						{
+							Host: "www.example.com",
+							IngressRuleValue: networkingv1.IngressRuleValue{
+								HTTP: &networkingv1.HTTPIngressRuleValue{
+									Paths: []networkingv1.HTTPIngressPath{
+										{
+											Path:     "/",
+											PathType: func(pt networkingv1.PathType) *networkingv1.PathType { return &pt }(networkingv1.PathTypePrefix),
+											Backend: networkingv1.IngressBackend{
+												Service: &networkingv1.IngressServiceBackend{
+													Name: fmt.Sprintf("%s-service", nginx.Name),
+													Port: networkingv1.ServiceBackendPort{
+														Name: defaultHTTPPortName,
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+						{
+							Host: "blog.example.com",
+							IngressRuleValue: networkingv1.IngressRuleValue{
+								HTTP: &networkingv1.HTTPIngressRuleValue{
+									Paths: []networkingv1.HTTPIngressPath{
+										{
+											Path:     "/",
+											PathType: func(pt networkingv1.PathType) *networkingv1.PathType { return &pt }(networkingv1.PathTypePrefix),
+											Backend: networkingv1.IngressBackend{
+												Service: &networkingv1.IngressServiceBackend{
+													Name: fmt.Sprintf("%s-service", nginx.Name),
+													Port: networkingv1.ServiceBackendPort{
+														Name: defaultHTTPPortName,
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+						{
+							Host: "id.example.com",
+							IngressRuleValue: networkingv1.IngressRuleValue{
+								HTTP: &networkingv1.HTTPIngressRuleValue{
+									Paths: []networkingv1.HTTPIngressPath{
+										{
+											Path:     "/",
+											PathType: func(pt networkingv1.PathType) *networkingv1.PathType { return &pt }(networkingv1.PathTypePrefix),
+											Backend: networkingv1.IngressBackend{
+												Service: &networkingv1.IngressServiceBackend{
+													Name: fmt.Sprintf("%s-service", nginx.Name),
+													Port: networkingv1.ServiceBackendPort{
+														Name: defaultHTTPPortName,
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+						{
+							IngressRuleValue: networkingv1.IngressRuleValue{
+								HTTP: &networkingv1.HTTPIngressRuleValue{
+									Paths: []networkingv1.HTTPIngressPath{
+										{
+											Path:     "/",
+											PathType: func(pt networkingv1.PathType) *networkingv1.PathType { return &pt }(networkingv1.PathTypePrefix),
+											Backend: networkingv1.IngressBackend{
+												Service: &networkingv1.IngressServiceBackend{
+													Name: fmt.Sprintf("%s-service", nginx.Name),
+													Port: networkingv1.ServiceBackendPort{
+														Name: defaultHTTPPortName,
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+					TLS: []networkingv1.IngressTLS{
+						{
+							SecretName: "specific-domains-cert",
+							Hosts:      []string{"www.example.com", "blog.example.com", "id.example.com"},
+						},
+						{
+							SecretName: "wildcard-cert",
+						},
+					},
 					DefaultBackend: &networkingv1.IngressBackend{
 						Service: &networkingv1.IngressServiceBackend{
 							Name: "my-nginx-service",

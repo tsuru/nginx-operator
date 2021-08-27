@@ -310,6 +310,46 @@ func NewIngress(nginx *v1alpha1.Nginx) *networkingv1.Ingress {
 		ingressClass = nginx.Spec.Ingress.IngressClassName
 	}
 
+	var rules []networkingv1.IngressRule
+	var tls []networkingv1.IngressTLS
+	for _, t := range nginx.Spec.TLS {
+		hosts := t.Hosts
+		if len(hosts) == 0 {
+			// NOTE: making sure a wildcard HTTP rule is going to be set whenever the
+			// TLS certificates doesn't specify any hostname.
+			hosts = []string{""}
+		}
+
+		for _, host := range hosts {
+			rules = append(rules, networkingv1.IngressRule{
+				Host: host,
+				IngressRuleValue: networkingv1.IngressRuleValue{
+					HTTP: &networkingv1.HTTPIngressRuleValue{
+						Paths: []networkingv1.HTTPIngressPath{
+							{
+								Path:     "/",
+								PathType: func(pt networkingv1.PathType) *networkingv1.PathType { return &pt }(networkingv1.PathTypePrefix),
+								Backend: networkingv1.IngressBackend{
+									Service: &networkingv1.IngressServiceBackend{
+										Name: fmt.Sprintf("%s-service", nginx.Name),
+										Port: networkingv1.ServiceBackendPort{
+											Name: defaultHTTPPortName,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			})
+		}
+
+		tls = append(tls, networkingv1.IngressTLS{
+			SecretName: t.SecretName,
+			Hosts:      t.Hosts,
+		})
+	}
+
 	return &networkingv1.Ingress{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "networking.k8s.io/v1",
@@ -330,6 +370,8 @@ func NewIngress(nginx *v1alpha1.Nginx) *networkingv1.Ingress {
 		},
 		Spec: networkingv1.IngressSpec{
 			IngressClassName: ingressClass,
+			Rules:            rules,
+			TLS:              tls,
 			DefaultBackend: &networkingv1.IngressBackend{
 				Service: &networkingv1.IngressServiceBackend{
 					Name: fmt.Sprintf("%s-service", nginx.Name),
