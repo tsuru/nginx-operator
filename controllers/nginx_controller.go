@@ -13,6 +13,7 @@ import (
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,6 +38,7 @@ type NginxReconciler struct {
 // +kubebuilder:rbac:groups=nginx.tsuru.io,resources=nginxes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=nginx.tsuru.io,resources=nginxes/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
@@ -91,6 +93,10 @@ func (r *NginxReconciler) reconcileNginx(ctx context.Context, nginx *nginxv1alph
 	}
 
 	if err := r.reconcileService(ctx, nginx); err != nil {
+		return err
+	}
+
+	if err := r.reconcileIngress(ctx, nginx); err != nil {
 		return err
 	}
 
@@ -184,6 +190,50 @@ func (r *NginxReconciler) reconcileService(ctx context.Context, nginx *nginxv1al
 	return r.Client.Update(ctx, newService)
 }
 
+func (r *NginxReconciler) reconcileIngress(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
+	if nginx == nil {
+		return fmt.Errorf("nginx cannot be nil")
+	}
+
+	new := k8s.NewIngress(nginx)
+
+	var current networkingv1.Ingress
+	err := r.Client.Get(ctx, types.NamespacedName{Name: new.Name, Namespace: new.Namespace}, &current)
+	if errors.IsNotFound(err) {
+		if nginx.Spec.Ingress == nil {
+			return nil
+		}
+
+		return r.Client.Create(ctx, new)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if nginx.Spec.Ingress == nil {
+		return r.Client.Delete(ctx, &current)
+	}
+
+	if !shouldUpdateIngress(&current, new) {
+		return nil
+	}
+
+	new.ResourceVersion = current.ResourceVersion
+
+	return r.Client.Update(ctx, new)
+}
+
+func shouldUpdateIngress(current, new *networkingv1.Ingress) bool {
+	if current == nil || new == nil {
+		return false
+	}
+
+	return !reflect.DeepEqual(current.Annotations, new.Annotations) ||
+		!reflect.DeepEqual(current.Labels, new.Labels) ||
+		!reflect.DeepEqual(current.Spec, new.Spec)
+}
+
 func (r *NginxReconciler) refreshStatus(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
 	pods, err := listPods(ctx, r.Client, nginx)
 	if err != nil {
@@ -193,7 +243,11 @@ func (r *NginxReconciler) refreshStatus(ctx context.Context, nginx *nginxv1alpha
 	services, err := listServices(ctx, r.Client, nginx)
 	if err != nil {
 		return fmt.Errorf("failed to list services for nginx: %v", err)
+	}
 
+	ingresses, err := listIngresses(ctx, r.Client, nginx)
+	if err != nil {
+		return fmt.Errorf("failed to list ingresses for nginx: %w", err)
 	}
 
 	sort.Slice(nginx.Status.Pods, func(i, j int) bool {
@@ -204,11 +258,17 @@ func (r *NginxReconciler) refreshStatus(ctx context.Context, nginx *nginxv1alpha
 		return nginx.Status.Services[i].Name < nginx.Status.Services[j].Name
 	})
 
+	sort.Slice(nginx.Status.Ingresses, func(i, j int) bool {
+		return nginx.Status.Ingresses[i].Name < nginx.Status.Ingresses[j].Name
+	})
+
 	if !reflect.DeepEqual(pods, nginx.Status.Pods) || !reflect.DeepEqual(services, nginx.Status.Services) {
 		nginx.Status.Pods = pods
 		nginx.Status.Services = services
+		nginx.Status.Ingresses = ingresses
 		nginx.Status.CurrentReplicas = int32(len(pods))
 		nginx.Status.PodSelector = k8s.LabelsForNginxString(nginx.Name)
+
 		err := r.Client.Status().Update(ctx, nginx)
 		if err != nil {
 			return fmt.Errorf("failed to update nginx status: %v", err)
@@ -274,4 +334,27 @@ func listServices(ctx context.Context, c client.Client, nginx *nginxv1alpha1.Ngi
 	})
 
 	return services, nil
+}
+
+func listIngresses(ctx context.Context, c client.Client, nginx *nginxv1alpha1.Nginx) ([]nginxv1alpha1.IngressStatus, error) {
+	var ingressList networkingv1.IngressList
+
+	options := &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(k8s.LabelsForNginx(nginx.Name)),
+		Namespace:     nginx.Namespace,
+	}
+	if err := c.List(ctx, &ingressList, options); err != nil {
+		return nil, err
+	}
+
+	var ingresses []nginxv1alpha1.IngressStatus
+	for _, i := range ingressList.Items {
+		ingresses = append(ingresses, nginxv1alpha1.IngressStatus{Name: i.Name})
+	}
+
+	sort.Slice(ingresses, func(i, j int) bool {
+		return ingresses[i].Name < ingresses[j].Name
+	})
+
+	return ingresses, nil
 }

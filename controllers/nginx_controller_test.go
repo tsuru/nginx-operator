@@ -11,21 +11,23 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/tsuru/nginx-operator/api/v1alpha1"
+	nginxv1alpha1 "github.com/tsuru/nginx-operator/api/v1alpha1"
 )
 
 func TestNginxReconciler_reconcileService(t *testing.T) {
-	scheme := runtime.NewScheme()
-	corev1.AddToScheme(scheme)
-	v1alpha1.AddToScheme(scheme)
-
 	tests := []struct {
 		name      string
 		nginx     *v1alpha1.Nginx
@@ -315,13 +317,12 @@ func TestNginxReconciler_reconcileService(t *testing.T) {
 			}
 
 			client := fake.NewClientBuilder().
-				WithScheme(scheme).
+				WithScheme(newScheme()).
 				WithRuntimeObjects(resources...).
 				Build()
 
 			r := &NginxReconciler{
 				Client: client,
-				Scheme: scheme,
 				Log:    ctrl.Log.WithName("test"),
 			}
 			err := r.reconcileService(context.TODO(), tt.nginx)
@@ -331,4 +332,268 @@ func TestNginxReconciler_reconcileService(t *testing.T) {
 			tt.assertion(t, err, gotService)
 		})
 	}
+}
+
+func TestNginxReconciler_reconcileIngress(t *testing.T) {
+	resources := []runtime.Object{
+		&networkingv1.Ingress{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "networking.k8s.io/v1",
+				Kind:       "Ingress",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nginx-1",
+				Namespace: "default",
+			},
+			Spec: networkingv1.IngressSpec{
+				IngressClassName: func(s string) *string { return &s }("default-ingress"),
+				Rules: []networkingv1.IngressRule{
+					{
+						Host: "my-nginx-1.test",
+						IngressRuleValue: networkingv1.IngressRuleValue{
+							HTTP: &networkingv1.HTTPIngressRuleValue{
+								Paths: []networkingv1.HTTPIngressPath{
+									{
+										Path: "/",
+										Backend: networkingv1.IngressBackend{
+											Service: &networkingv1.IngressServiceBackend{
+												Name: "my-nginx-1-service",
+												Port: networkingv1.ServiceBackendPort{Name: "http"},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	tests := map[string]struct {
+		nginx         *nginxv1alpha1.Nginx
+		expectedError string
+		assert        func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx)
+	}{
+		"when nginx is nil, should return expected error": {
+			expectedError: "nginx cannot be nil",
+		},
+
+		"when ingress does not exist, should create one": {
+			nginx: &nginxv1alpha1.Nginx{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "my-nginx-2",
+					Namespace:       "default",
+					ResourceVersion: "666",
+				},
+				Spec: nginxv1alpha1.NginxSpec{
+					Ingress: &nginxv1alpha1.NginxIngress{
+						IngressClassName: func(s string) *string { return &s }("custom-class"),
+					},
+				},
+			},
+			assert: func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx) {
+				var got networkingv1.Ingress
+				err := c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-2", Namespace: "default"}, &got)
+				require.NoError(t, err)
+
+				assert.Equal(t, networkingv1.Ingress{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "networking.k8s.io/v1",
+						Kind:       "Ingress",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "my-nginx-2",
+						Namespace:       "default",
+						ResourceVersion: "1",
+						Labels: map[string]string{
+							"nginx.tsuru.io/app":           "nginx",
+							"nginx.tsuru.io/resource-name": "my-nginx-2",
+						},
+						OwnerReferences: []metav1.OwnerReference{
+							*metav1.NewControllerRef(nginx, schema.GroupVersionKind{
+								Group:   v1alpha1.GroupVersion.Group,
+								Version: v1alpha1.GroupVersion.Version,
+								Kind:    "Nginx",
+							}),
+						},
+					},
+					Spec: networkingv1.IngressSpec{
+						IngressClassName: func(s string) *string { return &s }("custom-class"),
+						DefaultBackend: &networkingv1.IngressBackend{
+							Service: &networkingv1.IngressServiceBackend{
+								Name: "my-nginx-2-service",
+								Port: networkingv1.ServiceBackendPort{Name: "http"},
+							},
+						},
+					},
+				}, got)
+			},
+		},
+
+		"when nginx removes ingress field, should remove the ingress resource": {
+			nginx: &v1alpha1.Nginx{
+				ObjectMeta: metav1.ObjectMeta{Name: "my-nginx-1", Namespace: "default"},
+			},
+			assert: func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx) {
+				var got networkingv1.Ingress
+				err := c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-1", Namespace: "default"}, &got)
+				assert.Error(t, err)
+				assert.True(t, errors.IsNotFound(err))
+			},
+		},
+
+		"when ingress already exists, updating the ingress field in nginx should update the target ingress resource": {
+			nginx: &v1alpha1.Nginx{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-nginx-1",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.NginxSpec{
+					Ingress: &v1alpha1.NginxIngress{
+						Annotations: map[string]string{"custom.nginx.tsuru.io/foo": "bar"},
+						Labels:      map[string]string{"custom.nginx.tsuru.io": "key1"},
+					},
+				},
+			},
+			assert: func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx) {
+				var got networkingv1.Ingress
+				err := c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-1", Namespace: "default"}, &got)
+				require.NoError(t, err)
+
+				assert.Equal(t, map[string]string{"custom.nginx.tsuru.io/foo": "bar"}, got.Annotations)
+				assert.Equal(t, map[string]string{
+					"nginx.tsuru.io/app":           "nginx",
+					"nginx.tsuru.io/resource-name": "my-nginx-1",
+					"custom.nginx.tsuru.io":        "key1",
+				}, got.Labels)
+				assert.Equal(t, networkingv1.IngressSpec{
+					DefaultBackend: &networkingv1.IngressBackend{
+						Service: &networkingv1.IngressServiceBackend{
+							Name: "my-nginx-1-service",
+							Port: networkingv1.ServiceBackendPort{Name: "http"},
+						},
+					},
+				}, got.Spec)
+			},
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			client := fake.NewClientBuilder().
+				WithScheme(newScheme()).
+				WithRuntimeObjects(resources...).
+				Build()
+
+			r := &NginxReconciler{Client: client}
+			err := r.reconcileIngress(context.TODO(), tt.nginx)
+			if tt.expectedError != "" {
+				assert.EqualError(t, err, tt.expectedError)
+				return
+			}
+
+			assert.NoError(t, err)
+			if tt.assert != nil {
+				tt.assert(t, client, tt.nginx)
+			}
+		})
+	}
+}
+
+func TestNginxReconciler_reconcileStatus(t *testing.T) {
+	nginx := v1alpha1.Nginx{ObjectMeta: metav1.ObjectMeta{Name: "my-nginx", Namespace: "default"}}
+
+	resources := []runtime.Object{
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nginx-abc-123",
+				Namespace: "default",
+				Labels: map[string]string{
+					"nginx.tsuru.io/app":           "nginx",
+					"nginx.tsuru.io/resource-name": "my-nginx",
+				},
+			},
+			Status: corev1.PodStatus{
+				PodIP:  "10.10.10.10",
+				HostIP: "169.254.100.10",
+			},
+		},
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nginx-abc-345",
+				Namespace: "default",
+				Labels: map[string]string{
+					"nginx.tsuru.io/app":           "nginx",
+					"nginx.tsuru.io/resource-name": "my-nginx",
+				},
+			},
+			Status: corev1.PodStatus{
+				PodIP:  "10.10.10.11",
+				HostIP: "169.254.100.11",
+			},
+		},
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nginx-abc-678",
+				Namespace: "default",
+				Labels: map[string]string{
+					"nginx.tsuru.io/app":           "nginx",
+					"nginx.tsuru.io/resource-name": "my-nginx",
+				},
+			},
+		},
+		&corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nginx-service",
+				Namespace: "default",
+				Labels: map[string]string{
+					"nginx.tsuru.io/app":           "nginx",
+					"nginx.tsuru.io/resource-name": "my-nginx",
+				},
+			},
+		},
+		&networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nginx",
+				Namespace: "default",
+				Labels: map[string]string{
+					"nginx.tsuru.io/app":           "nginx",
+					"nginx.tsuru.io/resource-name": "my-nginx",
+				},
+			},
+		},
+		&nginx,
+	}
+
+	client := fake.NewClientBuilder().
+		WithScheme(newScheme()).
+		WithRuntimeObjects(resources...).
+		Build()
+
+	r := &NginxReconciler{Client: client}
+	assert.NoError(t, r.refreshStatus(context.TODO(), &nginx))
+
+	var got v1alpha1.Nginx
+	err := client.Get(context.TODO(), types.NamespacedName{Name: "my-nginx", Namespace: "default"}, &got)
+	require.NoError(t, err)
+	assert.Equal(t, v1alpha1.NginxStatus{
+		CurrentReplicas: int32(3),
+		PodSelector:     "nginx.tsuru.io/app=nginx,nginx.tsuru.io/resource-name=my-nginx",
+		Pods: []v1alpha1.PodStatus{
+			{Name: "my-nginx-abc-123", PodIP: "10.10.10.10", HostIP: "169.254.100.10"},
+			{Name: "my-nginx-abc-345", PodIP: "10.10.10.11", HostIP: "169.254.100.11"},
+			{Name: "my-nginx-abc-678", PodIP: "<pending>", HostIP: "<pending>"},
+		},
+		Services:  []v1alpha1.ServiceStatus{{Name: "my-nginx-service"}},
+		Ingresses: []v1alpha1.IngressStatus{{Name: "my-nginx"}},
+	}, got.Status)
+}
+
+func newScheme() *runtime.Scheme {
+	scheme := runtime.NewScheme()
+	clientgoscheme.AddToScheme(scheme)
+	v1alpha1.AddToScheme(scheme)
+	return scheme
 }

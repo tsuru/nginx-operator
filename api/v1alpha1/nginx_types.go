@@ -58,6 +58,9 @@ type NginxSpec struct {
 	// Service to expose the nginx pod
 	// +optional
 	Service *NginxService `json:"service,omitempty"`
+	// Ingress defines a convenient way to expose the Nginx service.
+	// +optional
+	Ingress *NginxIngress `json:"ingress,omitempty"`
 	// ExtraFiles references to additional files into a object in the cluster.
 	// These additional files will be mounted on `/etc/nginx/extra_files`.
 	// +optional
@@ -89,6 +92,18 @@ type NginxTLS struct {
 	// wildcard of hosts: "*".
 	// +optional
 	Hosts []string `json:"hosts,omitempty"`
+}
+
+type NginxIngress struct {
+	// Annotations are extra annotations for the Ingress resource.
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
+	// Labels are extra labels for the Ingress resource.
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
+	// IngressClassName is the class to be set on Ingress.
+	// +optional
+	IngressClassName *string `json:"ingressClassName,omitempty"`
 }
 
 type NginxService struct {
@@ -219,6 +234,7 @@ type NginxStatus struct {
 	PodSelector string          `json:"podSelector,omitempty"`
 	Pods        []PodStatus     `json:"pods,omitempty"`
 	Services    []ServiceStatus `json:"services,omitempty"`
+	Ingresses   []IngressStatus `json:"ingresses,omitempty"`
 }
 
 type PodStatus struct {
@@ -232,6 +248,11 @@ type PodStatus struct {
 
 type ServiceStatus struct {
 	// Name is the name of the Service created by nginx
+	Name string `json:"name"`
+}
+
+type IngressStatus struct {
+	// Name is the name of the Ingress created by nginx
 	Name string `json:"name"`
 }
 

@@ -75,15 +75,20 @@ spec:
                 in NGINX container on "/etc/nginx/nginx.conf".
               properties:
                 kind:
-                  description: Kind of the config object. Defaults to ConfigKindConfigMap.
+                  description: Kind of the config object. Defaults to "ConfigMap".
                   type: string
                 name:
-                  description: Name of the config object. Required when Kind is ConfigKindConfigMap.
+                  description: "Name of the ConfigMap object with \"nginx.conf\" key
+                    inside. It must reside in the same Namespace as the Nginx resource.
+                    Required when Kind is \"ConfigMap\". \n It's mutually exclusive
+                    with Value field."
                   type: string
                 value:
-                  description: Value is a inline configuration content. Required when
-                    Kind is ConfigKindInline.
+                  description: "Value is the raw Nginx configuration. Required when
+                    Kind is \"Inline\". \n It's mutually exclusive with Name field."
                   type: string
+              required:
+              - kind
               type: object
             extraFiles:
               description: ExtraFiles references to additional files into a object
@@ -109,6 +114,23 @@ spec:
             image:
               description: Image is the container image name. Defaults to "nginx:latest".
               type: string
+            ingress:
+              description: Ingress defines a convenient way to expose the Nginx service.
+              properties:
+                annotations:
+                  additionalProperties:
+                    type: string
+                  description: Annotations are extra annotations for the Ingress resource.
+                  type: object
+                ingressClassName:
+                  description: IngressClassName is the class to be set on Ingress.
+                  type: string
+                labels:
+                  additionalProperties:
+                    type: string
+                  description: Labels are extra labels for the Ingress resource.
+                  type: object
+              type: object
             lifecycle:
               description: Lifecycle describes actions that should be executed when
                 some event happens to nginx container.
@@ -3925,6 +3947,16 @@ spec:
                 object.
               format: int32
               type: integer
+            ingresses:
+              items:
+                properties:
+                  name:
+                    description: Name is the name of the Ingress created by nginx
+                    type: string
+                required:
+                - name
+                type: object
+              type: array
             podSelector:
               description: PodSelector is the NGINX's pod label selector.
               type: string
