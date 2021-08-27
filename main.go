@@ -35,6 +35,7 @@ var (
 	syncPeriod              = flag.Duration("reconcile-sync", 10*time.Hour, "Resync frequency of Nginx resources.")
 	logFormat               = flag.String("log-format", "json", "Set the format of logging (options: json, console)")
 	logLevel                = zap.LevelFlag("log-level", zapcore.InfoLevel, "Set the level of logging (options: debug, info, warn, error, dpanic, panic, fatal)")
+	namespace               = flag.String("namespace", "", "Limit the observed Nginxes to a specific namespace (empty means all namespaces)")
 )
 
 func init() {
@@ -60,6 +61,7 @@ func main() {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                  scheme,
 		MetricsBindAddress:      *metricsAddr,
+		Namespace:               *namespace,
 		LeaderElection:          *enableLeaderElection,
 		LeaderElectionID:        "nginx-operator-lock",
 		LeaderElectionNamespace: *leaderElectionNamespace,
