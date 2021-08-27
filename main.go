@@ -9,14 +9,17 @@ import (
 	"os"
 	"time"
 
-	nginxv1alpha1 "github.com/tsuru/nginx-operator/api/v1alpha1"
-	"github.com/tsuru/nginx-operator/controllers"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	nginxv1alpha1 "github.com/tsuru/nginx-operator/api/v1alpha1"
+	"github.com/tsuru/nginx-operator/controllers"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -24,12 +27,12 @@ var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 
-	metricsAddr = flag.String("metrics-addr", ":8080", "The address the metric endpoint binds to.")
-
+	metricsAddr             = flag.String("metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	enableLeaderElection    = flag.Bool("enable-leader-election", true, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	leaderElectionNamespace = flag.String("leader-election-namespace", "", "Namespace where the leader election object will be created.")
-
-	syncPeriod = flag.Duration("reconcile-sync", time.Minute, "Resync frequency of Nginx resources.")
+	syncPeriod              = flag.Duration("reconcile-sync", time.Minute, "Resync frequency of Nginx resources.")
+	logFormat               = flag.String("log-format", "json", "Set the format of logging (options: json, console)")
+	logLevel                = zap.LevelFlag("log-level", zapcore.InfoLevel, "Set the level of logging (options: debug, info, warn, error, dpanic, panic, fatal)")
 )
 
 func init() {
@@ -42,12 +45,19 @@ func init() {
 func main() {
 	flag.Parse()
 
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	logEncoder := zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig())
+	if *logFormat == "console" {
+		logEncoder = zapcore.NewConsoleEncoder(zap.NewProductionEncoderConfig())
+	}
+
+	ctrl.SetLogger(ctrlzap.New(
+		ctrlzap.Level(zap.NewAtomicLevelAt(*logLevel)),
+		ctrlzap.Encoder(logEncoder),
+	))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                  scheme,
 		MetricsBindAddress:      *metricsAddr,
-		Port:                    9443,
 		LeaderElection:          *enableLeaderElection,
 		LeaderElectionID:        "nginx-operator-lock",
 		LeaderElectionNamespace: *leaderElectionNamespace,
