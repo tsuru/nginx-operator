@@ -32,7 +32,7 @@ var (
 	healthAddr              = flag.String("health-addr", ":8081", "The TCP address that controller should bind to for serving health probes.")
 	enableLeaderElection    = flag.Bool("enable-leader-election", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	leaderElectionNamespace = flag.String("leader-election-namespace", "", "Namespace where the leader election object will be created.")
-	syncPeriod              = flag.Duration("reconcile-sync", time.Minute, "Resync frequency of Nginx resources.")
+	syncPeriod              = flag.Duration("reconcile-sync", 10*time.Hour, "Resync frequency of Nginx resources.")
 	logFormat               = flag.String("log-format", "json", "Set the format of logging (options: json, console)")
 	logLevel                = zap.LevelFlag("log-level", zapcore.InfoLevel, "Set the level of logging (options: debug, info, warn, error, dpanic, panic, fatal)")
 )
