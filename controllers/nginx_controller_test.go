@@ -479,6 +479,78 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 				}, got.Spec)
 			},
 		},
+
+		"when TLS is set, should not set the default backend": {
+			nginx: &nginxv1alpha1.Nginx{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "my-nginx-2",
+					Namespace:       "default",
+					ResourceVersion: "666",
+				},
+				Spec: nginxv1alpha1.NginxSpec{
+					Ingress: &nginxv1alpha1.NginxIngress{},
+					TLS: []nginxv1alpha1.NginxTLS{
+						{SecretName: "example-com-certs", Hosts: []string{"www.example.com"}},
+					},
+				},
+			},
+			assert: func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx) {
+				var got networkingv1.Ingress
+				err := c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-2", Namespace: "default"}, &got)
+				require.NoError(t, err)
+
+				assert.Equal(t, networkingv1.Ingress{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "networking.k8s.io/v1",
+						Kind:       "Ingress",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "my-nginx-2",
+						Namespace:       "default",
+						ResourceVersion: "1",
+						Labels: map[string]string{
+							"nginx.tsuru.io/app":           "nginx",
+							"nginx.tsuru.io/resource-name": "my-nginx-2",
+						},
+						OwnerReferences: []metav1.OwnerReference{
+							*metav1.NewControllerRef(nginx, schema.GroupVersionKind{
+								Group:   v1alpha1.GroupVersion.Group,
+								Version: v1alpha1.GroupVersion.Version,
+								Kind:    "Nginx",
+							}),
+						},
+					},
+					Spec: networkingv1.IngressSpec{
+						TLS: []networkingv1.IngressTLS{
+							{SecretName: "example-com-certs", Hosts: []string{"www.example.com"}},
+						},
+						Rules: []networkingv1.IngressRule{
+							{
+								Host: "www.example.com",
+								IngressRuleValue: networkingv1.IngressRuleValue{
+									HTTP: &networkingv1.HTTPIngressRuleValue{
+										Paths: []networkingv1.HTTPIngressPath{
+											{
+												Path:     "/",
+												PathType: func(t networkingv1.PathType) *networkingv1.PathType { return &t }(networkingv1.PathTypePrefix),
+												Backend: networkingv1.IngressBackend{
+													Service: &networkingv1.IngressServiceBackend{
+														Name: "my-nginx-2-service",
+														Port: networkingv1.ServiceBackendPort{
+															Name: "http",
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				}, got)
+			},
+		},
 	}
 
 	for name, tt := range tests {

@@ -350,6 +350,18 @@ func NewIngress(nginx *v1alpha1.Nginx) *networkingv1.Ingress {
 		})
 	}
 
+	var defaultBackend *networkingv1.IngressBackend
+	if len(rules) == 0 {
+		defaultBackend = &networkingv1.IngressBackend{
+			Service: &networkingv1.IngressServiceBackend{
+				Name: fmt.Sprintf("%s-service", nginx.Name),
+				Port: networkingv1.ServiceBackendPort{
+					Name: defaultHTTPPortName,
+				},
+			},
+		}
+	}
+
 	return &networkingv1.Ingress{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "networking.k8s.io/v1",
@@ -372,14 +384,7 @@ func NewIngress(nginx *v1alpha1.Nginx) *networkingv1.Ingress {
 			IngressClassName: ingressClass,
 			Rules:            rules,
 			TLS:              tls,
-			DefaultBackend: &networkingv1.IngressBackend{
-				Service: &networkingv1.IngressServiceBackend{
-					Name: fmt.Sprintf("%s-service", nginx.Name),
-					Port: networkingv1.ServiceBackendPort{
-						Name: defaultHTTPPortName,
-					},
-				},
-			},
+			DefaultBackend:   defaultBackend,
 		},
 	}
 }

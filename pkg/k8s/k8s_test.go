@@ -1761,12 +1761,6 @@ func TestNewIngress(t *testing.T) {
 							SecretName: "wildcard-cert",
 						},
 					},
-					DefaultBackend: &networkingv1.IngressBackend{
-						Service: &networkingv1.IngressServiceBackend{
-							Name: "my-nginx-service",
-							Port: networkingv1.ServiceBackendPort{Name: "http"},
-						},
-					},
 				},
 			},
 		},
