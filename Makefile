@@ -5,10 +5,7 @@ IMAGE ?= tsuru/nginx-operator
 # Docker image revision
 TAG ?= dev
 
-# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-CRD_OPTIONS ?= "crd:trivialVersions=true"
-
-KUBECTL_VALIDATE ?= --validate=false
+KUBECTL ?= kubectl
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -40,7 +37,7 @@ run: generate manifests
 # Install CRDs into a cluster
 .PHONY: install
 install: manifests kustomize
-	$(KUSTOMIZE) build config/crd | kubectl apply $(KUBECTL_VALIDATE) -f -
+	kubectl apply -k config/crd
 
 # Uninstall CRDs from a cluster
 .PHONY: uninstall
@@ -51,7 +48,7 @@ uninstall: manifests kustomize
 .PHONY: deploy
 deploy: manifests kustomize
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMAGE):$(TAG)
-	$(KUSTOMIZE) build config/default | kubectl apply $(KUBECTL_VALIDATE) -f -
+	$(KUBECTL) apply -k config/default
 
 # Build the docker image
 .PHONY: docker-build
@@ -66,7 +63,7 @@ docker-push:
 # Generate manifests e.g. CRD, RBAC etc.
 .PHONY: manifests
 manifests: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) rbac:roleName=role crd paths=./... output:crd:artifacts:config=config/crd/bases
 
 # Generate code (zz_generated.deepcopy.go files)
 .PHONY: generate
@@ -80,11 +77,7 @@ controller-gen:
 ifeq (, $(shell which controller-gen))
 	@{ \
 	set -e ;\
-	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
-	cd $$CONTROLLER_GEN_TMP_DIR ;\
-	go mod init tmp ;\
-	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.3.0 ;\
-	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
+	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.7.0 ;\
 	}
 CONTROLLER_GEN=$(GOBIN)/controller-gen
 else
