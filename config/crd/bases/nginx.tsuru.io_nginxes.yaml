@@ -3947,6 +3947,16 @@ spec:
                 object.
               format: int32
               type: integer
+            deployments:
+              items:
+                properties:
+                  name:
+                    description: Name is the name of the Deployment created by nginx
+                    type: string
+                required:
+                - name
+                type: object
+              type: array
             ingresses:
               items:
                 properties:
@@ -3960,24 +3970,6 @@ spec:
             podSelector:
               description: PodSelector is the NGINX's pod label selector.
               type: string
-            pods:
-              items:
-                properties:
-                  hostIP:
-                    description: HostIP is the IP where POD is running
-                    type: string
-                  name:
-                    description: Name is the name of the POD running nginx
-                    type: string
-                  podIP:
-                    description: PodIP is the IP if the POD
-                    type: string
-                required:
-                - hostIP
-                - name
-                - podIP
-                type: object
-              type: array
             services:
               items:
                 properties:

@@ -46,7 +46,8 @@ func Test_Operator(t *testing.T) {
 		nginx, err := getReadyNginx("simple", 2, 1)
 		require.NoError(t, err)
 		require.NotNil(t, nginx)
-		assert.Equal(t, 2, len(nginx.Status.Pods))
+		assert.Equal(t, int32(2), nginx.Status.CurrentReplicas)
+		assert.Equal(t, 1, len(nginx.Status.Deployments))
 		assert.Equal(t, 1, len(nginx.Status.Services))
 	})
 
@@ -72,7 +73,12 @@ func Test_Operator(t *testing.T) {
 		assert.Equal(t, int32(80), nginxService.Spec.Ports[0].Port)
 		assert.Equal(t, int32(443), nginxService.Spec.Ports[1].Port)
 
-		podName := nginx.Status.Pods[0].Name
+		var podList corev1.PodList
+		err = getList(&podList, "pods", nginx.Status.PodSelector, nginx.Namespace)
+		require.NoError(t, err)
+		require.NotEmpty(t, podList.Items)
+
+		podName := podList.Items[0].Name
 		err = waitPodBeAvailable(podName, testingNamespace)
 		require.NoError(t, err)
 
@@ -134,7 +140,7 @@ func getReadyNginx(name string, expectedPods int, expectedSvcs int) (*v1alpha1.N
 		if err != nil {
 			fmt.Printf("Err getting nginx %q: %v. Retrying...\n", name, err)
 		}
-		if len(nginx.Status.Pods) == expectedPods && len(nginx.Status.Services) == expectedSvcs {
+		if nginx.Status.CurrentReplicas == int32(expectedPods) && len(nginx.Status.Services) == expectedSvcs {
 			return nginx, nil
 		}
 		select {

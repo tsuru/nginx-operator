@@ -117,6 +117,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 					Kind:    "Nginx",
 				}),
 			},
+			Labels: LabelsForNginx(n.Name),
 		},
 		Spec: appv1.DeploymentSpec{
 			Strategy: appv1.DeploymentStrategy{

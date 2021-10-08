@@ -56,6 +56,14 @@ func get(obj runtime.Object, name, ns string) error {
 	return json.Unmarshal(out, obj)
 }
 
+func getList(obj runtime.Object, resource, labelSelector, ns string) error {
+	out, err := kubectl("get", resource, "-o", "json", "-l", labelSelector, "--namespace", ns)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(out, obj)
+}
+
 func kubectl(arg ...string) ([]byte, error) {
 	cmd := exec.CommandContext(context.TODO(), "kubectl", arg...)
 	out, err := cmd.CombinedOutput()

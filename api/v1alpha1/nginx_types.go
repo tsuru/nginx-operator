@@ -231,19 +231,16 @@ type NginxStatus struct {
 	// CurrentReplicas is the last observed number from the NGINX object.
 	CurrentReplicas int32 `json:"currentReplicas,omitempty"`
 	// PodSelector is the NGINX's pod label selector.
-	PodSelector string          `json:"podSelector,omitempty"`
-	Pods        []PodStatus     `json:"pods,omitempty"`
-	Services    []ServiceStatus `json:"services,omitempty"`
-	Ingresses   []IngressStatus `json:"ingresses,omitempty"`
+	PodSelector string `json:"podSelector,omitempty"`
+
+	Deployments []DeploymentStatus `json:"deployments,omitempty"`
+	Services    []ServiceStatus    `json:"services,omitempty"`
+	Ingresses   []IngressStatus    `json:"ingresses,omitempty"`
 }
 
-type PodStatus struct {
-	// Name is the name of the POD running nginx
+type DeploymentStatus struct {
+	// Name is the name of the Deployment created by nginx
 	Name string `json:"name"`
-	// PodIP is the IP if the POD
-	PodIP string `json:"podIP"`
-	// HostIP is the IP where POD is running
-	HostIP string `json:"hostIP"`
 }
 
 type ServiceStatus struct {
