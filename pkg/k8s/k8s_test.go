@@ -88,6 +88,7 @@ func baseDeployment() appv1.Deployment {
 					},
 				},
 				Spec: corev1.PodSpec{
+					EnableServiceLinks: func(b bool) *bool { return &b }(false),
 					Containers: []corev1.Container{
 						{
 							Name:    "nginx",
