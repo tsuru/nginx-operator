@@ -1196,6 +1196,38 @@ func Test_NewDeployment(t *testing.T) {
 				return d
 			},
 		},
+		{
+			name: "with rolling update params",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.PodTemplate.RollingUpdate = &appv1.RollingUpdateDeployment{
+					MaxSurge: &intstr.IntOrString{
+						Type:   intstr.String,
+						StrVal: "10%",
+					},
+					MaxUnavailable: &intstr.IntOrString{
+						Type:   intstr.Int,
+						IntVal: int32(1),
+					},
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Strategy = appv1.DeploymentStrategy{
+					Type: appv1.RollingUpdateDeploymentStrategyType,
+					RollingUpdate: &appv1.RollingUpdateDeployment{
+						MaxSurge: &intstr.IntOrString{
+							Type:   intstr.String,
+							StrVal: "10%",
+						},
+						MaxUnavailable: &intstr.IntOrString{
+							Type:   intstr.Int,
+							IntVal: int32(1),
+						},
+					},
+				}
+				return d
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

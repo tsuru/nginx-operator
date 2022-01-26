@@ -102,6 +102,10 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 		maxSurge = &adjustedValue
 	}
 
+	if ru := n.Spec.PodTemplate.RollingUpdate; ru != nil {
+		maxSurge, maxUnavailable = ru.MaxSurge, ru.MaxUnavailable
+	}
+
 	deployment := appv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",

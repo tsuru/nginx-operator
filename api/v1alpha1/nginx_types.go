@@ -5,6 +5,7 @@
 package v1alpha1
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -205,6 +206,9 @@ type NginxPodTemplateSpec struct {
 	// InitContainers are executed in order prior to containers being started
 	// More info: https://kubernetes.io/docs/concepts/workloads/pods/init-containers/
 	InitContainers []corev1.Container `json:"initContainers,omitempty"`
+	// RollingUpdate defines params to control the desired behavior of rolling update.
+	// +optional
+	RollingUpdate *appsv1.RollingUpdateDeployment `json:"rollingUpdate,omitempty"`
 }
 
 type NginxCacheSpec struct {
