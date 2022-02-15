@@ -209,6 +209,9 @@ type NginxPodTemplateSpec struct {
 	// RollingUpdate defines params to control the desired behavior of rolling update.
 	// +optional
 	RollingUpdate *appsv1.RollingUpdateDeployment `json:"rollingUpdate,omitempty"`
+	// Toletarion defines list of taints that pod can tolerate.
+	// +optional
+	Toleration []corev1.Toleration `json:"toleration,omitempty"`
 }
 
 type NginxCacheSpec struct {
