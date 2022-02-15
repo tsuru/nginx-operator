@@ -458,6 +458,21 @@ func Test_NewDeployment(t *testing.T) {
 			},
 		},
 		{
+			name: "with-toleration",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.PodTemplate.Toleration = []corev1.Toleration{
+					{Key: "rpaas-node", Operator: corev1.TolerationOpEqual, Value: "rpaas-only", Effect: corev1.TaintEffectNoSchedule},
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.Tolerations = []corev1.Toleration{
+					{Key: "rpaas-node", Operator: corev1.TolerationOpEqual, Value: "rpaas-only", Effect: corev1.TaintEffectNoSchedule},
+				}
+				return d
+			},
+		},
+		{
 			name: "with-host-network-zero-replicas",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
 				zero := int32(0)
