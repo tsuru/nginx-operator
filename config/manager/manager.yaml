@@ -16,12 +16,31 @@ spec:
         control-plane: controller-manager
     spec:
       containers:
-      - command:
+      - name: nginx-operator
+        image: controller:latest
+        command:
         - nginx-operator
         args:
-        - --enable-leader-election
-        image: controller:latest
-        name: nginx-operator
+        - --metrics-bind-address=:8080
+        - --health-probe-bind-address=:8081
+        - --leader-elect-resource-namespace=$(POD_NAMESPACE)
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        ports:
+        - name: metrics
+          containerPort: 8080
+        - name: health
+          containerPort: 8081
+        livenessProbe:
+          httpGet:
+            port: health
+            path: /healthz
+          periodSeconds: 10
+          failureThreshold: 3
+          successThreshold: 1
         resources:
           limits:
             cpu: 100m
