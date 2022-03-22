@@ -74,13 +74,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 	n.Spec.Image = valueOrDefault(n.Spec.Image, defaultNginxImage)
 	setDefaultPorts(&n.Spec.PodTemplate)
 
-	if n.Spec.Replicas == nil {
-		var one int32 = 1
-		n.Spec.Replicas = &one
-	}
-
 	securityContext := n.Spec.PodTemplate.SecurityContext
-
 	if hasLowPort(n.Spec.PodTemplate.Ports) {
 		if securityContext == nil {
 			securityContext = &corev1.SecurityContext{}
@@ -92,12 +86,16 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 	}
 
 	var maxSurge, maxUnavailable *intstr.IntOrString
-	replicas := *n.Spec.Replicas
-	if n.Spec.PodTemplate.HostNetwork && replicas > 0 {
+	if n.Spec.PodTemplate.HostNetwork {
 		// Round up instead of down as is the default behavior for maxUnvailable,
 		// this is useful because we must allow at least one pod down for
 		// hostNetwork deployments.
-		adjustedValue := intstr.FromInt(int(math.Ceil(float64(replicas) * 0.25)))
+		r := int32(1)
+		if n.Spec.Replicas != nil && *n.Spec.Replicas > int32(0) {
+			r = *n.Spec.Replicas
+		}
+
+		adjustedValue := intstr.FromInt(int(math.Ceil(float64(r) * 0.25)))
 		maxUnavailable = &adjustedValue
 		maxSurge = &adjustedValue
 	}

@@ -22,10 +22,6 @@ import (
 	"github.com/tsuru/nginx-operator/api/v1alpha1"
 )
 
-var (
-	one int32 = 1
-)
-
 func baseNginx() v1alpha1.Nginx {
 	return v1alpha1.Nginx{
 		ObjectMeta: metav1.ObjectMeta{
@@ -71,7 +67,6 @@ func baseDeployment() appv1.Deployment {
 				Type:          appv1.RollingUpdateDeploymentStrategyType,
 				RollingUpdate: &appv1.RollingUpdateDeployment{},
 			},
-			Replicas: &one,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"nginx.tsuru.io/resource-name": "my-nginx",
@@ -511,6 +506,9 @@ func Test_NewDeployment(t *testing.T) {
 						},
 					},
 				}
+				one := intstr.FromInt(1)
+				d.Spec.Strategy.RollingUpdate.MaxUnavailable = &one
+				d.Spec.Strategy.RollingUpdate.MaxSurge = &one
 				return d
 			},
 		},
