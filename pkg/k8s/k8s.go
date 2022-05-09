@@ -190,13 +190,19 @@ func mergeMap(a, b map[string]string) map[string]string {
 
 // NewService assembles the ClusterIP service for the Nginx
 func NewService(n *v1alpha1.Nginx) *corev1.Service {
-	var labels, annotations map[string]string
+	annotations := map[string]string{}
+	labels := map[string]string{}
+
 	var lbIP string
 	var externalTrafficPolicy corev1.ServiceExternalTrafficPolicyType
 	labelSelector := LabelsForNginx(n.Name)
+
 	if n.Spec.Service != nil {
 		labels = n.Spec.Service.Labels
-		annotations = n.Spec.Service.Annotations
+
+		if n.Spec.Service.Annotations != nil {
+			annotations = n.Spec.Service.Annotations
+		}
 		lbIP = n.Spec.Service.LoadBalancerIP
 		externalTrafficPolicy = n.Spec.Service.ExternalTrafficPolicy
 		if n.Spec.Service.UsePodSelector != nil && !*n.Spec.Service.UsePodSelector {

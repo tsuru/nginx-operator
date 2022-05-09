@@ -1294,6 +1294,7 @@ func TestNewService(t *testing.T) {
 						"nginx.tsuru.io/resource-name": "my-nginx",
 						"nginx.tsuru.io/app":           "nginx",
 					},
+					Annotations: map[string]string{},
 				},
 				Spec: corev1.ServiceSpec{
 					Ports: []corev1.ServicePort{
@@ -1333,6 +1334,7 @@ func TestNewService(t *testing.T) {
 						"nginx.tsuru.io/resource-name": "my-nginx",
 						"nginx.tsuru.io/app":           "nginx",
 					},
+					Annotations: map[string]string{},
 				},
 				Spec: corev1.ServiceSpec{
 					Ports: []corev1.ServicePort{
@@ -1372,6 +1374,7 @@ func TestNewService(t *testing.T) {
 						"nginx.tsuru.io/resource-name": "my-nginx",
 						"nginx.tsuru.io/app":           "nginx",
 					},
+					Annotations: map[string]string{},
 				},
 				Spec: corev1.ServiceSpec{
 					Ports: []corev1.ServicePort{
@@ -1471,6 +1474,7 @@ func TestNewService(t *testing.T) {
 						"nginx.tsuru.io/resource-name": "my-nginx",
 						"nginx.tsuru.io/app":           "nginx",
 					},
+					Annotations: map[string]string{},
 				},
 				Spec: corev1.ServiceSpec{
 					Ports: []corev1.ServicePort{
@@ -1515,6 +1519,7 @@ func TestNewService(t *testing.T) {
 						"nginx.tsuru.io/resource-name": "my-nginx",
 						"nginx.tsuru.io/app":           "nginx",
 					},
+					Annotations: map[string]string{},
 				},
 				Spec: corev1.ServiceSpec{
 					Ports: []corev1.ServicePort{

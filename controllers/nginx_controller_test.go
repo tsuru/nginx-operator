@@ -225,12 +225,12 @@ func TestNginxReconciler_reconcileService(t *testing.T) {
 					},
 				}
 				assert.Equal(t, expectedPorts, got.Spec.Ports)
-				assert.Equal(t, got.Labels, map[string]string{
+				assert.Equal(t, map[string]string{
 					"nginx.tsuru.io/app":           "nginx",
 					"nginx.tsuru.io/resource-name": "my-nginx",
 					"nginx.tsuru.io/new-label":     "v1",
-				})
-				assert.Equal(t, got.Annotations, map[string]string{"nginx.tsuru.io/new-annotation": "v1"})
+				}, got.Labels)
+				assert.Equal(t, map[string]string{"nginx.tsuru.io/new-annotation": "v1", "old-service-annotation": "v1"}, got.Annotations)
 			},
 		},
 		{
@@ -307,6 +307,72 @@ func TestNginxReconciler_reconcileService(t *testing.T) {
 					},
 				}
 				assert.Equal(t, expectedPorts, got.Spec.Ports)
+			},
+		},
+		{
+			name: "when updating the nginx service, should maintain other controller's annotations",
+			nginx: &v1alpha1.Nginx{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "extensions.tsuru.io/v1alpha1",
+					Kind:       "Nginx",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-nginx",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.NginxSpec{
+					Service: &v1alpha1.NginxService{
+						Type: corev1.ServiceTypeClusterIP,
+						Annotations: map[string]string{
+							"annotation-from-this-controller": "updated",
+						},
+					},
+				},
+			},
+			service: &corev1.Service{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "v1",
+					Kind:       "Service",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-nginx-service",
+					Namespace: "default",
+					Annotations: map[string]string{
+						"annotation-from-this-controller":    "please-update",
+						"annotation-from-another-controller": "please-keep-it",
+					},
+					Labels: map[string]string{},
+				},
+				Spec: corev1.ServiceSpec{
+					Type:                  corev1.ServiceTypeLoadBalancer,
+					ExternalTrafficPolicy: corev1.ServiceExternalTrafficPolicyTypeCluster,
+					ClusterIP:             "10.1.1.10",
+					HealthCheckNodePort:   int32(43123),
+					Ports: []corev1.ServicePort{
+						{
+							Name:       "https",
+							TargetPort: intstr.FromString("https"),
+							Protocol:   corev1.ProtocolTCP,
+							Port:       int32(443),
+							NodePort:   int32(30667),
+						},
+						{
+							Name:       "http",
+							Protocol:   corev1.ProtocolTCP,
+							TargetPort: intstr.FromString("http"),
+							Port:       int32(80),
+							NodePort:   int32(30666),
+						},
+					},
+				},
+			},
+			assertion: func(t *testing.T, err error, got *corev1.Service) {
+				assert.NoError(t, err)
+				assert.NotNil(t, got)
+				assert.Equal(t, map[string]string{
+					"annotation-from-this-controller":    "updated",
+					"annotation-from-another-controller": "please-keep-it",
+				}, got.Annotations)
 			},
 		},
 	}
