@@ -375,6 +375,42 @@ func TestNginxReconciler_reconcileService(t *testing.T) {
 				}, got.Annotations)
 			},
 		},
+		{
+			name: "when updating then nginx service, should keep resource finalizers",
+			nginx: &v1alpha1.Nginx{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "extensions.tsuru.io/v1alpha1",
+					Kind:       "Nginx",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-nginx",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.NginxSpec{
+					Service: &v1alpha1.NginxService{
+						Type: corev1.ServiceTypeClusterIP,
+					},
+				},
+			},
+			service: &corev1.Service{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "v1",
+					Kind:       "Service",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "my-nginx-service",
+					Namespace:   "default",
+					Annotations: map[string]string{},
+					Labels:      map[string]string{},
+					Finalizers:  []string{"test/finalizer"},
+				},
+			},
+			assertion: func(t *testing.T, err error, got *corev1.Service) {
+				assert.NoError(t, err)
+				assert.NotNil(t, got)
+				assert.Equal(t, []string{"test/finalizer"}, got.ObjectMeta.Finalizers)
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -435,6 +471,17 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 						},
 					},
 				},
+			},
+		},
+		&networkingv1.Ingress{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "networking.k8s.io/v1",
+				Kind:       "Ingress",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "my-nginx-with-finalizer",
+				Namespace:  "default",
+				Finalizers: []string{"test/finalizer"},
 			},
 		},
 	}
@@ -500,7 +547,7 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 			},
 		},
 
-		"when nginx removes ingress field, should remove the ingress resource": {
+		"when nginx without finalizers removes ingress field, should remove the ingress resource": {
 			nginx: &v1alpha1.Nginx{
 				ObjectMeta: metav1.ObjectMeta{Name: "my-nginx-1", Namespace: "default"},
 			},
@@ -509,6 +556,18 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 				err := c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-1", Namespace: "default"}, &got)
 				assert.Error(t, err)
 				assert.True(t, errors.IsNotFound(err))
+			},
+		},
+
+		"when nginx with finalizers removes ingress field, should mark the ingress resource for deletion": {
+			nginx: &v1alpha1.Nginx{
+				ObjectMeta: metav1.ObjectMeta{Name: "my-nginx-with-finalizer", Namespace: "default"},
+			},
+			assert: func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx) {
+				var got networkingv1.Ingress
+				err := c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-with-finalizer", Namespace: "default"}, &got)
+				assert.NoError(t, err)
+				assert.NotNil(t, got.ObjectMeta.DeletionTimestamp)
 			},
 		},
 
@@ -544,6 +603,28 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 						},
 					},
 				}, got.Spec)
+			},
+		},
+
+		"when ingress is updated, should keep resource finalizers": {
+			nginx: &v1alpha1.Nginx{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-nginx-with-finalizer",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.NginxSpec{
+					Ingress: &v1alpha1.NginxIngress{
+						Annotations: map[string]string{"custom.nginx.tsuru.io/foo": "bar"},
+						Labels:      map[string]string{"custom.nginx.tsuru.io": "key1"},
+					},
+				},
+			},
+			assert: func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx) {
+				var got networkingv1.Ingress
+				err := c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-with-finalizer", Namespace: "default"}, &got)
+				require.NoError(t, err)
+
+				assert.Equal(t, []string{"test/finalizer"}, got.ObjectMeta.Finalizers)
 			},
 		},
 

@@ -169,6 +169,7 @@ func (r *NginxReconciler) reconcileService(ctx context.Context, nginx *nginxv1al
 	newService.ResourceVersion = currentService.ResourceVersion
 	newService.Spec.ClusterIP = currentService.Spec.ClusterIP
 	newService.Spec.HealthCheckNodePort = currentService.Spec.HealthCheckNodePort
+	newService.Finalizers = currentService.Finalizers
 
 	for annotation, value := range currentService.Annotations {
 		if newService.Annotations[annotation] == "" {
@@ -222,6 +223,7 @@ func (r *NginxReconciler) reconcileIngress(ctx context.Context, nginx *nginxv1al
 	}
 
 	new.ResourceVersion = current.ResourceVersion
+	new.Finalizers = current.Finalizers
 
 	return r.Client.Update(ctx, new)
 }
