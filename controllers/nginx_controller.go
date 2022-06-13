@@ -198,16 +198,16 @@ func (r *NginxReconciler) reconcileIngress(ctx context.Context, nginx *nginxv1al
 		return fmt.Errorf("nginx cannot be nil")
 	}
 
-	new := k8s.NewIngress(nginx)
+	newIngress := k8s.NewIngress(nginx)
 
-	var current networkingv1.Ingress
-	err := r.Client.Get(ctx, types.NamespacedName{Name: new.Name, Namespace: new.Namespace}, &current)
+	var currentIngress networkingv1.Ingress
+	err := r.Client.Get(ctx, types.NamespacedName{Name: newIngress.Name, Namespace: newIngress.Namespace}, &currentIngress)
 	if errors.IsNotFound(err) {
 		if nginx.Spec.Ingress == nil {
 			return nil
 		}
 
-		return r.Client.Create(ctx, new)
+		return r.Client.Create(ctx, newIngress)
 	}
 
 	if err != nil {
@@ -215,27 +215,27 @@ func (r *NginxReconciler) reconcileIngress(ctx context.Context, nginx *nginxv1al
 	}
 
 	if nginx.Spec.Ingress == nil {
-		return r.Client.Delete(ctx, &current)
+		return r.Client.Delete(ctx, &currentIngress)
 	}
 
-	if !shouldUpdateIngress(&current, new) {
+	if !shouldUpdateIngress(&currentIngress, newIngress) {
 		return nil
 	}
 
-	new.ResourceVersion = current.ResourceVersion
-	new.Finalizers = current.Finalizers
+	newIngress.ResourceVersion = currentIngress.ResourceVersion
+	newIngress.Finalizers = currentIngress.Finalizers
 
-	return r.Client.Update(ctx, new)
+	return r.Client.Update(ctx, newIngress)
 }
 
-func shouldUpdateIngress(current, new *networkingv1.Ingress) bool {
-	if current == nil || new == nil {
+func shouldUpdateIngress(currentIngress, newIngress *networkingv1.Ingress) bool {
+	if currentIngress == nil || newIngress == nil {
 		return false
 	}
 
-	return !reflect.DeepEqual(current.Annotations, new.Annotations) ||
-		!reflect.DeepEqual(current.Labels, new.Labels) ||
-		!reflect.DeepEqual(current.Spec, new.Spec)
+	return !reflect.DeepEqual(currentIngress.Annotations, newIngress.Annotations) ||
+		!reflect.DeepEqual(currentIngress.Labels, newIngress.Labels) ||
+		!reflect.DeepEqual(currentIngress.Spec, newIngress.Spec)
 }
 
 func (r *NginxReconciler) refreshStatus(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
