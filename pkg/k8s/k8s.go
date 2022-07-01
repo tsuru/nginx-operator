@@ -140,6 +140,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 					Labels:      mergeMap(LabelsForNginx(n.Name), n.Spec.PodTemplate.Labels),
 				},
 				Spec: corev1.PodSpec{
+					ServiceAccountName: n.Spec.PodTemplate.ServiceAccountName,
 					EnableServiceLinks: func(b bool) *bool { return &b }(false),
 					Containers: []corev1.Container{
 						{

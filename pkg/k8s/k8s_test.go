@@ -1241,6 +1241,17 @@ func Test_NewDeployment(t *testing.T) {
 				return d
 			},
 		},
+		{
+			name: "with-custom-service-account",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.PodTemplate.ServiceAccountName = "custom"
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.ServiceAccountName = "custom"
+				return d
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

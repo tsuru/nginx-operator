@@ -212,6 +212,10 @@ type NginxPodTemplateSpec struct {
 	// Toletarion defines list of taints that pod can tolerate.
 	// +optional
 	Toleration []corev1.Toleration `json:"toleration,omitempty"`
+
+	// ServiceAccountName is the name of the ServiceAccount to use to run this nginx instance.
+	// +optional
+	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 }
 
 type NginxCacheSpec struct {
