@@ -1252,6 +1252,26 @@ func Test_NewDeployment(t *testing.T) {
 				return d
 			},
 		},
+		{
+			name: "with sidecar containers",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.PodTemplate.Containers = []corev1.Container{
+					{
+						Name:  "sidecar",
+						Image: "tsuru/scratch:latest",
+					},
+				}
+
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.Containers = append(d.Spec.Template.Spec.Containers, corev1.Container{
+					Name:  "sidecar",
+					Image: "tsuru/scratch:latest",
+				})
+				return d
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -205,7 +205,11 @@ type NginxPodTemplateSpec struct {
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
 	// InitContainers are executed in order prior to containers being started
 	// More info: https://kubernetes.io/docs/concepts/workloads/pods/init-containers/
+	// +optional
 	InitContainers []corev1.Container `json:"initContainers,omitempty"`
+	// Containers are executed in parallel to the main nginx container
+	// +optional
+	Containers []corev1.Container `json:"containers,omitempty"`
 	// RollingUpdate defines params to control the desired behavior of rolling update.
 	// +optional
 	RollingUpdate *appsv1.RollingUpdateDeployment `json:"rollingUpdate,omitempty"`

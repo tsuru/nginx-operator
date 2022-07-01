@@ -142,7 +142,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 				Spec: corev1.PodSpec{
 					ServiceAccountName: n.Spec.PodTemplate.ServiceAccountName,
 					EnableServiceLinks: func(b bool) *bool { return &b }(false),
-					Containers: []corev1.Container{
+					Containers: append([]corev1.Container{
 						{
 							Name:            "nginx",
 							Image:           n.Spec.Image,
@@ -152,7 +152,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 							Ports:           n.Spec.PodTemplate.Ports,
 							VolumeMounts:    n.Spec.PodTemplate.VolumeMounts,
 						},
-					},
+					}, n.Spec.PodTemplate.Containers...),
 					InitContainers:                n.Spec.PodTemplate.InitContainers,
 					Affinity:                      n.Spec.PodTemplate.Affinity,
 					NodeSelector:                  n.Spec.PodTemplate.NodeSelector,
