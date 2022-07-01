@@ -305,6 +305,13 @@ func (in *NginxPodTemplateSpec) DeepCopyInto(out *NginxPodTemplateSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.Containers != nil {
+		in, out := &in.Containers, &out.Containers
+		*out = make([]v1.Container, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	if in.RollingUpdate != nil {
 		in, out := &in.RollingUpdate, &out.RollingUpdate
 		*out = new(appsv1.RollingUpdateDeployment)
