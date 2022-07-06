@@ -6,6 +6,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,6 +29,135 @@ import (
 	"github.com/tsuru/nginx-operator/api/v1alpha1"
 	nginxv1alpha1 "github.com/tsuru/nginx-operator/api/v1alpha1"
 )
+
+func TestNginxReconciler_reconcileDeployment(t *testing.T) {
+	resources := []runtime.Object{
+		&appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "nginx-1",
+				Namespace: "default",
+				Annotations: map[string]string{
+					"nginx.tsuru.io/generated-from": `{"replicas": 5, "image": "nginx:stable"}`,
+				},
+			},
+			Spec: appsv1.DeploymentSpec{
+				Replicas: func(n int32) *int32 { return &n }(int32(5)),
+				Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "nginx",
+								Image: "nginx:stable",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	tests := map[string]struct {
+		nginx  *v1alpha1.Nginx
+		assert func(t *testing.T, c client.Client)
+	}{
+		"creating first deployment": {
+			nginx: &v1alpha1.Nginx{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "nginx-0",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.NginxSpec{
+					Replicas: func(n int32) *int32 { return &n }(int32(2)),
+					Image:    "nginx:alpine",
+				},
+			},
+			assert: func(t *testing.T, c client.Client) {
+				var dep appsv1.Deployment
+				err := c.Get(context.TODO(), types.NamespacedName{Name: "nginx-0", Namespace: "default"}, &dep)
+				require.NoError(t, err)
+
+				specFromAnnotation := dep.Annotations["nginx.tsuru.io/generated-from"]
+				require.NotEmpty(t, specFromAnnotation)
+
+				var nginxSpec v1alpha1.NginxSpec
+				err = json.Unmarshal([]byte(specFromAnnotation), &nginxSpec)
+				require.NoError(t, err)
+
+				expected := v1alpha1.NginxSpec{
+					Image:    "nginx:alpine",
+					Replicas: func(n int32) *int32 { return &n }(int32(2)),
+					PodTemplate: nginxv1alpha1.NginxPodTemplateSpec{
+						Ports: []corev1.ContainerPort{
+							{Name: "http", ContainerPort: int32(8080), Protocol: corev1.ProtocolTCP},
+							{Name: "https", ContainerPort: int32(8443), Protocol: corev1.ProtocolTCP},
+						},
+					},
+				}
+				assert.Equal(t, expected, nginxSpec)
+			},
+		},
+
+		"any update with replicas unset, should not change the replicas number": {
+			nginx: &v1alpha1.Nginx{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "nginx-1",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.NginxSpec{
+					Image: "nginx:1.22.0",
+				},
+			},
+			assert: func(t *testing.T, c client.Client) {
+				var dep appsv1.Deployment
+				err := c.Get(context.TODO(), types.NamespacedName{Name: "nginx-1", Namespace: "default"}, &dep)
+				require.NoError(t, err)
+
+				require.NotNil(t, dep.Spec.Replicas)
+				assert.Equal(t, int32(5), *dep.Spec.Replicas)
+				assert.Equal(t, "nginx:1.22.0", dep.Spec.Template.Spec.Containers[0].Image)
+
+				specFromAnnotation := dep.Annotations["nginx.tsuru.io/generated-from"]
+				require.NotEmpty(t, specFromAnnotation)
+
+				var nginxSpec v1alpha1.NginxSpec
+				err = json.Unmarshal([]byte(specFromAnnotation), &nginxSpec)
+				require.NoError(t, err)
+
+				expected := v1alpha1.NginxSpec{
+					Image: "nginx:1.22.0",
+					PodTemplate: nginxv1alpha1.NginxPodTemplateSpec{
+						Ports: []corev1.ContainerPort{
+							{Name: "http", ContainerPort: int32(8080), Protocol: corev1.ProtocolTCP},
+							{Name: "https", ContainerPort: int32(8443), Protocol: corev1.ProtocolTCP},
+						},
+					},
+				}
+				assert.Equal(t, expected, nginxSpec)
+			},
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			require.NotNil(t, tt.assert, "you must provide an assert function")
+
+			client := fake.NewClientBuilder().
+				WithScheme(newScheme()).
+				WithRuntimeObjects(resources...).
+				Build()
+
+			r := &NginxReconciler{
+				Client: client,
+				Log:    ctrl.Log.WithName("test"),
+			}
+
+			err := r.reconcileDeployment(context.TODO(), tt.nginx)
+			require.NoError(t, err)
+
+			tt.assert(t, client)
+		})
+	}
+}
 
 func TestNginxReconciler_reconcileService(t *testing.T) {
 	tests := []struct {

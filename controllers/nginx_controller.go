@@ -102,41 +102,47 @@ func (r *NginxReconciler) reconcileNginx(ctx context.Context, nginx *nginxv1alph
 func (r *NginxReconciler) reconcileDeployment(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
 	newDeploy, err := k8s.NewDeployment(nginx)
 	if err != nil {
-		return fmt.Errorf("failed to assemble deployment from nginx: %v", err)
+		return fmt.Errorf("failed to build Deployment from Nginx: %w", err)
 	}
 
-	err = r.Client.Create(ctx, newDeploy)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create deployment: %v", err)
+	var currentDeploy appsv1.Deployment
+	err = r.Client.Get(ctx, types.NamespacedName{Name: newDeploy.Name, Namespace: newDeploy.Namespace}, &currentDeploy)
+	if errors.IsNotFound(err) {
+		return r.Client.Create(ctx, newDeploy)
 	}
 
-	if err == nil {
+	if err != nil {
+		return fmt.Errorf("failed to retrieve Deployment: %w", err)
+	}
+
+	existingNginxSpec, err := k8s.ExtractNginxSpec(currentDeploy.ObjectMeta)
+	if err != nil {
+		return fmt.Errorf("failed to extract Nginx spec from Deployment annotations: %w", err)
+	}
+
+	if reflect.DeepEqual(nginx.Spec, existingNginxSpec) {
 		return nil
 	}
 
-	currDeploy := &appsv1.Deployment{}
+	replicas := currentDeploy.Spec.Replicas
 
-	err = r.Client.Get(ctx, types.NamespacedName{Name: newDeploy.Name, Namespace: newDeploy.Namespace}, currDeploy)
+	patch := client.StrategicMergeFrom(currentDeploy.DeepCopy())
+	currentDeploy.Spec = newDeploy.Spec
+
+	if newDeploy.Spec.Replicas == nil {
+		// NOTE: replicas field is set to nil whenever it's managed by some
+		// autoscaler controller e.g HPA.
+		currentDeploy.Spec.Replicas = replicas
+	}
+
+	err = k8s.SetNginxSpec(&currentDeploy.ObjectMeta, nginx.Spec)
 	if err != nil {
-		return fmt.Errorf("failed to retrieve deployment: %v", err)
+		return fmt.Errorf("failed to set Nginx spec in Deployment annotations: %w", err)
 	}
 
-	currSpec, err := k8s.ExtractNginxSpec(currDeploy.ObjectMeta)
+	err = r.Client.Patch(ctx, &currentDeploy, patch)
 	if err != nil {
-		return fmt.Errorf("failed to extract nginx from deployment: %v", err)
-	}
-
-	if reflect.DeepEqual(nginx.Spec, currSpec) {
-		return nil
-	}
-
-	currDeploy.Spec = newDeploy.Spec
-	if err := k8s.SetNginxSpec(&currDeploy.ObjectMeta, nginx.Spec); err != nil {
-		return fmt.Errorf("failed to set nginx spec into object meta: %v", err)
-	}
-
-	if err := r.Client.Update(ctx, currDeploy); err != nil {
-		return fmt.Errorf("failed to update deployment: %v", err)
+		return fmt.Errorf("failed to patch Deployment: %w", err)
 	}
 
 	return nil
