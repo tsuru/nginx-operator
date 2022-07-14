@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -21,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -32,6 +34,7 @@ import (
 // NginxReconciler reconciles a Nginx object
 type NginxReconciler struct {
 	client.Client
+	EventRecorder    record.EventRecorder
 	Log              logr.Logger
 	Scheme           *runtime.Scheme
 	AnnotationFilter labels.Selector
@@ -149,23 +152,27 @@ func (r *NginxReconciler) reconcileDeployment(ctx context.Context, nginx *nginxv
 }
 
 func (r *NginxReconciler) reconcileService(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
-	svcName := types.NamespacedName{
-		Name:      fmt.Sprintf("%s-service", nginx.Name),
-		Namespace: nginx.Namespace,
-	}
-
-	logger := r.Log.WithName("reconcileService").WithValues("Service", svcName)
-	logger.V(4).Info("Getting Service resource")
-
 	newService := k8s.NewService(nginx)
 
 	var currentService corev1.Service
-	err := r.Client.Get(ctx, svcName, &currentService)
-	if err != nil && errors.IsNotFound(err) {
-		logger.
-			WithValues("ServiceResource", newService).V(4).Info("Creating a Service resource")
+	err := r.Client.Get(ctx, types.NamespacedName{Name: newService.Name, Namespace: newService.Namespace}, &currentService)
 
-		return r.Client.Create(ctx, newService)
+	if errors.IsNotFound(err) {
+		err = r.Client.Create(ctx, newService)
+		switch err {
+		case nil:
+			r.EventRecorder.Eventf(nginx, corev1.EventTypeNormal, "ServiceCreated", "service created successfully")
+
+		default:
+			reason := "ServiceCreationFailed"
+			if errors.IsForbidden(err) && strings.Contains(err.Error(), "exceeded quota") {
+				reason = "ServiceQuotaExceeded"
+			}
+
+			r.EventRecorder.Eventf(nginx, corev1.EventTypeWarning, reason, "failed to create Service: %s", err)
+		}
+
+		return err
 	}
 
 	if err != nil {
@@ -194,9 +201,16 @@ func (r *NginxReconciler) reconcileService(ctx context.Context, nginx *nginxv1al
 		}
 	}
 
-	logger.WithValues("ServiceResource", newService).V(4).Info("Updating Service resource")
+	err = r.Client.Update(ctx, newService)
+	switch err {
+	case nil:
+		r.EventRecorder.Eventf(nginx, corev1.EventTypeNormal, "ServiceUpdated", "service updated successfully")
 
-	return r.Client.Update(ctx, newService)
+	default:
+		r.EventRecorder.Eventf(nginx, corev1.EventTypeWarning, "ServiceUpdateFailed", "failed to update Service: %s", err)
+	}
+
+	return err
 }
 
 func (r *NginxReconciler) reconcileIngress(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
