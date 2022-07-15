@@ -99,6 +99,7 @@ func main() {
 
 	err = (&controllers.NginxReconciler{
 		Client:           mgr.GetClient(),
+		EventRecorder:    mgr.GetEventRecorderFor("nginx-operator"),
 		Log:              ctrl.Log.WithName("controllers").WithName("Nginx"),
 		Scheme:           mgr.GetScheme(),
 		AnnotationFilter: annotationSelector,

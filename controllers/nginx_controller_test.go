@@ -7,6 +7,7 @@ package controllers
 import (
 	"context"
 	"encoding/json"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -161,10 +163,11 @@ func TestNginxReconciler_reconcileDeployment(t *testing.T) {
 
 func TestNginxReconciler_reconcileService(t *testing.T) {
 	tests := []struct {
-		name      string
-		nginx     *v1alpha1.Nginx
-		service   *corev1.Service
-		assertion func(t *testing.T, err error, got *corev1.Service)
+		name           string
+		nginx          *v1alpha1.Nginx
+		service        *corev1.Service
+		assertion      func(t *testing.T, err error, got *corev1.Service)
+		expectedEvents []string
 	}{
 		{
 			name: "when service doesn't exist yet, should create that and use an auto-allocated nodeport (tcp/0)",
@@ -200,6 +203,9 @@ func TestNginxReconciler_reconcileService(t *testing.T) {
 					},
 				}
 				assert.Equal(t, expectedPorts, got.Spec.Ports)
+			},
+			expectedEvents: []string{
+				"Normal ServiceCreated service created successfully",
 			},
 		},
 		{
@@ -270,6 +276,9 @@ func TestNginxReconciler_reconcileService(t *testing.T) {
 					},
 				}
 				assert.Equal(t, expectedPorts, got.Spec.Ports)
+			},
+			expectedEvents: []string{
+				"Normal ServiceUpdated service updated successfully",
 			},
 		},
 		{
@@ -362,6 +371,9 @@ func TestNginxReconciler_reconcileService(t *testing.T) {
 				}, got.Labels)
 				assert.Equal(t, map[string]string{"nginx.tsuru.io/new-annotation": "v1", "old-service-annotation": "v1"}, got.Annotations)
 			},
+			expectedEvents: []string{
+				"Normal ServiceUpdated service updated successfully",
+			},
 		},
 		{
 			name: "when updating the nginx service type, should discard nodeports when new service is clusterIP",
@@ -438,6 +450,9 @@ func TestNginxReconciler_reconcileService(t *testing.T) {
 				}
 				assert.Equal(t, expectedPorts, got.Spec.Ports)
 			},
+			expectedEvents: []string{
+				"Normal ServiceUpdated service updated successfully",
+			},
 		},
 		{
 			name: "when updating the nginx service, should maintain other controller's annotations",
@@ -504,6 +519,9 @@ func TestNginxReconciler_reconcileService(t *testing.T) {
 					"annotation-from-another-controller": "please-keep-it",
 				}, got.Annotations)
 			},
+			expectedEvents: []string{
+				"Normal ServiceUpdated service updated successfully",
+			},
 		},
 		{
 			name: "when updating then nginx service, should keep resource finalizers",
@@ -540,6 +558,9 @@ func TestNginxReconciler_reconcileService(t *testing.T) {
 				assert.NotNil(t, got)
 				assert.Equal(t, []string{"test/finalizer"}, got.ObjectMeta.Finalizers)
 			},
+			expectedEvents: []string{
+				"Normal ServiceUpdated service updated successfully",
+			},
 		},
 	}
 
@@ -555,15 +576,34 @@ func TestNginxReconciler_reconcileService(t *testing.T) {
 				WithRuntimeObjects(resources...).
 				Build()
 
+			var wg sync.WaitGroup
+			wg.Add(1)
+
+			var events []string
+			er := record.NewFakeRecorder(1)
+			go func() {
+				defer wg.Done()
+				for event := range er.Events {
+					events = append(events, event)
+				}
+			}()
+
 			r := &NginxReconciler{
-				Client: client,
-				Log:    ctrl.Log.WithName("test"),
+				Client:        client,
+				EventRecorder: er,
+				Log:           ctrl.Log.WithName("test"),
 			}
+
 			err := r.reconcileService(context.TODO(), tt.nginx)
+			close(er.Events)
+
 			gotService := &corev1.Service{}
 			serviceName := types.NamespacedName{Name: tt.nginx.Name + "-service", Namespace: tt.nginx.Namespace}
 			require.NoError(t, r.Client.Get(context.Background(), serviceName, gotService))
 			tt.assertion(t, err, gotService)
+
+			wg.Wait()
+			assert.Equal(t, tt.expectedEvents, events)
 		})
 	}
 }

@@ -103,14 +103,14 @@ func baseDeployment() appv1.Deployment {
 							},
 							ReadinessProbe: &corev1.Probe{
 								TimeoutSeconds: int32(1),
-								Handler: corev1.Handler{
+								ProbeHandler: corev1.ProbeHandler{
 									Exec: &corev1.ExecAction{
 										Command: []string{"sh", "-c", "curl -m1 -kfsS -o /dev/null http://localhost:8080"},
 									},
 								},
 							},
 							Lifecycle: &corev1.Lifecycle{
-								PostStart: &corev1.Handler{
+								PostStart: &corev1.LifecycleHandler{
 									Exec: &corev1.ExecAction{
 										Command: defaultPostStartCommand,
 									},
@@ -280,7 +280,7 @@ func Test_NewDeployment(t *testing.T) {
 				}
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 					TimeoutSeconds: int32(2),
-					Handler: corev1.Handler{
+					ProbeHandler: corev1.ProbeHandler{
 						Exec: &corev1.ExecAction{
 							Command: []string{"sh", "-c", "curl -m1 -kfsS -o /dev/null http://localhost:8080 && curl -m1 -kfsS -o /dev/null https://localhost:8443"},
 						},
@@ -336,7 +336,7 @@ func Test_NewDeployment(t *testing.T) {
 				}
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 					TimeoutSeconds: int32(2),
-					Handler: corev1.Handler{
+					ProbeHandler: corev1.ProbeHandler{
 						Exec: &corev1.ExecAction{
 							Command: []string{"sh", "-c", "curl -m1 -kfsS -o /dev/null http://localhost:8080 && curl -m1 -kfsS -o /dev/null https://localhost:8443"},
 						},
@@ -443,7 +443,7 @@ func Test_NewDeployment(t *testing.T) {
 				d.Spec.Strategy.RollingUpdate.MaxSurge = &one
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 					TimeoutSeconds: int32(1),
-					Handler: corev1.Handler{
+					ProbeHandler: corev1.ProbeHandler{
 						Exec: &corev1.ExecAction{
 							Command: []string{"sh", "-c", "curl -m1 -kfsS -o /dev/null http://localhost:80"},
 						},
@@ -500,7 +500,7 @@ func Test_NewDeployment(t *testing.T) {
 				}
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 					TimeoutSeconds: int32(1),
-					Handler: corev1.Handler{
+					ProbeHandler: corev1.ProbeHandler{
 						Exec: &corev1.ExecAction{
 							Command: []string{"sh", "-c", "curl -m1 -kfsS -o /dev/null http://localhost:80"},
 						},
@@ -547,7 +547,7 @@ func Test_NewDeployment(t *testing.T) {
 				d.Spec.Strategy.RollingUpdate.MaxSurge = &one
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 					TimeoutSeconds: int32(2),
-					Handler: corev1.Handler{
+					ProbeHandler: corev1.ProbeHandler{
 						Exec: &corev1.ExecAction{
 							Command: []string{"sh", "-c", "curl -m1 -kfsS -o /dev/null http://localhost:80 && curl -m1 -kfsS -o /dev/null https://localhost:443"},
 						},
@@ -639,7 +639,7 @@ func Test_NewDeployment(t *testing.T) {
 				}
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 					TimeoutSeconds: int32(1),
-					Handler: corev1.Handler{
+					ProbeHandler: corev1.ProbeHandler{
 						Exec: &corev1.ExecAction{
 							Command: []string{"sh", "-c", "curl -m1 -kfsS -o /dev/null http://localhost:80"},
 						},
@@ -842,7 +842,7 @@ func Test_NewDeployment(t *testing.T) {
 			},
 			deployFn: func(d appv1.Deployment) appv1.Deployment {
 				d.Spec.Template.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
-					PreStop: &corev1.Handler{
+					PreStop: &corev1.LifecycleHandler{
 						Exec: &corev1.ExecAction{
 							Command: []string{
 								"echo",
@@ -850,7 +850,7 @@ func Test_NewDeployment(t *testing.T) {
 							},
 						},
 					},
-					PostStart: &corev1.Handler{
+					PostStart: &corev1.LifecycleHandler{
 						Exec: &corev1.ExecAction{
 							Command: []string{
 								"/bin/sh",
@@ -888,7 +888,7 @@ func Test_NewDeployment(t *testing.T) {
 			},
 			deployFn: func(d appv1.Deployment) appv1.Deployment {
 				d.Spec.Template.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
-					PreStop: &corev1.Handler{
+					PreStop: &corev1.LifecycleHandler{
 						Exec: &corev1.ExecAction{
 							Command: []string{
 								"echo",
@@ -896,7 +896,7 @@ func Test_NewDeployment(t *testing.T) {
 							},
 						},
 					},
-					PostStart: &corev1.Handler{
+					PostStart: &corev1.LifecycleHandler{
 						Exec: &corev1.ExecAction{
 							Command: []string{
 								"/bin/sh",
@@ -923,7 +923,7 @@ func Test_NewDeployment(t *testing.T) {
 			},
 			deployFn: func(d appv1.Deployment) appv1.Deployment {
 				d.Spec.Template.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
-					PostStart: &corev1.Handler{
+					PostStart: &corev1.LifecycleHandler{
 						Exec: &corev1.ExecAction{
 							Command: []string{
 								"/bin/sh",
@@ -979,7 +979,7 @@ func Test_NewDeployment(t *testing.T) {
 				}
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 					TimeoutSeconds: int32(1),
-					Handler: corev1.Handler{
+					ProbeHandler: corev1.ProbeHandler{
 						Exec: &corev1.ExecAction{
 							Command: []string{"sh", "-c", "curl -m1 -kfsS -o /dev/null http://localhost:20001"},
 						},
@@ -1032,7 +1032,7 @@ func Test_NewDeployment(t *testing.T) {
 				d.Spec.Strategy.RollingUpdate.MaxSurge = &one
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 					TimeoutSeconds: int32(1),
-					Handler: corev1.Handler{
+					ProbeHandler: corev1.ProbeHandler{
 						Exec: &corev1.ExecAction{
 							Command: []string{"sh", "-c", "curl -m1 -kfsS -o /dev/null http://localhost:80"},
 						},
@@ -1078,7 +1078,7 @@ func Test_NewDeployment(t *testing.T) {
 				d.Spec.Strategy.RollingUpdate.MaxSurge = &one
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 					TimeoutSeconds: int32(1),
-					Handler: corev1.Handler{
+					ProbeHandler: corev1.ProbeHandler{
 						Exec: &corev1.ExecAction{
 							Command: []string{"sh", "-c", "curl -m1 -kfsS -o /dev/null http://localhost:20001"},
 						},
@@ -1122,7 +1122,7 @@ func Test_NewDeployment(t *testing.T) {
 				}
 				d.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 					TimeoutSeconds: int32(2),
-					Handler: corev1.Handler{
+					ProbeHandler: corev1.ProbeHandler{
 						Exec: &corev1.ExecAction{
 							Command: []string{"sh", "-c", "curl -m1 -kfsS -o /dev/null http://localhost:20001 && curl -m1 -kfsS -o /dev/null https://localhost:20002"},
 						},

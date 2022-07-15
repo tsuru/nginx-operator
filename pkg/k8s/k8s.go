@@ -555,7 +555,7 @@ func setupCacheVolume(cache v1alpha1.NginxCacheSpec, dep *appv1.Deployment) {
 
 func setupLifecycle(lifecycle *v1alpha1.NginxLifecycle, dep *appv1.Deployment) {
 	defaultLifecycle := corev1.Lifecycle{
-		PostStart: &corev1.Handler{
+		PostStart: &corev1.LifecycleHandler{
 			Exec: &corev1.ExecAction{
 				Command: defaultPostStartCommand,
 			},
@@ -566,7 +566,7 @@ func setupLifecycle(lifecycle *v1alpha1.NginxLifecycle, dep *appv1.Deployment) {
 		return
 	}
 	if lifecycle.PreStop != nil && lifecycle.PreStop.Exec != nil {
-		dep.Spec.Template.Spec.Containers[0].Lifecycle.PreStop = &corev1.Handler{Exec: lifecycle.PreStop.Exec}
+		dep.Spec.Template.Spec.Containers[0].Lifecycle.PreStop = &corev1.LifecycleHandler{Exec: lifecycle.PreStop.Exec}
 	}
 	if lifecycle.PostStart != nil && lifecycle.PostStart.Exec != nil {
 		var postStartCommand []string
@@ -646,7 +646,7 @@ func setupProbes(nginxSpec v1alpha1.NginxSpec, dep *appv1.Deployment) {
 
 	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 		TimeoutSeconds: cmdTimeoutSec * int32(len(commands)),
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			Exec: &corev1.ExecAction{
 				Command: []string{
 					"sh", "-c",
