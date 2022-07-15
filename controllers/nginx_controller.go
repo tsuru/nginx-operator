@@ -159,20 +159,18 @@ func (r *NginxReconciler) reconcileService(ctx context.Context, nginx *nginxv1al
 
 	if errors.IsNotFound(err) {
 		err = r.Client.Create(ctx, newService)
-		switch err {
-		case nil:
-			r.EventRecorder.Eventf(nginx, corev1.EventTypeNormal, "ServiceCreated", "service created successfully")
-
-		default:
-			reason := "ServiceCreationFailed"
-			if errors.IsForbidden(err) && strings.Contains(err.Error(), "exceeded quota") {
-				reason = "ServiceQuotaExceeded"
-			}
-
-			r.EventRecorder.Eventf(nginx, corev1.EventTypeWarning, reason, "failed to create Service: %s", err)
+		if errors.IsForbidden(err) && strings.Contains(err.Error(), "exceeded quota") {
+			r.EventRecorder.Eventf(nginx, corev1.EventTypeWarning, "ServiceQuotaExceeded", "failed to create Service: %s", err)
+			return err
 		}
 
-		return err
+		if err != nil {
+			r.EventRecorder.Eventf(nginx, corev1.EventTypeWarning, "ServiceCreationFailed", "failed to create Service: %s", err)
+			return err
+		}
+
+		r.EventRecorder.Eventf(nginx, corev1.EventTypeNormal, "ServiceCreated", "service created successfully")
+		return nil
 	}
 
 	if err != nil {
@@ -202,15 +200,13 @@ func (r *NginxReconciler) reconcileService(ctx context.Context, nginx *nginxv1al
 	}
 
 	err = r.Client.Update(ctx, newService)
-	switch err {
-	case nil:
-		r.EventRecorder.Eventf(nginx, corev1.EventTypeNormal, "ServiceUpdated", "service updated successfully")
-
-	default:
+	if err != nil {
 		r.EventRecorder.Eventf(nginx, corev1.EventTypeWarning, "ServiceUpdateFailed", "failed to update Service: %s", err)
+		return err
 	}
 
-	return err
+	r.EventRecorder.Eventf(nginx, corev1.EventTypeNormal, "ServiceUpdated", "service updated successfully")
+	return nil
 }
 
 func (r *NginxReconciler) reconcileIngress(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
