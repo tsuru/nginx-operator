@@ -468,6 +468,21 @@ func Test_NewDeployment(t *testing.T) {
 			},
 		},
 		{
+			name: "with-topology-spread-constraints",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.PodTemplate.TopologySpreadConstraints = []corev1.TopologySpreadConstraint{
+					{MaxSkew: 1, TopologyKey: "kubernetes.io/hostname", WhenUnsatisfiable: corev1.ScheduleAnyway, LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "nginx"}}},
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.TopologySpreadConstraints = []corev1.TopologySpreadConstraint{
+					{MaxSkew: 1, TopologyKey: "kubernetes.io/hostname", WhenUnsatisfiable: corev1.ScheduleAnyway, LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "nginx"}}},
+				}
+				return d
+			},
+		},
+		{
 			name: "with-host-network-zero-replicas",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
 				zero := int32(0)

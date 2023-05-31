@@ -160,6 +160,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 					TerminationGracePeriodSeconds: n.Spec.PodTemplate.TerminationGracePeriodSeconds,
 					Volumes:                       n.Spec.PodTemplate.Volumes,
 					Tolerations:                   n.Spec.PodTemplate.Toleration,
+					TopologySpreadConstraints:     n.Spec.PodTemplate.TopologySpreadConstraints,
 				},
 			},
 		},
