@@ -4,6 +4,10 @@
 
 package version
 
-// Version is the current version of Nginx Operator.
-// NOTE: It's provided during the build phase by ldflags.
-var Version string = "NA"
+var (
+	// Version is the current version of Nginx Operator.
+	Version string = "main"
+
+	// GitCommit is the current Git commit reference.
+	GitCommit string = "N/A"
+)

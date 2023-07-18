@@ -3,7 +3,7 @@ DOCKER ?= docker
 # Docker image name
 IMAGE ?= tsuru/nginx-operator
 # Docker image revision
-TAG ?= dev
+TAG ?= ${VERSION}
 
 KUBECTL ?= kubectl
 
@@ -13,6 +13,12 @@ GOBIN=$(shell go env GOPATH)/bin
 else
 GOBIN=$(shell go env GOBIN)
 endif
+
+VERSION    ?= main
+GIT_COMMIT ?= $(shell git rev-list -1 HEAD)
+
+GO_BUILD_FLAGS = GO111MODULE=on CGO_ENABLED=0
+GO_LDFLAGS     = "-X=github.com/tsuru/nginx-operator/version.Version=$(VERSION) -X=github.com/tsuru/nginx-operator/version.GitCommit=$(GIT_COMMIT)"
 
 .PHONY: test
 test: generate
@@ -27,7 +33,7 @@ build: manager
 
 .PHONY: manager
 manager: generate
-	go build -o bin/nginx-operator main.go
+	${GO_BUILD_FLAGS} go build -ldflags $(GO_LDFLAGS) -o bin/nginx-operator main.go
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 .PHONY: run
@@ -53,7 +59,7 @@ deploy: manifests kustomize
 # Build the docker image
 .PHONY: docker-build
 docker-build:
-	$(DOCKER) build . -t $(IMAGE):$(TAG)
+	$(DOCKER) build --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT} . -t $(IMAGE):$(TAG)
 
 # Push the docker image
 .PHONY: docker-push

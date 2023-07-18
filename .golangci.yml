@@ -14,14 +14,16 @@ linters-settings:
     - standard
     - default
     - prefix(github.com/tsuru/nginx-operator)
+    - blank
+    - dot
 
 issues:
   exclude-rules:
     # GCI does not handle well the kubebuilder annotations e.g. "// +kubebuilder:scaffold:imports".
     # Issue tracked at https://github.com/daixiang0/gci/issues/135.
-  - path: main.go
-    linters:
-    - gci
+    - path: main.go
+      linters:
+      - gci
 
 linters:
   enable:

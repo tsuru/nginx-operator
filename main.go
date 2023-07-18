@@ -21,7 +21,13 @@ import (
 
 	nginxv1alpha1 "github.com/tsuru/nginx-operator/api/v1alpha1"
 	"github.com/tsuru/nginx-operator/controllers"
+	"github.com/tsuru/nginx-operator/version"
+
 	// +kubebuilder:scaffold:imports
+
+	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.
+	// to ensure that exec-entrypoint and run can make use of them.
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 var (
@@ -116,7 +122,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	ctrl.Log.Info("starting manager")
+	ctrl.Log.Info("starting manager", "version", version.Version, "commit", version.GitCommit)
 
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		ctrl.Log.Error(err, "problem running manager")
