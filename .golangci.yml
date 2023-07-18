@@ -1,20 +1,34 @@
 run:
-  deadline: 30m
+  deadline: 5m
   tests: true
 
 linters-settings:
   govet:
     check-shadowing: true
+
   gofmt:
     simplify: true
-  maligned:
-    suggest-new: true
+
+  gci:
+    sections:
+    - standard
+    - default
+    - prefix(github.com/tsuru/nginx-operator)
+
+issues:
+  exclude-rules:
+    # GCI does not handle well the kubebuilder annotations e.g. "// +kubebuilder:scaffold:imports".
+    # Issue tracked at https://github.com/daixiang0/gci/issues/135.
+  - path: main.go
+    linters:
+    - gci
 
 linters:
   enable:
-    - goimports
-    - gofmt
-    - misspell
-    - maligned
+  - goimports
+  - gofmt
+  - misspell
+  - govet
+  - gci
   disable:
-    - errcheck
+  - errcheck
