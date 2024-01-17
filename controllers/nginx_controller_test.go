@@ -620,6 +620,12 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 				Namespace: "default",
 			},
 			Spec: networkingv1.IngressSpec{
+				DefaultBackend: &networkingv1.IngressBackend{
+					Service: &networkingv1.IngressServiceBackend{
+						Name: "my-nginx-1-service",
+						Port: networkingv1.ServiceBackendPort{Name: "http"},
+					},
+				},
 				IngressClassName: func(s string) *string { return &s }("default-ingress"),
 				Rules: []networkingv1.IngressRule{
 					{
@@ -839,6 +845,12 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 						},
 					},
 					Spec: networkingv1.IngressSpec{
+						DefaultBackend: &networkingv1.IngressBackend{
+							Service: &networkingv1.IngressServiceBackend{
+								Name: "my-nginx-2-service",
+								Port: networkingv1.ServiceBackendPort{Name: "http"},
+							},
+						},
 						TLS: []networkingv1.IngressTLS{
 							{SecretName: "example-com-certs", Hosts: []string{"www.example.com"}},
 						},
