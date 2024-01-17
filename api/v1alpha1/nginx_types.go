@@ -17,6 +17,8 @@ import (
 // +kubebuilder:printcolumn:name="Current",type=integer,JSONPath=`.status.currentReplicas`
 // +kubebuilder:printcolumn:name="Desired",type=integer,JSONPath=`.spec.replicas`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:printcolumn:name="Ingress IPs",type=string,JSONPath=`.status.ingresses[*].ips[*]`
+// +kubebuilder:printcolumn:name="Service IPs",type=string,JSONPath=`.status.services[*].ips[*]`
 
 // Nginx is the Schema for the nginxes API
 type Nginx struct {
@@ -262,12 +264,16 @@ type DeploymentStatus struct {
 
 type ServiceStatus struct {
 	// Name is the name of the Service created by nginx
-	Name string `json:"name"`
+	Name      string   `json:"name"`
+	IPs       []string `json:"ips,omitempty"`
+	Hostnames []string `json:"hostnames,omitempty"`
 }
 
 type IngressStatus struct {
 	// Name is the name of the Ingress created by nginx
-	Name string `json:"name"`
+	Name      string   `json:"name"`
+	IPs       []string `json:"ips,omitempty"`
+	Hostnames []string `json:"hostnames,omitempty"`
 }
 
 func init() {
