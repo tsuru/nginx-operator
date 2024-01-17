@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -51,6 +52,8 @@ func (r *NginxReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&nginxv1alpha1.Nginx{}).
 		Owns(&appsv1.Deployment{}).
+		Owns(&networkingv1.Ingress{}).
+		Owns(&corev1.Service{}).
 		Complete(r)
 }
 
@@ -239,6 +242,12 @@ func (r *NginxReconciler) reconcileIngress(ctx context.Context, nginx *nginxv1al
 		return nil
 	}
 
+	for key, value := range currentIngress.Annotations {
+		if newIngress.Annotations[key] == "" {
+			newIngress.Annotations[key] = value
+		}
+	}
+
 	newIngress.ResourceVersion = currentIngress.ResourceVersion
 	newIngress.Finalizers = currentIngress.Finalizers
 
@@ -250,8 +259,13 @@ func shouldUpdateIngress(currentIngress, newIngress *networkingv1.Ingress) bool 
 		return false
 	}
 
-	return !reflect.DeepEqual(currentIngress.Annotations, newIngress.Annotations) ||
-		!reflect.DeepEqual(currentIngress.Labels, newIngress.Labels) ||
+	for key, value := range newIngress.Annotations {
+		if currentIngress.Annotations[key] != value {
+			return true
+		}
+	}
+
+	return !reflect.DeepEqual(currentIngress.Labels, newIngress.Labels) ||
 		!reflect.DeepEqual(currentIngress.Spec, newIngress.Spec)
 }
 
@@ -361,9 +375,24 @@ func listServices(ctx context.Context, c client.Client, nginx *nginxv1alpha1.Ngi
 
 	var services []nginxv1alpha1.ServiceStatus
 	for _, s := range serviceList.Items {
-		services = append(services, nginxv1alpha1.ServiceStatus{
+		svc := nginxv1alpha1.ServiceStatus{
 			Name: s.Name,
-		})
+		}
+
+		for _, ingStatus := range s.Status.LoadBalancer.Ingress {
+			if ingStatus.IP != "" {
+				svc.IPs = append(svc.IPs, ingStatus.IP)
+			}
+
+			if ingStatus.Hostname != "" {
+				svc.Hostnames = append(svc.Hostnames, ingStatus.Hostname)
+			}
+		}
+
+		slices.Sort(svc.IPs)
+		slices.Sort(svc.Hostnames)
+
+		services = append(services, svc)
 	}
 
 	sort.Slice(services, func(i, j int) bool {
@@ -386,7 +415,22 @@ func listIngresses(ctx context.Context, c client.Client, nginx *nginxv1alpha1.Ng
 
 	var ingresses []nginxv1alpha1.IngressStatus
 	for _, i := range ingressList.Items {
-		ingresses = append(ingresses, nginxv1alpha1.IngressStatus{Name: i.Name})
+		ing := nginxv1alpha1.IngressStatus{Name: i.Name}
+
+		for _, ingStatus := range i.Status.LoadBalancer.Ingress {
+			if ingStatus.IP != "" {
+				ing.IPs = append(ing.IPs, ingStatus.IP)
+			}
+
+			if ingStatus.Hostname != "" {
+				ing.Hostnames = append(ing.Hostnames, ingStatus.Hostname)
+			}
+		}
+
+		slices.Sort(ing.IPs)
+		slices.Sort(ing.Hostnames)
+
+		ingresses = append(ingresses, ing)
 	}
 
 	sort.Slice(ingresses, func(i, j int) bool {
