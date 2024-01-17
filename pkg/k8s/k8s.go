@@ -326,6 +326,8 @@ func NewIngress(nginx *v1alpha1.Nginx) *networkingv1.Ingress {
 
 	var rules []networkingv1.IngressRule
 	var tls []networkingv1.IngressTLS
+	serviceName := fmt.Sprintf("%s-service", nginx.Name)
+
 	for _, t := range nginx.Spec.TLS {
 		hosts := t.Hosts
 		if len(hosts) == 0 {
@@ -345,7 +347,7 @@ func NewIngress(nginx *v1alpha1.Nginx) *networkingv1.Ingress {
 								PathType: func(pt networkingv1.PathType) *networkingv1.PathType { return &pt }(networkingv1.PathTypePrefix),
 								Backend: networkingv1.IngressBackend{
 									Service: &networkingv1.IngressServiceBackend{
-										Name: fmt.Sprintf("%s-service", nginx.Name),
+										Name: serviceName,
 										Port: networkingv1.ServiceBackendPort{
 											Name: defaultHTTPPortName,
 										},
@@ -362,18 +364,6 @@ func NewIngress(nginx *v1alpha1.Nginx) *networkingv1.Ingress {
 			SecretName: t.SecretName,
 			Hosts:      t.Hosts,
 		})
-	}
-
-	var defaultBackend *networkingv1.IngressBackend
-	if len(rules) == 0 {
-		defaultBackend = &networkingv1.IngressBackend{
-			Service: &networkingv1.IngressServiceBackend{
-				Name: fmt.Sprintf("%s-service", nginx.Name),
-				Port: networkingv1.ServiceBackendPort{
-					Name: defaultHTTPPortName,
-				},
-			},
-		}
 	}
 
 	return &networkingv1.Ingress{
@@ -398,7 +388,14 @@ func NewIngress(nginx *v1alpha1.Nginx) *networkingv1.Ingress {
 			IngressClassName: ingressClass,
 			Rules:            rules,
 			TLS:              tls,
-			DefaultBackend:   defaultBackend,
+			DefaultBackend: &networkingv1.IngressBackend{
+				Service: &networkingv1.IngressServiceBackend{
+					Name: serviceName,
+					Port: networkingv1.ServiceBackendPort{
+						Name: defaultHTTPPortName,
+					},
+				},
+			},
 		},
 	}
 }

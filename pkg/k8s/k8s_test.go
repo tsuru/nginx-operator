@@ -1767,6 +1767,12 @@ func TestNewIngress(t *testing.T) {
 					},
 				},
 				Spec: networkingv1.IngressSpec{
+					DefaultBackend: &networkingv1.IngressBackend{
+						Service: &networkingv1.IngressServiceBackend{
+							Name: fmt.Sprintf("%s-service", nginx.Name),
+							Port: networkingv1.ServiceBackendPort{Name: "http"},
+						},
+					},
 					IngressClassName: func(s string) *string { return &s }("custom-class"),
 					Rules: []networkingv1.IngressRule{
 						{
