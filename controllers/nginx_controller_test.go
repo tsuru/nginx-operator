@@ -7,6 +7,7 @@ package controllers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sync"
 	"testing"
 
@@ -24,12 +25,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/tsuru/nginx-operator/api/v1alpha1"
-	nginxv1alpha1 "github.com/tsuru/nginx-operator/api/v1alpha1"
 )
 
 func TestNginxReconciler_reconcileDeployment(t *testing.T) {
@@ -88,7 +89,7 @@ func TestNginxReconciler_reconcileDeployment(t *testing.T) {
 				expected := v1alpha1.NginxSpec{
 					Image:    "nginx:alpine",
 					Replicas: func(n int32) *int32 { return &n }(int32(2)),
-					PodTemplate: nginxv1alpha1.NginxPodTemplateSpec{
+					PodTemplate: v1alpha1.NginxPodTemplateSpec{
 						Ports: []corev1.ContainerPort{
 							{Name: "http", ContainerPort: int32(8080), Protocol: corev1.ProtocolTCP},
 							{Name: "https", ContainerPort: int32(8443), Protocol: corev1.ProtocolTCP},
@@ -127,7 +128,7 @@ func TestNginxReconciler_reconcileDeployment(t *testing.T) {
 
 				expected := v1alpha1.NginxSpec{
 					Image: "nginx:1.22.0",
-					PodTemplate: nginxv1alpha1.NginxPodTemplateSpec{
+					PodTemplate: v1alpha1.NginxPodTemplateSpec{
 						Ports: []corev1.ContainerPort{
 							{Name: "http", ContainerPort: int32(8080), Protocol: corev1.ProtocolTCP},
 							{Name: "https", ContainerPort: int32(8443), Protocol: corev1.ProtocolTCP},
@@ -663,7 +664,7 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		nginx         *nginxv1alpha1.Nginx
+		nginx         *v1alpha1.Nginx
 		expectedError string
 		assert        func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx)
 	}{
@@ -672,14 +673,14 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 		},
 
 		"when ingress does not exist, should create one": {
-			nginx: &nginxv1alpha1.Nginx{
+			nginx: &v1alpha1.Nginx{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:            "my-nginx-2",
 					Namespace:       "default",
 					ResourceVersion: "666",
 				},
-				Spec: nginxv1alpha1.NginxSpec{
-					Ingress: &nginxv1alpha1.NginxIngress{
+				Spec: v1alpha1.NginxSpec{
+					Ingress: &v1alpha1.NginxIngress{
 						IngressClassName: func(s string) *string { return &s }("custom-class"),
 					},
 				},
@@ -805,15 +806,15 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 		},
 
 		"when TLS is set, should not set the default backend": {
-			nginx: &nginxv1alpha1.Nginx{
+			nginx: &v1alpha1.Nginx{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:            "my-nginx-2",
 					Namespace:       "default",
 					ResourceVersion: "666",
 				},
-				Spec: nginxv1alpha1.NginxSpec{
-					Ingress: &nginxv1alpha1.NginxIngress{},
-					TLS: []nginxv1alpha1.NginxTLS{
+				Spec: v1alpha1.NginxSpec{
+					Ingress: &v1alpha1.NginxIngress{},
+					TLS: []v1alpha1.NginxTLS{
 						{SecretName: "example-com-certs", Hosts: []string{"www.example.com"}},
 					},
 				},
@@ -1021,6 +1022,337 @@ func TestNginxReconciler_shouldManageNginx(t *testing.T) {
 			assert.Equal(t, tt.expected, got)
 		})
 	}
+}
+
+func TestShouldUpdateIngress(t *testing.T) {
+	tests := []struct {
+		current  *networkingv1.Ingress
+		new      *networkingv1.Ingress
+		expected bool
+	}{
+		{
+			current:  nil,
+			new:      &networkingv1.Ingress{},
+			expected: false,
+		},
+		{
+			current:  &networkingv1.Ingress{},
+			new:      nil,
+			expected: false,
+		},
+		{
+			current:  &networkingv1.Ingress{},
+			new:      &networkingv1.Ingress{},
+			expected: false,
+		},
+		{
+			current: &networkingv1.Ingress{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"a": "1",
+						"b": "2",
+						"c": "3",
+					},
+				},
+			},
+			new: &networkingv1.Ingress{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"a": "1",
+						"d": "4",
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			current: &networkingv1.Ingress{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"a": "1",
+						"b": "2",
+						"c": "3",
+					},
+				},
+			},
+			new: &networkingv1.Ingress{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"a": "1",
+						"b": "2",
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			current: &networkingv1.Ingress{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"a": "1",
+						"b": "2",
+						"c": "3",
+					},
+				},
+			},
+			new: &networkingv1.Ingress{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"a": "1",
+						"b": "2",
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			current: &networkingv1.Ingress{
+				Spec: networkingv1.IngressSpec{
+					IngressClassName: pointer.String("old"),
+				},
+			},
+			new: &networkingv1.Ingress{
+				Spec: networkingv1.IngressSpec{
+					IngressClassName: pointer.String("new"),
+				},
+			},
+			expected: true,
+		},
+		{
+			current: &networkingv1.Ingress{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"a": "1",
+						"b": "2",
+						"c": "3",
+					},
+					Annotations: map[string]string{
+						"a": "1",
+						"b": "2",
+						"c": "3",
+					},
+				},
+				Spec: networkingv1.IngressSpec{
+					IngressClassName: pointer.String("class"),
+				},
+			},
+			new: &networkingv1.Ingress{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"a": "1",
+						"b": "2",
+						"c": "3",
+					},
+					Annotations: map[string]string{
+						"a": "1",
+						"b": "2",
+						"c": "3",
+					},
+				},
+				Spec: networkingv1.IngressSpec{
+					IngressClassName: pointer.String("class"),
+				},
+			},
+			expected: false,
+		},
+	}
+
+	for index, test := range tests {
+		t.Run(fmt.Sprintf("case %d", index), func(t *testing.T) {
+			update := shouldUpdateIngress(test.current, test.new)
+			assert.Equal(t, test.expected, update)
+		})
+	}
+}
+
+func TestListServices(t *testing.T) {
+	nginx := &v1alpha1.Nginx{ObjectMeta: metav1.ObjectMeta{Name: "my-nginx", Namespace: "default"}}
+
+	resources := []runtime.Object{
+		&corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nginx-service",
+				Namespace: "default",
+				Labels: map[string]string{
+					"nginx.tsuru.io/app":           "nginx",
+					"nginx.tsuru.io/resource-name": "my-nginx",
+				},
+			},
+			Status: corev1.ServiceStatus{
+				LoadBalancer: corev1.LoadBalancerStatus{
+					Ingress: []corev1.LoadBalancerIngress{
+						{
+							IP: "1.1.1.2",
+						},
+						{
+							IP: "1.1.1.1",
+						},
+					},
+				},
+			},
+		},
+		&corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nginx-service-old",
+				Namespace: "default",
+				Labels: map[string]string{
+					"nginx.tsuru.io/app":           "nginx",
+					"nginx.tsuru.io/resource-name": "my-nginx",
+				},
+			},
+			Status: corev1.ServiceStatus{
+				LoadBalancer: corev1.LoadBalancerStatus{
+					Ingress: []corev1.LoadBalancerIngress{
+						{
+							IP: "1.1.1.3",
+						},
+						{
+							IP: "1.1.1.4",
+						},
+					},
+				},
+			},
+		},
+		&corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nginx-service-hostname",
+				Namespace: "default",
+				Labels: map[string]string{
+					"nginx.tsuru.io/app":           "nginx",
+					"nginx.tsuru.io/resource-name": "my-nginx",
+				},
+			},
+			Status: corev1.ServiceStatus{
+				LoadBalancer: corev1.LoadBalancerStatus{
+					Ingress: []corev1.LoadBalancerIngress{
+						{
+							Hostname: "hello02",
+						},
+						{
+							Hostname: "hello01",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	client := fake.NewClientBuilder().
+		WithScheme(newScheme()).
+		WithRuntimeObjects(resources...).
+		Build()
+
+	svcs, err := listServices(context.Background(), client, nginx)
+	assert.NoError(t, err)
+	assert.Equal(t, []v1alpha1.ServiceStatus{
+		{
+			Name: "my-nginx-service",
+			IPs:  []string{"1.1.1.1", "1.1.1.2"},
+		},
+		{
+			Name:      "my-nginx-service-hostname",
+			Hostnames: []string{"hello01", "hello02"},
+		},
+		{
+			Name: "my-nginx-service-old",
+			IPs:  []string{"1.1.1.3", "1.1.1.4"},
+		},
+	}, svcs)
+}
+
+func TestListIngress(t *testing.T) {
+	nginx := &v1alpha1.Nginx{ObjectMeta: metav1.ObjectMeta{Name: "my-nginx", Namespace: "default"}}
+
+	resources := []runtime.Object{
+		&networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nginx-ing",
+				Namespace: "default",
+				Labels: map[string]string{
+					"nginx.tsuru.io/app":           "nginx",
+					"nginx.tsuru.io/resource-name": "my-nginx",
+				},
+			},
+			Status: networkingv1.IngressStatus{
+				LoadBalancer: corev1.LoadBalancerStatus{
+					Ingress: []corev1.LoadBalancerIngress{
+						{
+							IP: "1.1.1.2",
+						},
+						{
+							IP: "1.1.1.1",
+						},
+					},
+				},
+			},
+		},
+		&networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nginx-ing-old",
+				Namespace: "default",
+				Labels: map[string]string{
+					"nginx.tsuru.io/app":           "nginx",
+					"nginx.tsuru.io/resource-name": "my-nginx",
+				},
+			},
+			Status: networkingv1.IngressStatus{
+				LoadBalancer: corev1.LoadBalancerStatus{
+					Ingress: []corev1.LoadBalancerIngress{
+						{
+							IP: "1.1.1.3",
+						},
+						{
+							IP: "1.1.1.4",
+						},
+					},
+				},
+			},
+		},
+		&networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nginx-ing-hostname",
+				Namespace: "default",
+				Labels: map[string]string{
+					"nginx.tsuru.io/app":           "nginx",
+					"nginx.tsuru.io/resource-name": "my-nginx",
+				},
+			},
+			Status: networkingv1.IngressStatus{
+				LoadBalancer: corev1.LoadBalancerStatus{
+					Ingress: []corev1.LoadBalancerIngress{
+						{
+							Hostname: "hello02",
+						},
+						{
+							Hostname: "hello01",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	client := fake.NewClientBuilder().
+		WithScheme(newScheme()).
+		WithRuntimeObjects(resources...).
+		Build()
+
+	svcs, err := listIngresses(context.Background(), client, nginx)
+	assert.NoError(t, err)
+	assert.Equal(t, []v1alpha1.IngressStatus{
+		{
+			Name: "my-nginx-ing",
+			IPs:  []string{"1.1.1.1", "1.1.1.2"},
+		},
+		{
+			Name:      "my-nginx-ing-hostname",
+			Hostnames: []string{"hello01", "hello02"},
+		},
+		{
+			Name: "my-nginx-ing-old",
+			IPs:  []string{"1.1.1.3", "1.1.1.4"},
+		},
+	}, svcs)
 }
 
 func newScheme() *runtime.Scheme {
