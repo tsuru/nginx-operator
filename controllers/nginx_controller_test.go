@@ -619,6 +619,9 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "my-nginx-1",
 				Namespace: "default",
+				Annotations: map[string]string{
+					"cloudprovider.ingress/status": "this annotation created by ingress controller",
+				},
 			},
 			Spec: networkingv1.IngressSpec{
 				DefaultBackend: &networkingv1.IngressBackend{
@@ -766,7 +769,10 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 				err := c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-1", Namespace: "default"}, &got)
 				require.NoError(t, err)
 
-				assert.Equal(t, map[string]string{"custom.nginx.tsuru.io/foo": "bar"}, got.Annotations)
+				assert.Equal(t, map[string]string{
+					"cloudprovider.ingress/status": "this annotation created by ingress controller",
+					"custom.nginx.tsuru.io/foo":    "bar",
+				}, got.Annotations)
 				assert.Equal(t, map[string]string{
 					"nginx.tsuru.io/app":           "nginx",
 					"nginx.tsuru.io/resource-name": "my-nginx-1",
