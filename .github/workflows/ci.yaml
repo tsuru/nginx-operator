@@ -9,7 +9,7 @@ jobs:
     - uses: actions/checkout@v3
     - uses: actions/setup-go@v4
       with:
-        go-version: '1.20'
+        go-version: '1.21'
     - run: make test
 
   lint:
@@ -18,10 +18,10 @@ jobs:
     - uses: actions/checkout@v3
     - uses: actions/setup-go@v4
       with:
-        go-version: '1.20'
+        go-version: '1.21'
     - uses: golangci/golangci-lint-action@v3
       with:
-        version: v1.53
+        version: v1.55
 
   integration:
     runs-on: ubuntu-latest
@@ -36,7 +36,7 @@ jobs:
     - uses: actions/checkout@v3
     - uses: actions/setup-go@v4
       with:
-        go-version: '1.20'
+        go-version: '1.21'
     - name: Setup
       run: |
         kubectl create namespace nginx-operator-system
