@@ -196,9 +196,14 @@ type NginxPodTemplateSpec struct {
 	// terminationGracePeriodSeconds default value.
 	// +optional
 	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
-	// SecurityContext configures security attributes for the nginx pod.
+	// PodSecurityContext configures security attributes for the nginx pod.
 	// +optional
-	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
+	PodSecurityContext *corev1.PodSecurityContext `json:"podSecurityContext,omitempty"`
+
+	// ContainerSecurityContext configures security attributes for the nginx container.
+	// +optional
+	ContainerSecurityContext *corev1.SecurityContext `json:"containerSecurityContext,omitempty"`
+
 	// Volumes that will attach to nginx instances
 	// +optional
 	Volumes []corev1.Volume `json:"volumes,omitempty"`

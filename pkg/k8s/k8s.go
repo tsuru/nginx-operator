@@ -75,15 +75,16 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 	n.Spec.Image = valueOrDefault(n.Spec.Image, defaultNginxImage)
 	setDefaultPorts(&n.Spec.PodTemplate)
 
-	securityContext := n.Spec.PodTemplate.SecurityContext
+	containerSecurityContext := n.Spec.PodTemplate.ContainerSecurityContext
+
 	if hasLowPort(n.Spec.PodTemplate.Ports) {
-		if securityContext == nil {
-			securityContext = &corev1.SecurityContext{}
+		if containerSecurityContext == nil {
+			containerSecurityContext = &corev1.SecurityContext{}
 		}
-		if securityContext.Capabilities == nil {
-			securityContext.Capabilities = &corev1.Capabilities{}
+		if containerSecurityContext.Capabilities == nil {
+			containerSecurityContext.Capabilities = &corev1.Capabilities{}
 		}
-		securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "NET_BIND_SERVICE")
+		containerSecurityContext.Capabilities.Add = append(containerSecurityContext.Capabilities.Add, "NET_BIND_SERVICE")
 	}
 
 	var maxSurge, maxUnavailable *intstr.IntOrString
@@ -149,7 +150,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 							Image:           n.Spec.Image,
 							Command:         nginxEntrypoint,
 							Resources:       n.Spec.Resources,
-							SecurityContext: securityContext,
+							SecurityContext: containerSecurityContext,
 							Ports:           n.Spec.PodTemplate.Ports,
 							VolumeMounts:    n.Spec.PodTemplate.VolumeMounts,
 						},
@@ -162,6 +163,7 @@ func NewDeployment(n *v1alpha1.Nginx) (*appv1.Deployment, error) {
 					Volumes:                       n.Spec.PodTemplate.Volumes,
 					Tolerations:                   n.Spec.PodTemplate.Toleration,
 					TopologySpreadConstraints:     n.Spec.PodTemplate.TopologySpreadConstraints,
+					SecurityContext:               n.Spec.PodTemplate.PodSecurityContext,
 				},
 			},
 		},

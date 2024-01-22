@@ -178,6 +178,31 @@ func Test_NewDeployment(t *testing.T) {
 			},
 		},
 		{
+			name: "pod-security-context",
+			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
+				n.Spec.PodTemplate.PodSecurityContext = &corev1.PodSecurityContext{
+					Sysctls: []corev1.Sysctl{
+						{
+							Name:  "net.ipv4.test",
+							Value: "1",
+						},
+					},
+				}
+				return n
+			},
+			deployFn: func(d appv1.Deployment) appv1.Deployment {
+				d.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{
+					Sysctls: []corev1.Sysctl{
+						{
+							Name:  "net.ipv4.test",
+							Value: "1",
+						},
+					},
+				}
+				return d
+			},
+		},
+		{
 			name: "with-config-configmap",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
 				n.Spec.Config = &v1alpha1.ConfigRef{
@@ -592,7 +617,7 @@ func Test_NewDeployment(t *testing.T) {
 		{
 			name: "with-security-context",
 			nginxFn: func(n v1alpha1.Nginx) v1alpha1.Nginx {
-				n.Spec.PodTemplate.SecurityContext = &corev1.SecurityContext{
+				n.Spec.PodTemplate.ContainerSecurityContext = &corev1.SecurityContext{
 					RunAsUser:  new(int64),
 					RunAsGroup: new(int64),
 				}
@@ -612,7 +637,7 @@ func Test_NewDeployment(t *testing.T) {
 				n.Spec.PodTemplate = v1alpha1.NginxPodTemplateSpec{
 					HostNetwork: true,
 				}
-				n.Spec.PodTemplate.SecurityContext = &corev1.SecurityContext{
+				n.Spec.PodTemplate.ContainerSecurityContext = &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
 						Drop: []corev1.Capability{corev1.Capability("all")},
 						Add:  []corev1.Capability{corev1.Capability("NET_ADMIN")},
