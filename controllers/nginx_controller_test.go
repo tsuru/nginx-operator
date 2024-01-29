@@ -525,6 +525,72 @@ func TestNginxReconciler_reconcileService(t *testing.T) {
 			},
 		},
 		{
+			name: "when updating the nginx service, must not change the GCP network-tier annotation",
+			nginx: &v1alpha1.Nginx{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "extensions.tsuru.io/v1alpha1",
+					Kind:       "Nginx",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-nginx",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.NginxSpec{
+					Service: &v1alpha1.NginxService{
+						Type: corev1.ServiceTypeClusterIP,
+						Annotations: map[string]string{
+							"cloud.google.com/network-tier": "Standard",
+						},
+					},
+				},
+			},
+			service: &corev1.Service{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "v1",
+					Kind:       "Service",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-nginx-service",
+					Namespace: "default",
+					Annotations: map[string]string{
+						"cloud.google.com/network-tier": "Premium",
+					},
+					Labels: map[string]string{},
+				},
+				Spec: corev1.ServiceSpec{
+					Type:                  corev1.ServiceTypeLoadBalancer,
+					ExternalTrafficPolicy: corev1.ServiceExternalTrafficPolicyTypeCluster,
+					ClusterIP:             "10.1.1.10",
+					HealthCheckNodePort:   int32(43123),
+					Ports: []corev1.ServicePort{
+						{
+							Name:       "https",
+							TargetPort: intstr.FromString("https"),
+							Protocol:   corev1.ProtocolTCP,
+							Port:       int32(443),
+							NodePort:   int32(30667),
+						},
+						{
+							Name:       "http",
+							Protocol:   corev1.ProtocolTCP,
+							TargetPort: intstr.FromString("http"),
+							Port:       int32(80),
+							NodePort:   int32(30666),
+						},
+					},
+				},
+			},
+			assertion: func(t *testing.T, err error, got *corev1.Service) {
+				assert.NoError(t, err)
+				assert.NotNil(t, got)
+				assert.Equal(t, "Premium", got.Annotations["cloud.google.com/network-tier"])
+			},
+			expectedEvents: []string{
+				"Warning GCPNetworkTierNoChange the GCP network tier of this service cannot be changed, because IP address may change and cause downtime",
+				"Normal ServiceUpdated service updated successfully",
+			},
+		},
+		{
 			name: "when updating then nginx service, should keep resource finalizers",
 			nginx: &v1alpha1.Nginx{
 				TypeMeta: metav1.TypeMeta{

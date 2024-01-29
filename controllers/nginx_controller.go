@@ -32,6 +32,10 @@ import (
 	"github.com/tsuru/nginx-operator/pkg/k8s"
 )
 
+const (
+	gcpNetworkTierAnnotationKey = "cloud.google.com/network-tier"
+)
+
 // NginxReconciler reconciles a Nginx object
 type NginxReconciler struct {
 	client.Client
@@ -179,6 +183,12 @@ func (r *NginxReconciler) reconcileService(ctx context.Context, nginx *nginxv1al
 
 	if err != nil {
 		return fmt.Errorf("failed to retrieve Service resource: %v", err)
+	}
+
+	if newService.Annotations[gcpNetworkTierAnnotationKey] != currentService.Annotations[gcpNetworkTierAnnotationKey] {
+		// if you want to change network tier, please ask system administrator to manually change/delete the kubernetes service
+		r.EventRecorder.Event(nginx, corev1.EventTypeWarning, "GCPNetworkTierNoChange", "the GCP network tier of this service cannot be changed, because IP address may change and cause downtime")
+		newService.Annotations[gcpNetworkTierAnnotationKey] = currentService.Annotations[gcpNetworkTierAnnotationKey]
 	}
 
 	newService.ResourceVersion = currentService.ResourceVersion
