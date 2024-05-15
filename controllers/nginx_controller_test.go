@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -1180,12 +1180,12 @@ func TestShouldUpdateIngress(t *testing.T) {
 		{
 			current: &networkingv1.Ingress{
 				Spec: networkingv1.IngressSpec{
-					IngressClassName: pointer.String("old"),
+					IngressClassName: ptr.To("old"),
 				},
 			},
 			new: &networkingv1.Ingress{
 				Spec: networkingv1.IngressSpec{
-					IngressClassName: pointer.String("new"),
+					IngressClassName: ptr.To("new"),
 				},
 			},
 			expected: true,
@@ -1205,7 +1205,7 @@ func TestShouldUpdateIngress(t *testing.T) {
 					},
 				},
 				Spec: networkingv1.IngressSpec{
-					IngressClassName: pointer.String("class"),
+					IngressClassName: ptr.To("class"),
 				},
 			},
 			new: &networkingv1.Ingress{
@@ -1222,7 +1222,7 @@ func TestShouldUpdateIngress(t *testing.T) {
 					},
 				},
 				Spec: networkingv1.IngressSpec{
-					IngressClassName: pointer.String("class"),
+					IngressClassName: ptr.To("class"),
 				},
 			},
 			expected: false,
