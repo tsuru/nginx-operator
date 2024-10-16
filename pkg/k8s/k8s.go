@@ -38,6 +38,9 @@ const (
 	defaultHTTPSHostNetworkPort = int32(443)
 	defaultHTTPSPortName        = "https"
 
+	defaultProxyProtocolHTTPPortName  = "proxy-http"
+	defaultProxyProtocolHTTPSPortName = "proxy-https"
+
 	defaultCacheVolumeExtraSize = float64(1.05)
 
 	curlProbeCommand = "curl -m%d -kfsS -o /dev/null %s"
@@ -233,20 +236,7 @@ func NewService(n *v1alpha1.Nginx) *corev1.Service {
 			Annotations: annotations,
 		},
 		Spec: corev1.ServiceSpec{
-			Ports: []corev1.ServicePort{
-				{
-					Name:       defaultHTTPPortName,
-					Protocol:   corev1.ProtocolTCP,
-					TargetPort: intstr.FromString(defaultHTTPPortName),
-					Port:       int32(80),
-				},
-				{
-					Name:       defaultHTTPSPortName,
-					Protocol:   corev1.ProtocolTCP,
-					TargetPort: intstr.FromString(defaultHTTPSPortName),
-					Port:       int32(443),
-				},
-			},
+			Ports:                 fillPorts(*n, nginxService(n)),
 			Selector:              labelSelector,
 			LoadBalancerIP:        lbIP,
 			Type:                  nginxService(n),
@@ -258,6 +248,47 @@ func NewService(n *v1alpha1.Nginx) *corev1.Service {
 		service.Spec.ExternalTrafficPolicy = ""
 	}
 	return &service
+}
+
+func fillPorts(n v1alpha1.Nginx, t corev1.ServiceType) []corev1.ServicePort {
+	if n.Spec.PodTemplate.Ports != nil && t == corev1.ServiceTypeLoadBalancer {
+		ports := make([]corev1.ServicePort, 0)
+		for _, port := range n.Spec.PodTemplate.Ports {
+			if port.Name == defaultProxyProtocolHTTPPortName {
+				ports = append(ports, corev1.ServicePort{
+					Name:       defaultProxyProtocolHTTPPortName,
+					Protocol:   corev1.ProtocolTCP,
+					TargetPort: intstr.FromString(defaultProxyProtocolHTTPPortName),
+					Port:       int32(80),
+				})
+			}
+			if port.Name == defaultProxyProtocolHTTPSPortName {
+				ports = append(ports, corev1.ServicePort{
+					Name:       defaultProxyProtocolHTTPSPortName,
+					Protocol:   corev1.ProtocolTCP,
+					TargetPort: intstr.FromString(defaultProxyProtocolHTTPSPortName),
+					Port:       int32(443),
+				})
+			}
+		}
+		if len(ports) > 0 {
+			return ports
+		}
+	}
+	return []corev1.ServicePort{
+		{
+			Name:       defaultHTTPPortName,
+			Protocol:   corev1.ProtocolTCP,
+			TargetPort: intstr.FromString(defaultHTTPPortName),
+			Port:       int32(80),
+		},
+		{
+			Name:       defaultHTTPSPortName,
+			Protocol:   corev1.ProtocolTCP,
+			TargetPort: intstr.FromString(defaultHTTPSPortName),
+			Port:       int32(443),
+		},
+	}
 }
 
 func nginxService(n *v1alpha1.Nginx) corev1.ServiceType {
