@@ -1611,6 +1611,110 @@ func TestNewService(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "using proxy protocol with LB svc type",
+			nginx: func() v1alpha1.Nginx {
+				n := nginxWithService()
+				n.Spec.Service.Type = corev1.ServiceTypeLoadBalancer
+				n.Spec.PodTemplate.Ports = []corev1.ContainerPort{
+					{
+						Name: defaultProxyProtocolHTTPPortName,
+					},
+					{
+						Name: defaultProxyProtocolHTTPSPortName,
+					},
+				}
+				return n
+			}(),
+			want: &corev1.Service{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Service",
+					APIVersion: "v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-nginx-service",
+					Namespace: "default",
+					Labels: map[string]string{
+						"nginx.tsuru.io/resource-name": "my-nginx",
+						"nginx.tsuru.io/app":           "nginx",
+					},
+					Annotations: map[string]string{},
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{
+							Name:       "proxy-http",
+							Protocol:   corev1.ProtocolTCP,
+							TargetPort: intstr.FromString("proxy-http"),
+							Port:       int32(80),
+						},
+						{
+							Name:       "proxy-https",
+							Protocol:   corev1.ProtocolTCP,
+							TargetPort: intstr.FromString("proxy-https"),
+							Port:       int32(443),
+						},
+					},
+					Selector: map[string]string{
+						"nginx.tsuru.io/resource-name": "my-nginx",
+						"nginx.tsuru.io/app":           "nginx",
+					},
+					Type: corev1.ServiceTypeLoadBalancer,
+				},
+			},
+		},
+		{
+			name: "using default ports with clusterIP svc type",
+			nginx: func() v1alpha1.Nginx {
+				n := nginxWithService()
+				n.Spec.Service.Type = corev1.ServiceTypeClusterIP
+				n.Spec.PodTemplate.Ports = []corev1.ContainerPort{
+					{
+						Name: defaultProxyProtocolHTTPPortName,
+					},
+					{
+						Name: defaultProxyProtocolHTTPSPortName,
+					},
+				}
+				return n
+			}(),
+			want: &corev1.Service{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Service",
+					APIVersion: "v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-nginx-service",
+					Namespace: "default",
+					Labels: map[string]string{
+						"nginx.tsuru.io/resource-name": "my-nginx",
+						"nginx.tsuru.io/app":           "nginx",
+					},
+					Annotations: map[string]string{},
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{
+							Name:       "http",
+							Protocol:   corev1.ProtocolTCP,
+							TargetPort: intstr.FromString("http"),
+							Port:       int32(80),
+						},
+						{
+							Name:       "https",
+							Protocol:   corev1.ProtocolTCP,
+							TargetPort: intstr.FromString("https"),
+							Port:       int32(443),
+						},
+					},
+					Selector: map[string]string{
+						"nginx.tsuru.io/resource-name": "my-nginx",
+						"nginx.tsuru.io/app":           "nginx",
+					},
+					Type: corev1.ServiceTypeClusterIP,
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
