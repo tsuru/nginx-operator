@@ -88,11 +88,11 @@ func Test_Operator(t *testing.T) {
 		}{
 			{
 				filename:       "/etc/nginx/certs/my-rsa-cert/tls.crt",
-				expectedSha256: "6a95f3b95972f4beae4b54918498817d95f3d8cfb766c053cae656839e392430",
+				expectedSha256: "256bfbf7960e7f2fa4af64701a64525e794ffc4d6eab3d3ef79a0580a2f92fa5",
 			},
 			{
 				filename:       "/etc/nginx/certs/my-rsa-cert/tls.key",
-				expectedSha256: "f8a6da5db392519513597345931237dbb1a0a28fb89b7ce3b41562f988f9ef67",
+				expectedSha256: "68694230fe7bca079f5b83549289b6fc65d3009803cc9100156147bbe8d62ff5",
 			},
 			{
 				filename:       "/etc/nginx/certs/my-ecdsa-cert/tls.crt",
