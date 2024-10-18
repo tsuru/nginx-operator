@@ -236,7 +236,7 @@ func NewService(n *v1alpha1.Nginx) *corev1.Service {
 			Annotations: annotations,
 		},
 		Spec: corev1.ServiceSpec{
-			Ports:                 fillPorts(*n, nginxService(n)),
+			Ports:                 fillPorts(n, nginxService(n)),
 			Selector:              labelSelector,
 			LoadBalancerIP:        lbIP,
 			Type:                  nginxService(n),
@@ -250,7 +250,7 @@ func NewService(n *v1alpha1.Nginx) *corev1.Service {
 	return &service
 }
 
-func fillPorts(n v1alpha1.Nginx, t corev1.ServiceType) []corev1.ServicePort {
+func fillPorts(n *v1alpha1.Nginx, t corev1.ServiceType) []corev1.ServicePort {
 	if n.Spec.PodTemplate.Ports != nil && t == corev1.ServiceTypeLoadBalancer {
 		ports := make([]corev1.ServicePort, 0)
 		for _, port := range n.Spec.PodTemplate.Ports {
