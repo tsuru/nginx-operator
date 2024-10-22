@@ -591,6 +591,133 @@ func TestNginxReconciler_reconcileService(t *testing.T) {
 			},
 		},
 		{
+			name: "when setting OCI load balancer type with TLS annotations, should set the OCI load balancer with proper secret annotation",
+			nginx: &v1alpha1.Nginx{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "extensions.tsuru.io/v1alpha1",
+					Kind:       "Nginx",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-nginx",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.NginxSpec{
+					Service: &v1alpha1.NginxService{
+						Type: corev1.ServiceTypeClusterIP,
+						Annotations: map[string]string{
+							ociLoadBalancerSSLPorts: "443",
+						},
+					},
+					TLS: []v1alpha1.NginxTLS{{SecretName: "my-secret-2"}, {SecretName: "my-secret-1"}},
+				},
+			},
+			service: &corev1.Service{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "v1",
+					Kind:       "Service",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "my-nginx-service",
+					Namespace:   "default",
+					Annotations: map[string]string{},
+					Labels:      map[string]string{},
+				},
+				Spec: corev1.ServiceSpec{
+					Type:                  corev1.ServiceTypeLoadBalancer,
+					ExternalTrafficPolicy: corev1.ServiceExternalTrafficPolicyTypeCluster,
+					ClusterIP:             "10.1.1.10",
+					HealthCheckNodePort:   int32(43123),
+					Ports: []corev1.ServicePort{
+						{
+							Name:       "https",
+							TargetPort: intstr.FromString("https"),
+							Protocol:   corev1.ProtocolTCP,
+							Port:       int32(443),
+							NodePort:   int32(30667),
+						},
+						{
+							Name:       "http",
+							Protocol:   corev1.ProtocolTCP,
+							TargetPort: intstr.FromString("http"),
+							Port:       int32(80),
+							NodePort:   int32(30666),
+						},
+					},
+				},
+			},
+			assertion: func(t *testing.T, err error, got *corev1.Service) {
+				assert.NoError(t, err)
+				assert.NotNil(t, got)
+				assert.Equal(t, "default/my-secret-1", got.Annotations[ociLoadBalancerTLSSecret])
+			},
+			expectedEvents: []string{
+				"Normal ServiceUpdated service updated successfully",
+			},
+		},
+		{
+			name: "when setting OCI load balancer type with TLS annotations do nothing if no secret is provided",
+			nginx: &v1alpha1.Nginx{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "extensions.tsuru.io/v1alpha1",
+					Kind:       "Nginx",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-nginx",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.NginxSpec{
+					Service: &v1alpha1.NginxService{
+						Type: corev1.ServiceTypeClusterIP,
+						Annotations: map[string]string{
+							ociLoadBalancerSSLPorts: "443",
+						},
+					},
+				},
+			},
+			service: &corev1.Service{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "v1",
+					Kind:       "Service",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "my-nginx-service",
+					Namespace:   "default",
+					Annotations: map[string]string{},
+					Labels:      map[string]string{},
+				},
+				Spec: corev1.ServiceSpec{
+					Type:                  corev1.ServiceTypeLoadBalancer,
+					ExternalTrafficPolicy: corev1.ServiceExternalTrafficPolicyTypeCluster,
+					ClusterIP:             "10.1.1.10",
+					HealthCheckNodePort:   int32(43123),
+					Ports: []corev1.ServicePort{
+						{
+							Name:       "https",
+							TargetPort: intstr.FromString("https"),
+							Protocol:   corev1.ProtocolTCP,
+							Port:       int32(443),
+							NodePort:   int32(30667),
+						},
+						{
+							Name:       "http",
+							Protocol:   corev1.ProtocolTCP,
+							TargetPort: intstr.FromString("http"),
+							Port:       int32(80),
+							NodePort:   int32(30666),
+						},
+					},
+				},
+			},
+			assertion: func(t *testing.T, err error, got *corev1.Service) {
+				assert.NoError(t, err)
+				assert.NotNil(t, got)
+				assert.Equal(t, "", got.Annotations[ociLoadBalancerTLSSecret])
+			},
+			expectedEvents: []string{
+				"Normal ServiceUpdated service updated successfully",
+			},
+		},
+		{
 			name: "when updating then nginx service, should keep resource finalizers",
 			nginx: &v1alpha1.Nginx{
 				TypeMeta: metav1.TypeMeta{
