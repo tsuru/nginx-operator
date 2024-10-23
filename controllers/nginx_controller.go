@@ -34,6 +34,8 @@ import (
 
 const (
 	gcpNetworkTierAnnotationKey = "cloud.google.com/network-tier"
+	ociLoadBalancerTLSSecret    = "service.beta.kubernetes.io/oci-load-balancer-tls-secret"
+	ociLoadBalancerSSLPorts     = "service.beta.kubernetes.io/oci-load-balancer-ssl-ports"
 )
 
 // NginxReconciler reconciles a Nginx object
@@ -199,6 +201,13 @@ func (r *NginxReconciler) reconcileService(ctx context.Context, nginx *nginxv1al
 	for annotation, value := range currentService.Annotations {
 		if newService.Annotations[annotation] == "" {
 			newService.Annotations[annotation] = value
+		}
+	}
+
+	if newService.Annotations[ociLoadBalancerSSLPorts] != "" {
+		if len(nginx.Spec.TLS) > 0 {
+			secretName := getFirstTLSSortedBySecretName(nginx.Spec.TLS)
+			newService.Annotations[ociLoadBalancerTLSSecret] = fmt.Sprintf("%s/%s", nginx.Namespace, secretName)
 		}
 	}
 
@@ -457,4 +466,16 @@ func (r *NginxReconciler) shouldManageNginx(nginx *v1alpha1.Nginx) bool {
 	}
 
 	return r.AnnotationFilter.Matches(labels.Set(nginx.Annotations))
+}
+
+func getFirstTLSSortedBySecretName(tls []nginxv1alpha1.NginxTLS) string {
+	if len(tls) == 0 {
+		return ""
+	}
+
+	sort.Slice(tls, func(i, j int) bool {
+		return tls[i].SecretName < tls[j].SecretName
+	})
+
+	return tls[0].SecretName
 }
