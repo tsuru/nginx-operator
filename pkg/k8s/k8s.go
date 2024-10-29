@@ -59,6 +59,8 @@ const (
 
 	// Annotation key used to stored the nginx that created the deployment
 	generatedFromAnnotation = "nginx.tsuru.io/generated-from"
+
+	useHTTPSOverHTTPAnnotation = "nginx.tsuru.io/https-over-http"
 )
 
 var nginxEntrypoint = []string{
@@ -285,10 +287,17 @@ func fillPorts(n *v1alpha1.Nginx, t corev1.ServiceType) []corev1.ServicePort {
 		{
 			Name:       defaultHTTPSPortName,
 			Protocol:   corev1.ProtocolTCP,
-			TargetPort: intstr.FromString(defaultHTTPSPortName),
+			TargetPort: fillHTTPSTargetPort(n),
 			Port:       int32(443),
 		},
 	}
+}
+
+func fillHTTPSTargetPort(n *v1alpha1.Nginx) intstr.IntOrString {
+	if n.Spec.Service != nil && n.Spec.Service.Annotations != nil && n.Spec.Service.Annotations[useHTTPSOverHTTPAnnotation] == "true" {
+		return intstr.FromString(defaultHTTPPortName)
+	}
+	return intstr.FromString(defaultHTTPSPortName)
 }
 
 func nginxService(n *v1alpha1.Nginx) corev1.ServiceType {

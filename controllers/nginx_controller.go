@@ -36,6 +36,7 @@ const (
 	gcpNetworkTierAnnotationKey = "cloud.google.com/network-tier"
 	ociLoadBalancerTLSSecret    = "service.beta.kubernetes.io/oci-load-balancer-tls-secret"
 	ociLoadBalancerSSLPorts     = "service.beta.kubernetes.io/oci-load-balancer-ssl-ports"
+	useHTTPSOverHTTPAnnotation  = "nginx.tsuru.io/https-over-http"
 )
 
 // NginxReconciler reconciles a Nginx object
