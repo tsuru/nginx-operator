@@ -101,16 +101,27 @@ func (r *NginxReconciler) reconcileNginx(ctx context.Context, nginx *nginxv1alph
 	if err := r.reconcileDeployment(ctx, nginx); err != nil {
 		return err
 	}
-
 	if err := r.reconcileService(ctx, nginx); err != nil {
 		return err
 	}
-
 	if err := r.reconcileIngress(ctx, nginx); err != nil {
 		return err
 	}
-
+	if err := r.reconcileGcpIpV6(ctx, nginx); err != nil {
+		return err
+	}
 	return nil
+}
+
+func (r *NginxReconciler) reconcileGcpIpV6(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
+	if nginx.Spec.Ingress.GCPIpV6StaticIPName == "" {
+		return nil
+	}
+	staticName := nginx.Spec.Ingress.GCPIpV6StaticIPName
+	newIngress := k8s.NewIngress(nginx)
+	newIngress.Annotations["kubernetes.io/ingress.global-static-ip-name"] = staticName
+	newIngress.Name = fmt.Sprintf("%s-ipv6", newIngress.Name)
+	return r.manageIngressLifecycle(ctx, newIngress, nginx)
 }
 
 func (r *NginxReconciler) reconcileDeployment(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
@@ -233,13 +244,7 @@ func (r *NginxReconciler) reconcileService(ctx context.Context, nginx *nginxv1al
 	return nil
 }
 
-func (r *NginxReconciler) reconcileIngress(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
-	if nginx == nil {
-		return fmt.Errorf("nginx cannot be nil")
-	}
-
-	newIngress := k8s.NewIngress(nginx)
-
+func (r *NginxReconciler) manageIngressLifecycle(ctx context.Context, newIngress *networkingv1.Ingress, nginx *nginxv1alpha1.Nginx) error {
 	var currentIngress networkingv1.Ingress
 	err := r.Client.Get(ctx, types.NamespacedName{Name: newIngress.Name, Namespace: newIngress.Namespace}, &currentIngress)
 	if errors.IsNotFound(err) {
@@ -272,6 +277,15 @@ func (r *NginxReconciler) reconcileIngress(ctx context.Context, nginx *nginxv1al
 	newIngress.Finalizers = currentIngress.Finalizers
 
 	return r.Client.Update(ctx, newIngress)
+
+}
+
+func (r *NginxReconciler) reconcileIngress(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
+	if nginx == nil {
+		return fmt.Errorf("nginx cannot be nil")
+	}
+	newIngress := k8s.NewIngress(nginx)
+	return r.manageIngressLifecycle(ctx, newIngress, nginx)
 }
 
 func shouldUpdateIngress(currentIngress, newIngress *networkingv1.Ingress) bool {
