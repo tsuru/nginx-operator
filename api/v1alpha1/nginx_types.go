@@ -107,6 +107,8 @@ type NginxIngress struct {
 	// IngressClassName is the class to be set on Ingress.
 	// +optional
 	IngressClassName *string `json:"ingressClassName,omitempty"`
+	// Ipv6 defines whether the Ingress should be created with IPv6 enabled.
+	GCPIpV6StaticIPName string `json:"gcpIPV6StaticIPName,omitempty"`
 }
 
 type NginxService struct {
