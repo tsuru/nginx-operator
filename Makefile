@@ -81,7 +81,7 @@ generate: controller-gen
 .PHONY: controller-gen
 controller-gen:
 ifeq (, $(shell which controller-gen))
-	@{ \ 
+	@{ \
 	set -e ;\
 	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.15.0 ;\
 	}
@@ -100,7 +100,7 @@ ifeq (, $(shell which kustomize))
 	KUSTOMIZE_GEN_TMP_DIR=$$(mktemp -d) ;\
 	cd $$KUSTOMIZE_GEN_TMP_DIR ;\
 	go mod init tmp ;\
-	go get sigs.k8s.io/kustomize/kustomize/v3@v3.5.4 ;\
+	go install sigs.k8s.io/kustomize/kustomize/v3@v3.5.4 ;\
 	rm -rf $$KUSTOMIZE_GEN_TMP_DIR ;\
 	}
 KUSTOMIZE=$(GOBIN)/kustomize

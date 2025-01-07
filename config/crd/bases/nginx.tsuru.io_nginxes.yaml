@@ -140,10 +140,6 @@ spec:
                     description: Annotations are extra annotations for the Ingress
                       resource.
                     type: object
-                  gcpIPV6StaticIPName:
-                    description: Ipv6 defines whether the Ingress should be created
-                      with IPv6 enabled.
-                    type: string
                   ingressClassName:
                     description: IngressClassName is the class to be set on Ingress.
                     type: string
