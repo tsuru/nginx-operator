@@ -21,6 +21,7 @@ import (
 
 	nginxv1alpha1 "github.com/tsuru/nginx-operator/api/v1alpha1"
 	"github.com/tsuru/nginx-operator/controllers"
+	"github.com/tsuru/nginx-operator/pkg/gcp"
 	"github.com/tsuru/nginx-operator/version"
 
 	// +kubebuilder:scaffold:imports
@@ -105,6 +106,7 @@ func main() {
 		Log:              ctrl.Log.WithName("controllers").WithName("Nginx"),
 		Scheme:           mgr.GetScheme(),
 		AnnotationFilter: annotationSelector,
+		GcpClient:        gcp.NewGcpClient(os.Getenv("GCP_PROJECT_ID")),
 	}).SetupWithManager(mgr)
 	if err != nil {
 		ctrl.Log.Error(err, "unable to create controller", "controller", "Nginx")

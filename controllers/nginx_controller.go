@@ -27,8 +27,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/tsuru/nginx-operator/api/v1alpha1"
 	nginxv1alpha1 "github.com/tsuru/nginx-operator/api/v1alpha1"
+	"github.com/tsuru/nginx-operator/pkg/gcp"
 	"github.com/tsuru/nginx-operator/pkg/k8s"
 )
 
@@ -43,9 +43,10 @@ const (
 type NginxReconciler struct {
 	client.Client
 	EventRecorder    record.EventRecorder
-	Log              logr.Logger
-	Scheme           *runtime.Scheme
 	AnnotationFilter labels.Selector
+	Scheme           *runtime.Scheme
+	Log              logr.Logger
+	GcpClient        gcp.GcpClient
 }
 
 // +kubebuilder:rbac:groups=nginx.tsuru.io,resources=nginxes,verbs=get;list;watch;create;update;patch;delete
@@ -107,20 +108,23 @@ func (r *NginxReconciler) reconcileNginx(ctx context.Context, nginx *nginxv1alph
 	if err := r.reconcileIngress(ctx, nginx); err != nil {
 		return err
 	}
-	if err := r.reconcileGcpIpV6(ctx, nginx); err != nil {
+	if err := r.reconcileGcpIpV6Ingress(ctx, nginx); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (r *NginxReconciler) reconcileGcpIpV6(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
-	if nginx.Spec.Ingress.GCPIpV6StaticIPName == "" {
+func (r *NginxReconciler) reconcileGcpIpV6Ingress(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
+	ipv6 := nginx.Spec.Ingress.Annotations["nginx.tsuru.io/allocate-gcp-ipv6"]
+	if ipv6 != "true" {
 		return nil
 	}
-	staticName := nginx.Spec.Ingress.GCPIpV6StaticIPName
 	newIngress := k8s.NewIngress(nginx)
-	newIngress.Annotations["kubernetes.io/ingress.global-static-ip-name"] = staticName
 	newIngress.Name = fmt.Sprintf("%s-ipv6", newIngress.Name)
+	newIngress.Annotations["kubernetes.io/ingress.global-static-ip-name"] = newIngress.Name
+	if err := r.GcpClient.EnsureIPV6(ctx, newIngress.Name); err != nil {
+		return err
+	}
 	return r.manageIngressLifecycle(ctx, newIngress, nginx)
 }
 
@@ -277,7 +281,6 @@ func (r *NginxReconciler) manageIngressLifecycle(ctx context.Context, newIngress
 	newIngress.Finalizers = currentIngress.Finalizers
 
 	return r.Client.Update(ctx, newIngress)
-
 }
 
 func (r *NginxReconciler) reconcileIngress(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
@@ -309,11 +312,11 @@ func (r *NginxReconciler) refreshStatus(ctx context.Context, nginx *nginxv1alpha
 		return err
 	}
 
-	var deployStatuses []v1alpha1.DeploymentStatus
+	var deployStatuses []nginxv1alpha1.DeploymentStatus
 	var replicas int32
 	for _, d := range deploys {
 		replicas += d.Status.Replicas
-		deployStatuses = append(deployStatuses, v1alpha1.DeploymentStatus{Name: d.Name})
+		deployStatuses = append(deployStatuses, nginxv1alpha1.DeploymentStatus{Name: d.Name})
 	}
 
 	services, err := listServices(ctx, r.Client, nginx)
@@ -334,7 +337,7 @@ func (r *NginxReconciler) refreshStatus(ctx context.Context, nginx *nginxv1alpha
 		return nginx.Status.Ingresses[i].Name < nginx.Status.Ingresses[j].Name
 	})
 
-	status := v1alpha1.NginxStatus{
+	status := nginxv1alpha1.NginxStatus{
 		CurrentReplicas: replicas,
 		PodSelector:     k8s.LabelsForNginxString(nginx.Name),
 		Deployments:     deployStatuses,
@@ -378,8 +381,8 @@ func listDeployments(ctx context.Context, c client.Client, nginx *nginxv1alpha1.
 		}
 
 		desired := *metav1.NewControllerRef(nginx, schema.GroupVersionKind{
-			Group:   v1alpha1.GroupVersion.Group,
-			Version: v1alpha1.GroupVersion.Version,
+			Group:   nginxv1alpha1.GroupVersion.Group,
+			Version: nginxv1alpha1.GroupVersion.Version,
 			Kind:    "Nginx",
 		})
 
@@ -474,7 +477,7 @@ func listIngresses(ctx context.Context, c client.Client, nginx *nginxv1alpha1.Ng
 	return ingresses, nil
 }
 
-func (r *NginxReconciler) shouldManageNginx(nginx *v1alpha1.Nginx) bool {
+func (r *NginxReconciler) shouldManageNginx(nginx *nginxv1alpha1.Nginx) bool {
 	// empty filter matches all resources
 	if r.AnnotationFilter == nil || r.AnnotationFilter.Empty() {
 		return true
