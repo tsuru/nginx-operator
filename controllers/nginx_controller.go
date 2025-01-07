@@ -37,6 +37,8 @@ const (
 	ociLoadBalancerTLSSecret    = "service.beta.kubernetes.io/oci-load-balancer-tls-secret"
 	ociLoadBalancerSSLPorts     = "service.beta.kubernetes.io/oci-load-balancer-ssl-ports"
 	useHTTPSOverHTTPAnnotation  = "nginx.tsuru.io/https-over-http"
+	nginxIpv6GcpAnnotation      = "nginx.tsuru.io/allocate-gcp-ipv6"
+	ingressStaticIPAnnotation   = "kubernetes.io/ingress.global-static-ip-name"
 )
 
 // NginxReconciler reconciles a Nginx object
@@ -115,13 +117,13 @@ func (r *NginxReconciler) reconcileNginx(ctx context.Context, nginx *nginxv1alph
 }
 
 func (r *NginxReconciler) reconcileGcpIpV6Ingress(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
-	ipv6 := nginx.Spec.Ingress.Annotations["nginx.tsuru.io/allocate-gcp-ipv6"]
+	ipv6 := nginx.Spec.Ingress.Annotations[nginxIpv6GcpAnnotation]
 	if ipv6 != "true" {
 		return nil
 	}
 	newIngress := k8s.NewIngress(nginx)
 	newIngress.Name = fmt.Sprintf("%s-ipv6", newIngress.Name)
-	newIngress.Annotations["kubernetes.io/ingress.global-static-ip-name"] = newIngress.Name
+	newIngress.Annotations[ingressStaticIPAnnotation] = newIngress.Name
 	if err := r.GcpClient.EnsureIPV6(ctx, newIngress.Name); err != nil {
 		return err
 	}
