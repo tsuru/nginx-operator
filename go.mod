@@ -1,6 +1,6 @@
 module github.com/tsuru/nginx-operator
 
-go 1.21
+go 1.22.0
 
 require (
 	cloud.google.com/go/compute v1.31.1
