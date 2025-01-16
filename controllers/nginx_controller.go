@@ -117,6 +117,12 @@ func (r *NginxReconciler) reconcileNginx(ctx context.Context, nginx *nginxv1alph
 }
 
 func (r *NginxReconciler) reconcileGcpIpV6Ingress(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
+	if nginx.Spec.Ingress == nil {
+		return nil
+	}
+	if len(nginx.Spec.Ingress.Annotations) == 0 {
+		return nil
+	}
 	ipv6 := nginx.Spec.Ingress.Annotations[nginxIpv6GcpAnnotation]
 	if ipv6 != "true" {
 		return nil
