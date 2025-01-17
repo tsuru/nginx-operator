@@ -292,6 +292,7 @@ func (r *NginxReconciler) manageIpv6IngressLifecycle(ctx context.Context, newIng
 	}
 
 	if shouldDeleteIpv6Ingress(nginx) {
+		// TODO: Release the static IP
 		return r.Client.Delete(ctx, &currentIngress)
 	}
 
