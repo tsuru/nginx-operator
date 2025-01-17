@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/tsuru/nginx-operator/api/v1alpha1"
+	"github.com/tsuru/nginx-operator/pkg/gcp"
 )
 
 func TestNginxReconciler_reconcileDeployment(t *testing.T) {
@@ -929,7 +930,60 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 				Kind:       "Ingress",
 			},
 			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nginx-1-ipv6",
+				Namespace: "default",
+				Annotations: map[string]string{
+					"cloudprovider.ingress/status": "this annotation created by ingress controller",
+				},
+			},
+			Spec: networkingv1.IngressSpec{
+				DefaultBackend: &networkingv1.IngressBackend{
+					Service: &networkingv1.IngressServiceBackend{
+						Name: "my-nginx-1-service",
+						Port: networkingv1.ServiceBackendPort{Name: "http"},
+					},
+				},
+				IngressClassName: func(s string) *string { return &s }("default-ingress"),
+				Rules: []networkingv1.IngressRule{
+					{
+						Host: "my-nginx-1.test",
+						IngressRuleValue: networkingv1.IngressRuleValue{
+							HTTP: &networkingv1.HTTPIngressRuleValue{
+								Paths: []networkingv1.HTTPIngressPath{
+									{
+										Path: "/",
+										Backend: networkingv1.IngressBackend{
+											Service: &networkingv1.IngressServiceBackend{
+												Name: "my-nginx-1-service",
+												Port: networkingv1.ServiceBackendPort{Name: "http"},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		&networkingv1.Ingress{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "networking.k8s.io/v1",
+				Kind:       "Ingress",
+			},
+			ObjectMeta: metav1.ObjectMeta{
 				Name:       "my-nginx-with-finalizer",
+				Namespace:  "default",
+				Finalizers: []string{"test/finalizer"},
+			},
+		},
+		&networkingv1.Ingress{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "networking.k8s.io/v1",
+				Kind:       "Ingress",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "my-nginx-with-finalizer-ipv6",
 				Namespace:  "default",
 				Finalizers: []string{"test/finalizer"},
 			},
@@ -938,8 +992,9 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 
 	tests := map[string]struct {
 		nginx         *v1alpha1.Nginx
+		gcpClient     *gcp.MockGcpClient
+		assert        func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx, gcpClient *gcp.MockGcpClient)
 		expectedError string
-		assert        func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx)
 	}{
 		"when nginx is nil, should return expected error": {
 			expectedError: "nginx cannot be nil",
@@ -958,7 +1013,7 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 					},
 				},
 			},
-			assert: func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx) {
+			assert: func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx, gcpClient *gcp.MockGcpClient) {
 				var got networkingv1.Ingress
 				err := c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-2", Namespace: "default"}, &got)
 				require.NoError(t, err)
@@ -997,13 +1052,117 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 			},
 		},
 
+		"when ipv6 ingress does not exist, should create one when annotation is true": {
+			nginx: &v1alpha1.Nginx{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "my-nginx-3",
+					Namespace:       "default",
+					ResourceVersion: "666",
+				},
+				Spec: v1alpha1.NginxSpec{
+					Ingress: &v1alpha1.NginxIngress{
+						Annotations: map[string]string{
+							nginxIpv6GcpAnnotation: "true",
+						},
+						IngressClassName: func(s string) *string { return &s }("custom-class"),
+					},
+				},
+			},
+			gcpClient: &gcp.MockGcpClient{
+				Adresses: []string{},
+			},
+			assert: func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx, gcpClient *gcp.MockGcpClient) {
+				var got networkingv1.Ingress
+				err := c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-3", Namespace: "default"}, &got)
+				require.NoError(t, err)
+
+				assert.Equal(t, networkingv1.Ingress{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "networking.k8s.io/v1",
+						Kind:       "Ingress",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							nginxIpv6GcpAnnotation: "true",
+						},
+						Name:            "my-nginx-3",
+						Namespace:       "default",
+						ResourceVersion: "1",
+						Labels: map[string]string{
+							"nginx.tsuru.io/app":           "nginx",
+							"nginx.tsuru.io/resource-name": "my-nginx-3",
+						},
+						OwnerReferences: []metav1.OwnerReference{
+							*metav1.NewControllerRef(nginx, schema.GroupVersionKind{
+								Group:   v1alpha1.GroupVersion.Group,
+								Version: v1alpha1.GroupVersion.Version,
+								Kind:    "Nginx",
+							}),
+						},
+					},
+					Spec: networkingv1.IngressSpec{
+						IngressClassName: func(s string) *string { return &s }("custom-class"),
+						DefaultBackend: &networkingv1.IngressBackend{
+							Service: &networkingv1.IngressServiceBackend{
+								Name: "my-nginx-3-service",
+								Port: networkingv1.ServiceBackendPort{Name: "http"},
+							},
+						},
+					},
+				}, got)
+
+				err = c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-3-ipv6", Namespace: "default"}, &got)
+				require.NoError(t, err)
+
+				assert.Equal(t, networkingv1.Ingress{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "networking.k8s.io/v1",
+						Kind:       "Ingress",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							nginxIpv6GcpAnnotation:                        "true",
+							"kubernetes.io/ingress.global-static-ip-name": "my-nginx-3-ipv6",
+						},
+						Name:            "my-nginx-3-ipv6",
+						Namespace:       "default",
+						ResourceVersion: "1",
+						Labels: map[string]string{
+							"nginx.tsuru.io/app":           "nginx",
+							"nginx.tsuru.io/resource-name": "my-nginx-3",
+						},
+						OwnerReferences: []metav1.OwnerReference{
+							*metav1.NewControllerRef(nginx, schema.GroupVersionKind{
+								Group:   v1alpha1.GroupVersion.Group,
+								Version: v1alpha1.GroupVersion.Version,
+								Kind:    "Nginx",
+							}),
+						},
+					},
+					Spec: networkingv1.IngressSpec{
+						IngressClassName: func(s string) *string { return &s }("custom-class"),
+						DefaultBackend: &networkingv1.IngressBackend{
+							Service: &networkingv1.IngressServiceBackend{
+								Name: "my-nginx-3-service",
+								Port: networkingv1.ServiceBackendPort{Name: "http"},
+							},
+						},
+					},
+				}, got)
+			},
+		},
+
 		"when nginx without finalizers removes ingress field, should remove the ingress resource": {
 			nginx: &v1alpha1.Nginx{
 				ObjectMeta: metav1.ObjectMeta{Name: "my-nginx-1", Namespace: "default"},
 			},
-			assert: func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx) {
+			assert: func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx, gcpClient *gcp.MockGcpClient) {
 				var got networkingv1.Ingress
 				err := c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-1", Namespace: "default"}, &got)
+				assert.Error(t, err)
+				assert.True(t, errors.IsNotFound(err))
+
+				err = c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-1-ipv6", Namespace: "default"}, &got)
 				assert.Error(t, err)
 				assert.True(t, errors.IsNotFound(err))
 			},
@@ -1013,9 +1172,13 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 			nginx: &v1alpha1.Nginx{
 				ObjectMeta: metav1.ObjectMeta{Name: "my-nginx-with-finalizer", Namespace: "default"},
 			},
-			assert: func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx) {
+			assert: func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx, gcpClient *gcp.MockGcpClient) {
 				var got networkingv1.Ingress
 				err := c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-with-finalizer", Namespace: "default"}, &got)
+				assert.NoError(t, err)
+				assert.NotNil(t, got.ObjectMeta.DeletionTimestamp)
+
+				err = c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-with-finalizer-ipv6", Namespace: "default"}, &got)
 				assert.NoError(t, err)
 				assert.NotNil(t, got.ObjectMeta.DeletionTimestamp)
 			},
@@ -1029,12 +1192,74 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 				},
 				Spec: v1alpha1.NginxSpec{
 					Ingress: &v1alpha1.NginxIngress{
+						Annotations: map[string]string{"custom.nginx.tsuru.io/foo": "bar", nginxIpv6GcpAnnotation: "true"},
+						Labels:      map[string]string{"custom.nginx.tsuru.io": "key1"},
+					},
+				},
+			},
+			assert: func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx, gcpClient *gcp.MockGcpClient) {
+				var got networkingv1.Ingress
+				err := c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-1", Namespace: "default"}, &got)
+				require.NoError(t, err)
+
+				assert.Equal(t, map[string]string{
+					"cloudprovider.ingress/status": "this annotation created by ingress controller",
+					"custom.nginx.tsuru.io/foo":    "bar",
+					nginxIpv6GcpAnnotation:         "true",
+				}, got.Annotations)
+				assert.Equal(t, map[string]string{
+					"nginx.tsuru.io/app":           "nginx",
+					"nginx.tsuru.io/resource-name": "my-nginx-1",
+					"custom.nginx.tsuru.io":        "key1",
+				}, got.Labels)
+				assert.Equal(t, networkingv1.IngressSpec{
+					DefaultBackend: &networkingv1.IngressBackend{
+						Service: &networkingv1.IngressServiceBackend{
+							Name: "my-nginx-1-service",
+							Port: networkingv1.ServiceBackendPort{Name: "http"},
+						},
+					},
+				}, got.Spec)
+
+				err = c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-1-ipv6", Namespace: "default"}, &got)
+				require.NoError(t, err)
+
+				assert.Equal(t, map[string]string{
+					"cloudprovider.ingress/status":                "this annotation created by ingress controller",
+					"custom.nginx.tsuru.io/foo":                   "bar",
+					nginxIpv6GcpAnnotation:                        "true",
+					"kubernetes.io/ingress.global-static-ip-name": "my-nginx-1-ipv6",
+				}, got.Annotations)
+				assert.Equal(t, map[string]string{
+					"nginx.tsuru.io/app":           "nginx",
+					"nginx.tsuru.io/resource-name": "my-nginx-1",
+					"custom.nginx.tsuru.io":        "key1",
+				}, got.Labels)
+				assert.Equal(t, networkingv1.IngressSpec{
+					DefaultBackend: &networkingv1.IngressBackend{
+						Service: &networkingv1.IngressServiceBackend{
+							Name: "my-nginx-1-service",
+							Port: networkingv1.ServiceBackendPort{Name: "http"},
+						},
+					},
+				}, got.Spec)
+			},
+		},
+
+		"when ingress already exists, removing the nginxIpv6GcpAnnotation should delete ipv6 ingress": {
+			nginx: &v1alpha1.Nginx{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-nginx-1",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.NginxSpec{
+					Ingress: &v1alpha1.NginxIngress{
 						Annotations: map[string]string{"custom.nginx.tsuru.io/foo": "bar"},
 						Labels:      map[string]string{"custom.nginx.tsuru.io": "key1"},
 					},
 				},
 			},
-			assert: func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx) {
+			assert: func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx, gcpClient *gcp.MockGcpClient) {
 				var got networkingv1.Ingress
 				err := c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-1", Namespace: "default"}, &got)
 				require.NoError(t, err)
@@ -1056,6 +1281,10 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 						},
 					},
 				}, got.Spec)
+
+				err = c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-1-ipv6", Namespace: "default"}, &got)
+				require.Error(t, err)
+				require.True(t, errors.IsNotFound(err))
 			},
 		},
 
@@ -1067,14 +1296,19 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 				},
 				Spec: v1alpha1.NginxSpec{
 					Ingress: &v1alpha1.NginxIngress{
-						Annotations: map[string]string{"custom.nginx.tsuru.io/foo": "bar"},
+						Annotations: map[string]string{"custom.nginx.tsuru.io/foo": "bar", nginxIpv6GcpAnnotation: "true"},
 						Labels:      map[string]string{"custom.nginx.tsuru.io": "key1"},
 					},
 				},
 			},
-			assert: func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx) {
+			assert: func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx, gcpClient *gcp.MockGcpClient) {
 				var got networkingv1.Ingress
 				err := c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-with-finalizer", Namespace: "default"}, &got)
+				require.NoError(t, err)
+
+				assert.Equal(t, []string{"test/finalizer"}, got.ObjectMeta.Finalizers)
+
+				err = c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-with-finalizer-ipv6", Namespace: "default"}, &got)
 				require.NoError(t, err)
 
 				assert.Equal(t, []string{"test/finalizer"}, got.ObjectMeta.Finalizers)
@@ -1089,13 +1323,20 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 					ResourceVersion: "666",
 				},
 				Spec: v1alpha1.NginxSpec{
-					Ingress: &v1alpha1.NginxIngress{},
+					Ingress: &v1alpha1.NginxIngress{
+						Annotations: map[string]string{
+							nginxIpv6GcpAnnotation: "true",
+						},
+					},
 					TLS: []v1alpha1.NginxTLS{
 						{SecretName: "example-com-certs", Hosts: []string{"www.example.com"}},
 					},
 				},
 			},
-			assert: func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx) {
+			gcpClient: &gcp.MockGcpClient{
+				Adresses: []string{},
+			},
+			assert: func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx, gcpClient *gcp.MockGcpClient) {
 				var got networkingv1.Ingress
 				err := c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-2", Namespace: "default"}, &got)
 				require.NoError(t, err)
@@ -1109,6 +1350,73 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 						Name:            "my-nginx-2",
 						Namespace:       "default",
 						ResourceVersion: "1",
+						Annotations: map[string]string{
+							nginxIpv6GcpAnnotation: "true",
+						},
+						Labels: map[string]string{
+							"nginx.tsuru.io/app":           "nginx",
+							"nginx.tsuru.io/resource-name": "my-nginx-2",
+						},
+						OwnerReferences: []metav1.OwnerReference{
+							*metav1.NewControllerRef(nginx, schema.GroupVersionKind{
+								Group:   v1alpha1.GroupVersion.Group,
+								Version: v1alpha1.GroupVersion.Version,
+								Kind:    "Nginx",
+							}),
+						},
+					},
+					Spec: networkingv1.IngressSpec{
+						DefaultBackend: &networkingv1.IngressBackend{
+							Service: &networkingv1.IngressServiceBackend{
+								Name: "my-nginx-2-service",
+								Port: networkingv1.ServiceBackendPort{Name: "http"},
+							},
+						},
+						TLS: []networkingv1.IngressTLS{
+							{SecretName: "example-com-certs", Hosts: []string{"www.example.com"}},
+						},
+						Rules: []networkingv1.IngressRule{
+							{
+								Host: "www.example.com",
+								IngressRuleValue: networkingv1.IngressRuleValue{
+									HTTP: &networkingv1.HTTPIngressRuleValue{
+										Paths: []networkingv1.HTTPIngressPath{
+											{
+												Path:     "/",
+												PathType: func(t networkingv1.PathType) *networkingv1.PathType { return &t }(networkingv1.PathTypePrefix),
+												Backend: networkingv1.IngressBackend{
+													Service: &networkingv1.IngressServiceBackend{
+														Name: "my-nginx-2-service",
+														Port: networkingv1.ServiceBackendPort{
+															Name: "http",
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				}, got)
+
+				// ipv6 ingres
+				err = c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-2-ipv6", Namespace: "default"}, &got)
+				require.NoError(t, err)
+				assert.Equal(t, networkingv1.Ingress{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "networking.k8s.io/v1",
+						Kind:       "Ingress",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "my-nginx-2-ipv6",
+						Namespace:       "default",
+						ResourceVersion: "1",
+						Annotations: map[string]string{
+							nginxIpv6GcpAnnotation:                        "true",
+							"kubernetes.io/ingress.global-static-ip-name": "my-nginx-2-ipv6",
+						},
 						Labels: map[string]string{
 							"nginx.tsuru.io/app":           "nginx",
 							"nginx.tsuru.io/resource-name": "my-nginx-2",
@@ -1167,7 +1475,7 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 				WithRuntimeObjects(resources...).
 				Build()
 
-			r := &NginxReconciler{Client: client}
+			r := &NginxReconciler{Client: client, GcpClient: tt.gcpClient}
 			err := r.reconcileIngress(context.TODO(), tt.nginx)
 			if tt.expectedError != "" {
 				assert.EqualError(t, err, tt.expectedError)
@@ -1176,7 +1484,7 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 
 			assert.NoError(t, err)
 			if tt.assert != nil {
-				tt.assert(t, client, tt.nginx)
+				tt.assert(t, client, tt.nginx, tt.gcpClient)
 			}
 		})
 	}

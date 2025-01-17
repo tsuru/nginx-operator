@@ -110,30 +110,7 @@ func (r *NginxReconciler) reconcileNginx(ctx context.Context, nginx *nginxv1alph
 	if err := r.reconcileIngress(ctx, nginx); err != nil {
 		return err
 	}
-	if err := r.reconcileGcpIpV6Ingress(ctx, nginx); err != nil {
-		return err
-	}
 	return nil
-}
-
-func (r *NginxReconciler) reconcileGcpIpV6Ingress(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
-	if nginx.Spec.Ingress == nil {
-		return nil
-	}
-	if len(nginx.Spec.Ingress.Annotations) == 0 {
-		return nil
-	}
-	ipv6 := nginx.Spec.Ingress.Annotations[nginxIpv6GcpAnnotation]
-	if ipv6 != "true" {
-		return nil
-	}
-	newIngress := k8s.NewIngress(nginx)
-	newIngress.Name = fmt.Sprintf("%s-ipv6", newIngress.Name)
-	newIngress.Annotations[ingressStaticIPAnnotation] = newIngress.Name
-	if err := r.GcpClient.EnsureIPV6(ctx, newIngress.Name); err != nil {
-		return err
-	}
-	return r.manageIngressLifecycle(ctx, newIngress, nginx)
 }
 
 func (r *NginxReconciler) reconcileDeployment(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
@@ -291,12 +268,72 @@ func (r *NginxReconciler) manageIngressLifecycle(ctx context.Context, newIngress
 	return r.Client.Update(ctx, newIngress)
 }
 
+func (r *NginxReconciler) manageIpv6IngressLifecycle(ctx context.Context, newIngress *networkingv1.Ingress, nginx *nginxv1alpha1.Nginx) error {
+	newIngress.Name = fmt.Sprintf("%s-ipv6", newIngress.Name)
+	if newIngress.Annotations == nil {
+		newIngress.Annotations = make(map[string]string)
+	}
+	newIngress.Annotations[ingressStaticIPAnnotation] = newIngress.Name
+	var currentIngress networkingv1.Ingress
+	err := r.Client.Get(ctx, types.NamespacedName{Name: newIngress.Name, Namespace: newIngress.Namespace}, &currentIngress)
+	if errors.IsNotFound(err) {
+		if shouldDeleteIpv6Ingress(nginx) {
+			return nil
+		}
+
+		if err := r.GcpClient.EnsureIPV6(ctx, newIngress.Name); err != nil {
+			return err
+		}
+		return r.Client.Create(ctx, newIngress)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if shouldDeleteIpv6Ingress(nginx) {
+		return r.Client.Delete(ctx, &currentIngress)
+	}
+
+	if !shouldUpdateIngress(&currentIngress, newIngress) {
+		return nil
+	}
+
+	for key, value := range currentIngress.Annotations {
+		if newIngress.Annotations[key] == "" {
+			newIngress.Annotations[key] = value
+		}
+	}
+
+	newIngress.ResourceVersion = currentIngress.ResourceVersion
+	newIngress.Finalizers = currentIngress.Finalizers
+
+	return r.Client.Update(ctx, newIngress)
+}
+
+func shouldDeleteIpv6Ingress(nginx *nginxv1alpha1.Nginx) bool {
+	if nginx.Spec.Ingress == nil {
+		return true
+	}
+	if len(nginx.Spec.Ingress.Annotations) == 0 {
+		return true
+	}
+	if nginx.Spec.Ingress.Annotations[nginxIpv6GcpAnnotation] != "true" {
+		return true
+	}
+	return false
+}
+
 func (r *NginxReconciler) reconcileIngress(ctx context.Context, nginx *nginxv1alpha1.Nginx) error {
 	if nginx == nil {
 		return fmt.Errorf("nginx cannot be nil")
 	}
 	newIngress := k8s.NewIngress(nginx)
-	return r.manageIngressLifecycle(ctx, newIngress, nginx)
+	if err := r.manageIngressLifecycle(ctx, newIngress, nginx); err != nil {
+		return err
+	}
+	newIngress = k8s.NewIngress(nginx)
+	return r.manageIpv6IngressLifecycle(ctx, newIngress, nginx)
 }
 
 func shouldUpdateIngress(currentIngress, newIngress *networkingv1.Ingress) bool {
