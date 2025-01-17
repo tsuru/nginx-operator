@@ -281,8 +281,8 @@ func (r *NginxReconciler) manageIpv6IngressLifecycle(ctx context.Context, newIng
 			return nil
 		}
 
-		if err := r.GcpClient.EnsureIPV6(ctx, newIngress.Name); err != nil {
-			return err
+		if ensureIpErr := r.GcpClient.EnsureIPV6(ctx, newIngress.Name); ensureIpErr != nil {
+			return ensureIpErr
 		}
 		return r.Client.Create(ctx, newIngress)
 	}
