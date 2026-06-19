@@ -33,9 +33,11 @@ import (
 )
 
 const (
-	gcpNetworkTierAnnotationKey = "cloud.google.com/network-tier"
-	ociLoadBalancerTLSSecret    = "service.beta.kubernetes.io/oci-load-balancer-tls-secret"
-	ociLoadBalancerSSLPorts     = "service.beta.kubernetes.io/oci-load-balancer-ssl-ports"
+	gcpNetworkTierAnnotationKey        = "cloud.google.com/network-tier"
+	gcpInternalLBSubnetAnnotationKey   = "networking.gke.io/internal-load-balancer-subnet"
+	gcpLBSubnetAnnotationKey           = "networking.gke.io/load-balancer-subnet"
+	ociLoadBalancerTLSSecret           = "service.beta.kubernetes.io/oci-load-balancer-tls-secret"
+	ociLoadBalancerSSLPorts             = "service.beta.kubernetes.io/oci-load-balancer-ssl-ports"
 	useHTTPSOverHTTPAnnotation  = "nginx.tsuru.io/https-over-http"
 	nginxIpv6GcpAnnotation      = "nginx.tsuru.io/allocate-gcp-ipv6"
 	ingressStaticIPAnnotation   = "kubernetes.io/ingress.global-static-ip-name"
@@ -192,6 +194,16 @@ func (r *NginxReconciler) reconcileService(ctx context.Context, nginx *nginxv1al
 		// if you want to change network tier, please ask system administrator to manually change/delete the kubernetes service
 		r.EventRecorder.Event(nginx, corev1.EventTypeWarning, "GCPNetworkTierNoChange", "the GCP network tier of this service cannot be changed, because IP address may change and cause downtime")
 		newService.Annotations[gcpNetworkTierAnnotationKey] = currentService.Annotations[gcpNetworkTierAnnotationKey]
+	}
+
+	if newService.Annotations[gcpInternalLBSubnetAnnotationKey] != currentService.Annotations[gcpInternalLBSubnetAnnotationKey] {
+		r.Log.Info("the GCP internal load balancer subnet of this service cannot be changed, because IP address may change and cause downtime", "nginx", nginx.Name, "namespace", nginx.Namespace)
+		newService.Annotations[gcpInternalLBSubnetAnnotationKey] = currentService.Annotations[gcpInternalLBSubnetAnnotationKey]
+	}
+
+	if newService.Annotations[gcpLBSubnetAnnotationKey] != currentService.Annotations[gcpLBSubnetAnnotationKey] {
+		r.Log.Info("the GCP load balancer subnet of this service cannot be changed, because IP address may change and cause downtime", "nginx", nginx.Name, "namespace", nginx.Namespace)
+		newService.Annotations[gcpLBSubnetAnnotationKey] = currentService.Annotations[gcpLBSubnetAnnotationKey]
 	}
 
 	newService.ResourceVersion = currentService.ResourceVersion
