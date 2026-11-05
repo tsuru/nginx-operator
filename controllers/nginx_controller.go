@@ -256,6 +256,10 @@ func (r *NginxReconciler) manageIngressLifecycle(ctx context.Context, newIngress
 		return nil
 	}
 
+	if newIngress.Annotations == nil {
+		newIngress.Annotations = make(map[string]string)
+	}
+
 	for key, value := range currentIngress.Annotations {
 		if newIngress.Annotations[key] == "" {
 			newIngress.Annotations[key] = value

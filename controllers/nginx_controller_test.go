@@ -1246,6 +1246,28 @@ func TestNginxReconciler_reconcileIngress(t *testing.T) {
 			},
 		},
 
+		"when ingress already exists and nginx sets no ingress annotations, should keep the current annotations": {
+			nginx: &v1alpha1.Nginx{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-nginx-1",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.NginxSpec{
+					Ingress: &v1alpha1.NginxIngress{},
+				},
+			},
+			assert: func(t *testing.T, c client.Client, nginx *v1alpha1.Nginx, gcpClient *gcp.MockGcpClient) {
+				var got networkingv1.Ingress
+				err := c.Get(context.TODO(), types.NamespacedName{Name: "my-nginx-1", Namespace: "default"}, &got)
+				require.NoError(t, err)
+
+				assert.Equal(t, map[string]string{
+					"cloudprovider.ingress/status": "this annotation created by ingress controller",
+				}, got.Annotations)
+				assert.Nil(t, got.Spec.IngressClassName)
+			},
+		},
+
 		"when ingress already exists, removing the nginxIpv6GcpAnnotation should delete ipv6 ingress": {
 			nginx: &v1alpha1.Nginx{
 				ObjectMeta: metav1.ObjectMeta{
